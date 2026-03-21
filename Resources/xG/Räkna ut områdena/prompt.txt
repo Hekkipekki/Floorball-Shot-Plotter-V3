@@ -1,0 +1,13 @@
+Zone 1 (Målområde) = #1 Farlig (inom området <X axeln> av 550 till 965 ungefär.) och Y axeln 820 till 600
+Zon 2 (Höga Centrala slott) =  #2 Farlig (inom området <X axeln>av 550 till 965  ungefär.) och Y axeln 600 till 355
+
+Zon 3 (Höger - Slott) =  #3 Farlig (inom området <X axeln> av 965 till 1160  ungefär.) och Y axeln 760 till 355
+Zon 4 (Höger - Mitt) =  #4 Farlig (inom området <X axeln> av 1160 till 1315  ungefär.) och Y axeln 760 till 355
+Zon 5 (Höger - Yttre) =  #6 Farlig (inom området <X axeln> av 1315 till 1500  ungefär.) och Y axeln 760 till 355
+
+Zon 3 (Vänster - Slott) =  #3 Farlig (inom området <X axeln> av 550 till 345  ungefär.) och Y axeln 760 till 355
+Zon 4 (Vänster - Mitt) =  #4 Farlig (inom området <X axeln> av 355 till 200  ungefär.) och Y axeln 760 till 355
+Zon 5 (Vänster - Ytter) =  #6 Farlig (inom området <X axeln> av 200 till 0 ungefär.) och Y axeln 760 till 355
+
+Zon 6 (Uppe - Just efter zoninträde) = #5 Farlig (inom området <X axeln> av 200 till 0 ungefär.) och Y axeln 300 till 0
+Zon 7 (Bakom - Mållinje)  #7 Farlig (inom området <X axeln> av 0 till 1500 ungefär.) och Y axeln 840 till 1000

@@ -1,0 +1,42 @@
+Vi ska börja implementera en xG funktion som baseras på. Här har du all information hur den ska räkna ut värdet när nya skott och mål läggs till i events.py via
+
+def add_shot_event(self, x, y, shot_type, popup):
+    entry = (len(self.log_entries) + 1, "S", shot_type, x, y, self.period_selected.get())  # Lägg till alla värden
+    self.log_entries.append(entry)
+    self.update_shot_log_treeview()  # Uppdatera Shot Log
+    self.update_stats()  # Uppdatera statistik
+    self.update_plot()  # Uppdatera plotten
+    popup.destroy()
+
+def add_goal_event(self, x, y, goal_type, popup):
+    # Lägg till en post med 6 värden: (index, S/G, typ, X, Y, period)
+    entry = (
+        len(self.log_entries) + 1,  # # (index) - Räknar ut index baserat på längden på loggen
+        "G",  # S/G (G för mål)
+        goal_type,  # Type (t.ex., "goal", "breakaway" etc.)
+        x,  # X position
+        y,  # Y position
+        self.period_selected.get()  # Period (t.ex., "Period 1", "All" etc.)
+    )
+    self.log_entries.append(entry)
+    
+    self.update_shot_log_treeview()  # Uppdatera Shot Log
+    self.update_stats()  # Uppdatera statistik
+    self.update_plot()  # Uppdatera plotten
+    popup.destroy()
+
+Bild 1 hockey plan, bild 2 innebandy (notera döda vinklarna nere i hörnet där sargen rundar sig.
+Bild 3 = Skott från varje yttersta punkt i zonen (för att visa x/y distansen.
+Bild 4 = Vart målet är centrerat på bilden i x/y systemet. (För att kunna räkna ut avstånd mot punkter runtomkring.
+
+Kan du unyttja referensbilden 1, för att räkna ut zoner för bild 2 med hjälp av informationen av x/y systemet kring bild 3, 4, 5 och sedan uppdatera koden kring xG
+
+En innebandyplan är 20 meter totalt från högsta y punkt till lägsta på x-y axeln
+
+Bild 5 : Visar hockeyplanen från bild 1, men den är anpassad med nya zoner, använd referensbilden för att föra över värdena fårn bild 1 till bild 5s positioner, Ta hjälp av Bild 3 för att värdera x/y positioner. Utifrån zonerna.
+
+
+Skapa en kod nu som vi ska lägga i xG.py
+
+Sedan ska vi fortsätta senare med att uppdatera add goal och add shot i events.py
+Samt uppdatera shotlog för att lägga till en kolumn i shotlog.py
