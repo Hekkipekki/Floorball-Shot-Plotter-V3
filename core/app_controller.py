@@ -1,46 +1,54 @@
-import os
 import tkinter as tk
-from tkinter import messagebox
-from PIL import Image, ImageTk
+
 import ttkbootstrap as tb
 
+from core.app_bootstrap import (
+    bind_events,
+    configure_paths,
+    configure_window,
+    load_icons,
+)
+from core.app_match_actions import (
+    auto_save_current_match,
+    clear_all_data,
+    delete_selected_match,
+    ensure_current_match_is_valid,
+    ensure_new_match_exists,
+    handle_load_match,
+    handle_load_season,
+    load_csv,
+    new_project,
+    save_csv,
+    save_match,
+    select_current_match,
+    update_match_dropdown,
+)
+from core.app_refresh import (
+    refresh_all,
+    set_period_filter,
+    update_log_view_and_stats,
+    update_period_button_styles,
+    update_shot_log_treeview,
+)
+from core.core_stats import CoreLogic
 from core.demo import generate_demo_shots as demo_fill
 from core.init_state import init_variables
-from core.core_stats import CoreLogic
-
-from gui.layout import setup_ui
-from gui.events import finalize_event
 from gui.backgrounds import init_background_files, set_background
-from gui.plot_controller import (
-    load_image,
-    update_plot,
-    apply_sensitivity,
-    apply_kde,
+from gui.events import finalize_event
+from gui.layout import setup_ui
+from gui.plot_background import load_image
+from gui.plot_rendering import update_plot, apply_sensitivity, apply_kde
+from gui.plot_interactions import (
     clear_highlight,
-    connect_hover_events,
     highlight_point,
     remove_nearest_point,
 )
-from gui.shotlog import update_treeview
-
-from data.match_store import (
-    prompt_save_match,
-    load_selected_match,
-    load_match_from_file,
-    load_all_matches,
-    delete_current_match,
-    auto_update_current_match,
-    save_csv_dialog,
-    load_csv_dialog,
-)
-
-from paths import get_project_root
-from utils.helpers import get_resource_path, export_figure_as_image
+from gui.shotlog_interactions import update_entry_in_all_places
+from utils.export import export_figure_as_image
 from utils.tooltips import add_tooltips
 
 
 APP_TITLE = "Floorball Shot Plotter v3.0 - By Daniel Norberg"
-GAMES_DIR = "Games"
 
 
 class FloorballShotPlotter:
@@ -48,16 +56,16 @@ class FloorballShotPlotter:
         self.root = root
         self.root.title(APP_TITLE)
 
-        self._configure_window()
-        self._configure_paths()
-        self._load_icons()
+        configure_window(self)
+        configure_paths(self)
+        load_icons(self)
 
         self.popup_open = False
         self.video_overlay = None
 
         init_variables(self)
 
-        self.ensure_new_match_exists()
+        ensure_new_match_exists(self)
         self.current_match.set("New Match")
 
         self.logic = CoreLogic(self)
@@ -67,80 +75,17 @@ class FloorballShotPlotter:
 
         setup_ui(self)
 
+        self._shotlog_update_entry = lambda visible_index, updated_entry: update_entry_in_all_places(
+            self, visible_index, updated_entry
+        )
+
         load_image(self)
         self.update_plot()
 
-        self._bind_events()
+        bind_events(self)
         add_tooltips(self)
 
         self.finalize_event = lambda *args, **kwargs: finalize_event(self, *args, **kwargs)
-
-    # ---------------------------------------------------------
-    # Bootstrap
-    # ---------------------------------------------------------
-    def _configure_window(self):
-        try:
-            self.root.state("zoomed")
-        except Exception:
-            w, h = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
-            self.root.geometry(f"{w}x{h}+0+0")
-
-        self.root.bind("<Escape>", lambda e: self.root.state("normal"))
-
-    def _configure_paths(self):
-        self.project_root = get_project_root()
-        os.makedirs(os.path.join(self.project_root, GAMES_DIR), exist_ok=True)
-
-    def _load_icons(self):
-        icon_path = get_resource_path("Resources", "Icons", "Icon.ico")
-        if os.path.exists(icon_path):
-            try:
-                self.root.iconbitmap(icon_path)
-            except Exception:
-                pass
-
-        trash_path = get_resource_path("Resources", "Icons", "trash.png")
-        try:
-            img = Image.open(trash_path).convert("RGBA")
-            self.trash_icon = ImageTk.PhotoImage(img)
-        except Exception:
-            self.trash_icon = None
-
-    def _bind_events(self):
-        self.root.bind_all("<space>", lambda e: remove_nearest_point(self, e))
-        self.root.bind_all("<Key-space>", lambda e: remove_nearest_point(self, e))
-        connect_hover_events(self)
-
-    # ---------------------------------------------------------
-    # Match safety
-    # ---------------------------------------------------------
-    def ensure_new_match_exists(self):
-        if not hasattr(self, "match_logs"):
-            self.match_logs = {}
-        if "New Match" not in self.match_logs:
-            self.match_logs["New Match"] = []
-
-    def ensure_current_match_is_valid(self):
-        current = self.current_match.get()
-        if current not in self.match_logs and current not in ("All", "Season"):
-            if "New Match" in self.match_logs:
-                self.current_match.set("New Match")
-            elif self.match_logs:
-                self.current_match.set(next(iter(self.match_logs)))
-            else:
-                self.match_logs["New Match"] = []
-                self.current_match.set("New Match")
-
-    def update_match_dropdown(self):
-        if not hasattr(self, "match_dropdown"):
-            return
-
-        matches = list(self.match_logs.keys())
-        if "All" not in matches:
-            matches.insert(0, "All")
-
-        self.match_dropdown["values"] = matches
-        self.ensure_current_match_is_valid()
 
     # ---------------------------------------------------------
     # Plot
@@ -166,31 +111,33 @@ class FloorballShotPlotter:
     def export_plot(self):
         export_figure_as_image(self, self.figure)
 
+    def on_preset_changed(self):
+        self.logic.apply_heatmap_preset()
+        self.logic.update_preset_description()
+
     # ---------------------------------------------------------
-    # Stats / Log
+    # Refresh / Stats / Log
     # ---------------------------------------------------------
+    def refresh_all(self):
+        refresh_all(self)
+
     def update_log_view_and_stats(self):
-        self.logic.update_log_view_and_stats()
+        update_log_view_and_stats(self)
 
     def update_shot_log_treeview(self):
-        update_treeview(self.shotlog_tree, self.log_entries)
+        update_shot_log_treeview(self)
 
     def update_period_button_styles(self):
-        selected = self.period_selected.get()
-        for period, btn in self.period_buttons.items():
-            style = "primary" if selected == period else "secondary"
-            btn.config(bootstyle=style)
+        update_period_button_styles(self)
 
     def set_period_filter(self, period):
-        self.period_selected.set(period)
-        self.update_period_button_styles()
-        self.logic.update_log_view_and_stats()
+        set_period_filter(self, period)
 
     def update_stats(self, entries=None):
         self.logic.update_stats(entries)
 
     def update_stats_filtered(self):
-        self.logic.update_log_view_and_stats()
+        self.refresh_all()
 
     def update_expected_goals(self):
         self.logic.update_expected_goals()
@@ -199,31 +146,57 @@ class FloorballShotPlotter:
         return self.logic.get_filtered_entries()
 
     # ---------------------------------------------------------
+    # Match safety
+    # ---------------------------------------------------------
+    def ensure_new_match_exists(self):
+        ensure_new_match_exists(self)
+
+    def ensure_current_match_is_valid(self):
+        ensure_current_match_is_valid(self)
+
+    def update_match_dropdown(self):
+        update_match_dropdown(self)
+
+    # ---------------------------------------------------------
     # Events
     # ---------------------------------------------------------
-    def add_shot_event(self, x, y, phase, situation, shot_type, passer, shooter, period=None, pass_x=None, pass_y=None):
+    def add_shot_event(
+        self,
+        x,
+        y,
+        phase,
+        situation,
+        shot_type,
+        passer,
+        shooter,
+        period=None,
+        pass_x=None,
+        pass_y=None,
+    ):
         self.logic.add_shot_event(x, y, phase, situation, shot_type, passer, shooter, period, pass_x, pass_y)
-        self.log_entries = self.logic.get_filtered_entries()
-        self.update_log_view_and_stats()
+        self.refresh_all()
 
-    def add_goal_event(self, x, y, phase, situation, shot_type, passer, shooter, period=None, pass_x=None, pass_y=None):
+    def add_goal_event(
+        self,
+        x,
+        y,
+        phase,
+        situation,
+        shot_type,
+        passer,
+        shooter,
+        period=None,
+        pass_x=None,
+        pass_y=None,
+    ):
         self.logic.add_goal_event(x, y, phase, situation, shot_type, passer, shooter, period, pass_x, pass_y)
-        self.log_entries = self.logic.get_filtered_entries()
-        self.update_log_view_and_stats()
+        self.refresh_all()
 
     def clear_all_data(self):
-        self.log_entries.clear()
-        current = self.current_match.get()
-        if current in self.match_logs:
-            self.match_logs[current] = []
-        self.update_log_view_and_stats()
+        clear_all_data(self)
 
     def new_project(self):
-        if messagebox.askyesno("New Project", "Start a new project? This will clear all data."):
-            self.clear_all_data()
-            self.ensure_new_match_exists()
-            self.current_match.set("New Match")
-            self.update_match_dropdown()
+        new_project(self)
 
     def generate_demo_shots(self):
         demo_fill(self)
@@ -232,45 +205,25 @@ class FloorballShotPlotter:
     # Match / Data
     # ---------------------------------------------------------
     def save_csv(self):
-        save_csv_dialog(self)
+        save_csv(self)
 
     def load_csv(self):
-        load_csv_dialog(self)
-        self.ensure_new_match_exists()
-        self.ensure_current_match_is_valid()
-        self.update_match_dropdown()
+        load_csv(self)
 
     def prompt_save_match(self):
-        prompt_save_match(self)
-        self.ensure_new_match_exists()
-        self.ensure_current_match_is_valid()
-        self.update_match_dropdown()
+        save_match(self)
 
     def load_selected_match(self, *_):
-        self.ensure_new_match_exists()
-        self.ensure_current_match_is_valid()
-        load_selected_match(self)
-        self.update_match_dropdown()
+        select_current_match(self, *_)
 
     def handle_load_season(self):
-        load_all_matches(self)
-        self.ensure_new_match_exists()
-        self.ensure_current_match_is_valid()
-        self.update_match_dropdown()
+        handle_load_season(self)
 
     def handle_load_match(self):
-        load_match_from_file(self)
-        self.ensure_new_match_exists()
-        self.ensure_current_match_is_valid()
-        self.update_match_dropdown()
+        handle_load_match(self)
 
     def auto_update_current_match(self):
-        self.ensure_new_match_exists()
-        self.ensure_current_match_is_valid()
-        auto_update_current_match(self)
+        auto_save_current_match(self)
 
     def delete_current_match(self):
-        delete_current_match(self)
-        self.ensure_new_match_exists()
-        self.ensure_current_match_is_valid()
-        self.update_match_dropdown()
+        delete_selected_match(self)

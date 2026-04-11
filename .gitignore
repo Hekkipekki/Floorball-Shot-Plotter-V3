@@ -1,0 +1,64 @@
+# -------------------------
+# Python
+# -------------------------
+__pycache__/
+*.py[cod]
+*.pyd
+
+# Bytecode folders (nested)
+**/__pycache__/
+
+# -------------------------
+# Virtual environments
+# -------------------------
+venv/
+.env/
+.venv/
+
+# -------------------------
+# IDE / Editor
+# -------------------------
+.vscode/
+.idea/
+*.code-workspace
+
+# -------------------------
+# OS junk
+# -------------------------
+.DS_Store
+Thumbs.db
+
+# -------------------------
+# Logs
+# -------------------------
+*.log
+
+# -------------------------
+# Local runtime data (IMPORTANT)
+# -------------------------
+data/matches/*
+data/exports/*
+data/videos/*
+
+# Keep folder structure
+!data/matches/.gitkeep
+!data/exports/.gitkeep
+!data/videos/.gitkeep
+
+# -------------------------
+# Local dev tools
+# -------------------------
+_dev_tools/
+
+# -------------------------
+# Optional (safety)
+# -------------------------
+*.sqlite3
+*.db
+*.bak
+*.tmp
+
+# -------------------------
+# Matplotlib cache (sometimes created)
+# -------------------------
+.matplotlib/

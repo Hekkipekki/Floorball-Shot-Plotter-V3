@@ -1,13 +1,10 @@
-import os
 import tkinter as tk
-from data.match_store import load_all_matches
 
-GAMES_FILE = "Games/matches.json"
 
 def init_variables(self) -> None:
     # === GUI state ===
     self.log_entries = []
-    self.view_mode = tk.StringVar(value="plot")
+    self.view_mode = tk.StringVar(value="Plot")
     self.sensitivity = tk.DoubleVar(value=0.2)
     self.kde_bandwidth = tk.DoubleVar(value=0.2)
     self.cmap = tk.StringVar(value="jet")
@@ -21,7 +18,7 @@ def init_variables(self) -> None:
         "Low": 300,
         "Medium": 600,
         "High": 800,
-        "Ultra": 1200
+        "Ultra": 1200,
     }
 
     # === Plot / Zoom settings ===
@@ -31,10 +28,10 @@ def init_variables(self) -> None:
     self.min_zoom = 1.0
     self.max_zoom = 5.0
 
-    # Initiera tom struktur
+    # === Match data ===
     self.match_logs = {"New Match": []}
     self.current_match.set("New Match")
 
-    # === Interna objekt för highlight etc ===
+    # === Internal UI/plot state ===
     self.highlight_artist = None
     self.bg_files = []

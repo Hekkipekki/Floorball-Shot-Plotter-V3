@@ -1,4 +1,12 @@
-from core.xg import get_xg_value
+from core.filtering import (
+    get_filtered_entries,
+    get_filtered_entries_by_period,
+)
+from core.event_logic import (
+    add_shot_event as create_shot_event,
+    add_goal_event as create_goal_event,
+)
+from core.schema import IDX_RESULT, IDX_XG
 
 
 class CoreLogic:
@@ -6,36 +14,13 @@ class CoreLogic:
         self.app = app
 
     # ---------------------------------------------------------
-    # Internal helpers
-    # ---------------------------------------------------------
-    def _get_match_entries(self, match):
-        if match == "All":
-            entries = []
-            for logs in self.app.match_logs.values():
-                entries.extend(logs)
-            return entries
-        return self.app.match_logs.get(match, [])
-
-    def _filter_by_period(self, entries, period):
-        if period == "All":
-            return entries
-        return [e for e in entries if str(e[7]) == str(period)]
-
-    # ---------------------------------------------------------
     # Filtering (public)
     # ---------------------------------------------------------
     def get_filtered_entries(self):
-        match = self.app.current_match.get()
-        period = self.app.period_selected.get()
-
-        entries = self._get_match_entries(match)
-        return self._filter_by_period(entries, period)
+        return get_filtered_entries(self.app)
 
     def get_filtered_entries_by_period(self, period_filter):
-        match = self.app.current_match.get()
-
-        entries = self._get_match_entries(match)
-        return self._filter_by_period(entries, period_filter)
+        return get_filtered_entries_by_period(self.app, period_filter)
 
     # ---------------------------------------------------------
     # Stats
@@ -47,8 +32,8 @@ class CoreLogic:
         else:
             entries = filtered_entries
 
-        total = len([e for e in entries if e[1] in ("S", "G")])
-        goals = len([e for e in entries if e[1] == "G"])
+        total = len([e for e in entries if e[IDX_RESULT] in ("S", "G")])
+        goals = len([e for e in entries if e[IDX_RESULT] == "G"])
         saves = total - goals
         pct = (saves / total) * 100 if total > 0 else 0
 
@@ -62,8 +47,8 @@ class CoreLogic:
             self.app.stats_period.get()
         )
 
-        xg_sum = sum(e[8] for e in entries if e[1] == "S")
-        goals = sum(1 for e in entries if e[1] == "G")
+        xg_sum = sum(e[IDX_XG] for e in entries if e[IDX_RESULT] == "S")
+        goals = sum(1 for e in entries if e[IDX_RESULT] == "G")
 
         if hasattr(self.app, "xg_goals_val"):
             self.app.xg_goals_val.config(text=f"{xg_sum:.2f}")
@@ -74,17 +59,6 @@ class CoreLogic:
     # ---------------------------------------------------------
     # Event creation
     # ---------------------------------------------------------
-    def _prepare_event(self, x, y, pass_x, pass_y):
-        x = int(round(x))
-        y = int(round(y))
-
-        if pass_x is not None:
-            pass_x = int(round(pass_x))
-        if pass_y is not None:
-            pass_y = int(round(pass_y))
-
-        return x, y, pass_x, pass_y
-
     def add_shot_event(
         self,
         x,
@@ -98,31 +72,19 @@ class CoreLogic:
         pass_x=None,
         pass_y=None,
     ):
-        match = self.app.current_match.get()
-        logs = self.app.match_logs.setdefault(match, [])
-
-        period = period or self.app.period_selected.get()
-        x, y, pass_x, pass_y = self._prepare_event(x, y, pass_x, pass_y)
-
-        xg = get_xg_value(x, y, shot_type, situation, shooter)
-
-        entry = (
-            len(logs) + 1,
-            "S",
+        create_shot_event(
+            self.app,
+            x,
+            y,
             phase,
             situation,
             shot_type,
             passer,
             shooter,
             period,
-            xg,
-            x,
-            y,
             pass_x,
             pass_y,
         )
-
-        logs.append(entry)
 
     def add_goal_event(
         self,
@@ -137,29 +99,19 @@ class CoreLogic:
         pass_x=None,
         pass_y=None,
     ):
-        match = self.app.current_match.get()
-        logs = self.app.match_logs.setdefault(match, [])
-
-        period = period or self.app.period_selected.get()
-        x, y, pass_x, pass_y = self._prepare_event(x, y, pass_x, pass_y)
-
-        entry = (
-            len(logs) + 1,
-            "G",
+        create_goal_event(
+            self.app,
+            x,
+            y,
             phase,
             situation,
             shot_type,
             passer,
             shooter,
             period,
-            1.0,
-            x,
-            y,
             pass_x,
             pass_y,
         )
-
-        logs.append(entry)
 
     # ---------------------------------------------------------
     # Heatmap presets
@@ -202,20 +154,3 @@ class CoreLogic:
 
         preset = self.app.heatmap_preset.get()
         self.app.preset_description.config(text=descriptions.get(preset, ""))
-
-    # ---------------------------------------------------------
-    # Refresh
-    # ---------------------------------------------------------
-    def update_log_view_and_stats(self):
-        filtered_entries = self.get_filtered_entries()
-
-        self.app.log_entries = filtered_entries
-        self.app.update_shot_log_treeview()
-        self.app.update_plot()
-
-        stats_entries = self.get_filtered_entries_by_period(
-            self.app.stats_period.get()
-        )
-
-        self.update_stats(stats_entries)
-        self.update_expected_goals()

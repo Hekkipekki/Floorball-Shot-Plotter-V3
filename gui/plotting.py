@@ -2,65 +2,96 @@ import numpy as np
 from scipy.stats import gaussian_kde
 import matplotlib.patches as mpatches
 
+from core.entry_helpers import get_result, get_type, get_xy
+from gui.constants import (
+    PLOT_POINT_EDGE_COLOR,
+    PLOT_POINT_EDGE_WIDTH,
+    PLOT_SHOT_SIZE,
+    PLOT_GOAL_SIZE,
+    PLOT_SHOT_ZORDER,
+    PLOT_GOAL_ZORDER,
+    PLOT_GOAL_COLOR,
+    PLOT_FALLBACK_SHOT_COLOR,
+    PLOT_FALLBACK_SHOT_LABEL,
+    PLOT_SHOT_TYPE_STYLES,
+    PLOT_LEGEND_LOC,
+    PLOT_LEGEND_BBOX,
+    PLOT_LEGEND_FRAME_ON,
+    PLOT_LEGEND_FACE_COLOR,
+    PLOT_LEGEND_EDGE_COLOR,
+    PLOT_LEGEND_FONT_SIZE,
+    PLOT_LEGEND_LABEL_SPACING,
+    PLOT_LEGEND_HANDLE_LENGTH,
+    PLOT_LEGEND_BORDER_PAD,
+    PLOT_LEGEND_BORDER_AXES_PAD,
+    PLOT_LEGEND_FRAME_ALPHA,
+)
+
+
 def plot_points(app, entries):
-    shots = [e for e in entries if e[1] == "S"]
-    goals = [e for e in entries if e[1] == "G"]
+    shots = [e for e in entries if get_result(e) == "S"]
+    goals = [e for e in entries if get_result(e) == "G"]
 
-    shot_x = [e[9] for e in shots]  # X
-    shot_y = [e[10] for e in shots]  # Y
-    shot_types = [e[4] for e in shots]  # Shot Type
+    goal_points = [get_xy(e) for e in goals]
+    goal_points = [(x, y) for x, y in goal_points if x is not None and y is not None]
 
-    goal_x = [e[9] for e in goals]
-    goal_y = [e[10] for e in goals]
-
-    # 🎨 Färgkarta för olika skotttyper
-    color_map = {
-        "One-timer": ("blue", "One-timer"),
-        "Controlled shot": ("orange", "Controlled shot"),
-        "Own Goal": ("black", "Own Goal"),
-        "Deke": ("purple", "Deke"),
-        "Deflection": ("green", "Deflection")
-    }
+    goal_x = [x for x, _ in goal_points]
+    goal_y = [y for _, y in goal_points]
 
     seen_types = set()
     legend_patches = []
 
-    # 🔵 Rita alla skott
     for entry in shots:
-        shot_type = entry[4].strip()
-        x, y = entry[9], entry[10]  # X, Y
-        color_label = color_map.get(shot_type)
-        if color_label:
-            color, label = color_label
-        else:
-            color, label = "gray", "Other"
+        shot_type = (get_type(entry) or "").strip()
+        x, y = get_xy(entry)
+        if x is None or y is None:
+            continue
 
-        app.ax.scatter(x, y, c=color, s=60, edgecolors='black', linewidths=0.5, zorder=5)
+        color, label = PLOT_SHOT_TYPE_STYLES.get(
+            shot_type,
+            (PLOT_FALLBACK_SHOT_COLOR, PLOT_FALLBACK_SHOT_LABEL),
+        )
+
+        app.ax.scatter(
+            x,
+            y,
+            c=color,
+            s=PLOT_SHOT_SIZE,
+            edgecolors=PLOT_POINT_EDGE_COLOR,
+            linewidths=PLOT_POINT_EDGE_WIDTH,
+            zorder=PLOT_SHOT_ZORDER,
+        )
 
         if label not in seen_types:
             seen_types.add(label)
             legend_patches.append(mpatches.Patch(color=color, label=label))
 
-    # 🔴 Rita mål (separat)
-    if goals:
-        app.ax.scatter(goal_x, goal_y, c='red', s=70, edgecolors='black', linewidths=0.5, zorder=6)
-        legend_patches.append(mpatches.Patch(color='red', label='Goal'))
+    if goal_points:
+        app.ax.scatter(
+            goal_x,
+            goal_y,
+            c=PLOT_GOAL_COLOR,
+            s=PLOT_GOAL_SIZE,
+            edgecolors=PLOT_POINT_EDGE_COLOR,
+            linewidths=PLOT_POINT_EDGE_WIDTH,
+            zorder=PLOT_GOAL_ZORDER,
+        )
+        legend_patches.append(mpatches.Patch(color=PLOT_GOAL_COLOR, label="Goal"))
 
-    # 📌 Dynamisk legend nere till höger
     if legend_patches:
         app.ax.legend(
             handles=legend_patches,
-            loc='lower right',
-            bbox_to_anchor=(1.055, -0.055),
-            frameon=True,
-            facecolor='white',
-            edgecolor='black',
-            fontsize=10,
-            labelspacing=0.4,
-            handlelength=1.8,
-            borderpad=0.7,
-            borderaxespad=0.4,
-            framealpha=1.0
+            loc=PLOT_LEGEND_LOC,
+            bbox_to_anchor=PLOT_LEGEND_BBOX,
+            frameon=PLOT_LEGEND_FRAME_ON,
+            facecolor=PLOT_LEGEND_FACE_COLOR,
+            edgecolor=PLOT_LEGEND_EDGE_COLOR,
+            fontsize=PLOT_LEGEND_FONT_SIZE,
+            labelspacing=PLOT_LEGEND_LABEL_SPACING,
+            handlelength=PLOT_LEGEND_HANDLE_LENGTH,
+            borderpad=PLOT_LEGEND_BORDER_PAD,
+            borderaxespad=PLOT_LEGEND_BORDER_AXES_PAD,
+            framealpha=PLOT_LEGEND_FRAME_ALPHA,
         )
 
     app.ax.set_xlim(app.original_xlim)
@@ -69,18 +100,21 @@ def plot_points(app, entries):
 
 def plot_heatmap(app, entries, view_type):
     if view_type == "Goal Heatmap":
-        entries = [e for e in entries if e[1] == "G"]
+        entries = [e for e in entries if get_result(e) == "G"]
     elif view_type == "Save Heatmap":
-        entries = [e for e in entries if e[1] == "S"]
+        entries = [e for e in entries if get_result(e) == "S"]
     elif view_type == "Heatmap":
-        entries = [e for e in entries if e[1] in ("S", "G")]
+        entries = [e for e in entries if get_result(e) in ("S", "G")]
 
-    x = [e[9] for e in entries]  # X
-    y = [e[10] for e in entries]  # Y
+    points = [get_xy(e) for e in entries]
+    points = [(x, y) for x, y in points if x is not None and y is not None]
 
-    if len(entries) < 3:
+    if len(points) < 3:
         print("⚠️ Too few points to compute KDE.")
         return
+
+    x = [x for x, _ in points]
+    y = [y for _, y in points]
 
     nbins = app.resolution_options[app.resolution_preset.get()]
     bandwidth = app.kde_bandwidth.get()
@@ -88,8 +122,11 @@ def plot_heatmap(app, entries, view_type):
     cmap_name = app.cmap.get()
 
     print(f"📍 [plot_heatmap] {view_type} entries:")
-    for e in entries:
-        print(f"   → {e[1]} {e[9]}, {e[10]}")
+    for entry in entries:
+        result = get_result(entry)
+        px, py = get_xy(entry)
+        if px is not None and py is not None:
+            print(f"   → {result} {px}, {py}")
     print(f"🔍 HEATMAP → nbins={nbins}, bandwidth={bandwidth:.2f}, sensitivity={sensitivity:.2f}")
 
     values = np.vstack([x, y])
@@ -97,7 +134,7 @@ def plot_heatmap(app, entries, view_type):
 
     width = app.original_xlim[1]
     height = app.original_ylim[0]
-    xi, yi = np.mgrid[0:width:nbins*1j, 0:height:nbins*1j]
+    xi, yi = np.mgrid[0:width:nbins * 1j, 0:height:nbins * 1j]
     coords = np.vstack([xi.ravel(), yi.ravel()])
     zi = kernel(coords).reshape(xi.shape)
 
@@ -111,5 +148,5 @@ def plot_heatmap(app, entries, view_type):
         extent=[*app.original_xlim, *app.original_ylim],
         origin="upper",
         aspect="auto",
-        interpolation="none"
+        interpolation="none",
     )
