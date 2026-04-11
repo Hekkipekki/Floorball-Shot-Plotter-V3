@@ -2,7 +2,6 @@ import os
 import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox
-from utils.videoplayer import show_video_overlay, VLCOverlayWithControls
 from paths import get_project_root
 
 def get_resource_path(*parts):

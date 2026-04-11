@@ -1,115 +1,170 @@
+from core.xg import get_xg_value
+
+
 class CoreLogic:
-    """
-    Core logic for:
-    - filtering entries
-    - calculating stats
-    - calculating expected goals display values
-    - applying heatmap presets
-    - coordinating refresh of log/plot/stats
-
-    Event creation should NOT live here anymore.
-    That belongs in the event/service layer.
-    """
-
     def __init__(self, app):
         self.app = app
 
     # ---------------------------------------------------------
-    # Filtering
+    # Internal helpers
     # ---------------------------------------------------------
-    def get_filtered_entries(self):
-        """
-        Returns entries for the currently selected match and plot period filter.
-        """
-        match = self.app.current_match.get()
-        period = self.app.period_selected.get()
-        return self._filter_entries(match, period)
-
-    def get_filtered_entries_by_period(self, period_filter):
-        """
-        Returns entries for the currently selected match and a supplied period filter.
-        Used mainly for stats/xG calculations.
-        """
-        match = self.app.current_match.get()
-        return self._filter_entries(match, period_filter)
-
-    def _filter_entries(self, match, period):
-        """
-        Internal shared filter logic.
-        Entry structure:
-            0  #,
-            1  S/G,
-            2  Phase,
-            3  Situation,
-            4  Type,
-            5  Passer,
-            6  Shooter,
-            7  Period,
-            8  xG,
-            9  X,
-            10 Y,
-            11 Pass X,
-            12 Pass Y,
-            13 Video
-        """
+    def _get_match_entries(self, match):
         if match == "All":
             entries = []
             for logs in self.app.match_logs.values():
                 entries.extend(logs)
-        else:
-            entries = list(self.app.match_logs.get(match, []))
+            return entries
+        return self.app.match_logs.get(match, [])
 
-        if period != "All":
-            entries = [entry for entry in entries if str(entry[7]) == str(period)]
+    def _filter_by_period(self, entries, period):
+        if period == "All":
+            return entries
+        return [e for e in entries if str(e[7]) == str(period)]
 
-        return entries
+    # ---------------------------------------------------------
+    # Filtering (public)
+    # ---------------------------------------------------------
+    def get_filtered_entries(self):
+        match = self.app.current_match.get()
+        period = self.app.period_selected.get()
+
+        entries = self._get_match_entries(match)
+        return self._filter_by_period(entries, period)
+
+    def get_filtered_entries_by_period(self, period_filter):
+        match = self.app.current_match.get()
+
+        entries = self._get_match_entries(match)
+        return self._filter_by_period(entries, period_filter)
 
     # ---------------------------------------------------------
     # Stats
     # ---------------------------------------------------------
     def update_stats(self, filtered_entries=None):
-        """
-        Updates the stat labels in the UI.
-        If no filtered_entries are provided, stats use the stats period filter.
-        """
         if filtered_entries is None:
             stats_period = self.app.stats_period.get()
             entries = self.get_filtered_entries_by_period(stats_period)
         else:
             entries = filtered_entries
 
-        total = len([entry for entry in entries if entry[1] in ("S", "G")])
-        goals = len([entry for entry in entries if entry[1] == "G"])
+        total = len([e for e in entries if e[1] in ("S", "G")])
+        goals = len([e for e in entries if e[1] == "G"])
         saves = total - goals
-        save_pct = (saves / total) * 100 if total > 0 else 0.0
+        pct = (saves / total) * 100 if total > 0 else 0
 
         self.app.totalshots_val.config(text=str(total))
         self.app.shots_val.config(text=str(saves))
         self.app.goals_val.config(text=str(goals))
-        self.app.savepct_val.config(text=f"{save_pct:.2f}%")
+        self.app.savepct_val.config(text=f"{pct:.2f}%")
 
     def update_expected_goals(self):
-        """
-        Updates xG goals and actual goals labels based on the stats period filter.
-        """
-        stats_entries = self.get_filtered_entries_by_period(self.app.stats_period.get())
+        entries = self.get_filtered_entries_by_period(
+            self.app.stats_period.get()
+        )
 
-        xg_sum = sum(entry[8] for entry in stats_entries if entry[1] == "S")
-        num_goals = sum(1 for entry in stats_entries if entry[1] == "G")
+        xg_sum = sum(e[8] for e in entries if e[1] == "S")
+        goals = sum(1 for e in entries if e[1] == "G")
 
         if hasattr(self.app, "xg_goals_val"):
             self.app.xg_goals_val.config(text=f"{xg_sum:.2f}")
 
         if hasattr(self.app, "actual_goals_val"):
-            self.app.actual_goals_val.config(text=str(num_goals))
+            self.app.actual_goals_val.config(text=str(goals))
+
+    # ---------------------------------------------------------
+    # Event creation
+    # ---------------------------------------------------------
+    def _prepare_event(self, x, y, pass_x, pass_y):
+        x = int(round(x))
+        y = int(round(y))
+
+        if pass_x is not None:
+            pass_x = int(round(pass_x))
+        if pass_y is not None:
+            pass_y = int(round(pass_y))
+
+        return x, y, pass_x, pass_y
+
+    def add_shot_event(
+        self,
+        x,
+        y,
+        phase,
+        situation,
+        shot_type,
+        passer,
+        shooter,
+        period=None,
+        pass_x=None,
+        pass_y=None,
+    ):
+        match = self.app.current_match.get()
+        logs = self.app.match_logs.setdefault(match, [])
+
+        period = period or self.app.period_selected.get()
+        x, y, pass_x, pass_y = self._prepare_event(x, y, pass_x, pass_y)
+
+        xg = get_xg_value(x, y, shot_type, situation, shooter)
+
+        entry = (
+            len(logs) + 1,
+            "S",
+            phase,
+            situation,
+            shot_type,
+            passer,
+            shooter,
+            period,
+            xg,
+            x,
+            y,
+            pass_x,
+            pass_y,
+        )
+
+        logs.append(entry)
+
+    def add_goal_event(
+        self,
+        x,
+        y,
+        phase,
+        situation,
+        shot_type,
+        passer,
+        shooter,
+        period=None,
+        pass_x=None,
+        pass_y=None,
+    ):
+        match = self.app.current_match.get()
+        logs = self.app.match_logs.setdefault(match, [])
+
+        period = period or self.app.period_selected.get()
+        x, y, pass_x, pass_y = self._prepare_event(x, y, pass_x, pass_y)
+
+        entry = (
+            len(logs) + 1,
+            "G",
+            phase,
+            situation,
+            shot_type,
+            passer,
+            shooter,
+            period,
+            1.0,
+            x,
+            y,
+            pass_x,
+            pass_y,
+        )
+
+        logs.append(entry)
 
     # ---------------------------------------------------------
     # Heatmap presets
     # ---------------------------------------------------------
     def apply_heatmap_preset(self):
-        """
-        Applies preset KDE/sensitivity values from the selected heatmap preset.
-        """
         preset = self.app.heatmap_preset.get()
 
         presets = {
@@ -135,41 +190,32 @@ class CoreLogic:
         self.app.update_plot()
 
     def update_preset_description(self):
-        """
-        Updates the descriptive helper text for the selected heatmap preset.
-        """
         if not hasattr(self.app, "preset_description"):
             return
 
         descriptions = {
             "Match Analysis": "Well-rounded smoothing, includes most shots.",
-            "Multi-Match": "Balanced: shows main clusters, filters light noise.",
-            "Season Review": "Focused: only dense, recurring shot zones remain.",
-            "Season Review (Goal only)": "Goal-focused overview for entire season (~50-60 goals).",
+            "Multi-Match": "Balanced: shows main clusters.",
+            "Season Review": "Focused: dense zones only.",
+            "Season Review (Goal only)": "Goal-focused overview.",
         }
 
         preset = self.app.heatmap_preset.get()
-        text = descriptions.get(preset, "")
-        self.app.preset_description.config(text=text)
+        self.app.preset_description.config(text=descriptions.get(preset, ""))
 
     # ---------------------------------------------------------
-    # Refresh orchestration
+    # Refresh
     # ---------------------------------------------------------
     def update_log_view_and_stats(self):
-        """
-        Refreshes:
-        - visible log entries
-        - shot log treeview
-        - plot
-        - stats
-        - expected goals
-        """
         filtered_entries = self.get_filtered_entries()
-        self.app.log_entries = filtered_entries
 
+        self.app.log_entries = filtered_entries
         self.app.update_shot_log_treeview()
         self.app.update_plot()
 
-        stats_entries = self.get_filtered_entries_by_period(self.app.stats_period.get())
+        stats_entries = self.get_filtered_entries_by_period(
+            self.app.stats_period.get()
+        )
+
         self.update_stats(stats_entries)
         self.update_expected_goals()

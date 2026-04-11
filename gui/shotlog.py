@@ -9,7 +9,6 @@ from PIL import Image, ImageTk
 from utils.tooltips import BetterToolTip
 from gui.plotting import plot_points
 from utils.helpers import get_resource_path
-from utils.videoplayer import show_video_overlay
 
 
 def setup_shotlog_frame(self, parent, app):
@@ -211,6 +210,8 @@ def on_right_click_shotlog(event, tree, app):
                 webbrowser.open(path)
             else:
                 if os.path.exists(path):
+                    from utils.videoplayer import show_video_overlay
+
                     show_video_overlay(
                         app,
                         path,

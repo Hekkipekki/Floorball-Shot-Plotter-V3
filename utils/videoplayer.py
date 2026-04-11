@@ -4,6 +4,7 @@ Embedded VLC overlay player for Floorball Shot Plotter.
 
 Features:
 - Portable-friendly: configure bundled VLC runtime BEFORE importing python-vlc
+- Preloads bundled libvlc/libvlccore on Windows to avoid wrong cwd lookup
 - Force bundled VLC plugins (avoid Program Files VLC)
 - Stable overlay stacking: never lower canvas_frame, just raise overlay
 - Repeat + segment loop
@@ -12,17 +13,23 @@ Features:
 - Save Segment button (writes back to caller via callback)
 - Clean close(): stop -> detach hwnd -> release -> destroy only overlay we created
 
-Dev/Ship:
-- Use env var FSP_VLC_RESET_CACHE=1 to enable '--reset-plugins-cache'
-  (Useful while debugging bundled plugins; disable for best performance)
+Notes:
+- Expects a bundled runtime in:
+    <project_root>/vlc/
+        libvlc.dll
+        libvlccore.dll
+        plugins/
+- If VLC cannot be initialized, the rest of the app should still run.
 """
 
 from __future__ import annotations
 
+import ctypes
 import os
 import time
 from pathlib import Path
 import tkinter as tk
+from tkinter import messagebox
 
 from paths import get_project_root
 
@@ -31,25 +38,53 @@ from paths import get_project_root
 # VLC runtime bootstrap (MUST run before import vlc)
 # ------------------------------------------------------------
 def _configure_vlc_runtime() -> tuple[Path | None, Path | None]:
+    """
+    Configure a bundled VLC runtime before importing python-vlc.
+
+    Returns:
+        (vlc_dir, plugins_dir) if successful
+        (None, None) if bundled runtime is not usable
+    """
     base = Path(get_project_root())
     vlc_dir = base / "vlc"
     plugins_dir = vlc_dir / "plugins"
+    libvlc_path = vlc_dir / "libvlc.dll"
+    libvlccore_path = vlc_dir / "libvlccore.dll"
 
-    if not (vlc_dir / "libvlc.dll").exists():
+    if not libvlc_path.exists() or not libvlccore_path.exists() or not plugins_dir.exists():
+        print("⚠️ Bundled VLC runtime not found or incomplete.")
         return None, None
 
-    if hasattr(os, "add_dll_directory"):
-        os.add_dll_directory(str(vlc_dir))
-    else:
-        os.environ["PATH"] = f"{vlc_dir};{os.environ.get('PATH','')}"
+    try:
+        # Make DLL directory visible to Windows loader
+        if hasattr(os, "add_dll_directory"):
+            os.add_dll_directory(str(vlc_dir))
 
-    os.environ["VLC_PLUGIN_PATH"] = str(plugins_dir)
-    return vlc_dir, plugins_dir
+        # Keep PATH updated as fallback
+        os.environ["PATH"] = f"{vlc_dir};{os.environ.get('PATH', '')}"
+
+        # VLC plugin path
+        os.environ["VLC_PLUGIN_PATH"] = str(plugins_dir.resolve())
+
+        # Preload DLLs explicitly to avoid python-vlc falling back to .\\libvlc.dll
+        ctypes.CDLL(str(libvlccore_path.resolve()))
+        ctypes.CDLL(str(libvlc_path.resolve()))
+
+        return vlc_dir, plugins_dir
+
+    except Exception as e:
+        print(f"❌ Failed to preload bundled VLC DLLs: {e}")
+        return None, None
 
 
 _VLC_DIR, _PLUGINS_DIR = _configure_vlc_runtime()
 
-import vlc  # noqa: E402
+try:
+    import vlc  # type: ignore
+    _VLC_IMPORT_ERROR: Exception | None = None
+except Exception as e:
+    vlc = None
+    _VLC_IMPORT_ERROR = e
 
 
 class VLCOverlayWithControls(tk.Frame):
@@ -78,15 +113,15 @@ class VLCOverlayWithControls(tk.Frame):
 
         # Toggle modes
         self.autoplay = bool(autoplay)
-        self.repeat_mode = False         # repeats full media end OR segment end
-        self.segment_loop = False        # if True: loop only between start/stop (requires stop)
+        self.repeat_mode = False
+        self.segment_loop = False
 
         self.seeking = False
         self.last_seek_time = 0.0
 
         # VLC
-        self.instance: vlc.Instance | None = None
-        self.player: vlc.MediaPlayer | None = None
+        self.instance = None
+        self.player = None
 
         # ---------------- UI ----------------
         self.canvas = tk.Canvas(self, bg="black", highlightthickness=0)
@@ -133,7 +168,6 @@ class VLCOverlayWithControls(tk.Frame):
         self.stop_btn = tk.Button(self.controls, text="⏹", command=self.stop)
         self.stop_btn.pack(side="left", padx=2)
 
-        # Right-side toggles / actions
         self.save_btn = tk.Button(self.controls, text="💾 Save Segment", command=self.save_segment)
         self.save_btn.pack(side="right", padx=(6, 10))
 
@@ -148,7 +182,14 @@ class VLCOverlayWithControls(tk.Frame):
 
         self._sync_toggle_buttons()
 
-        self.close_btn = tk.Button(self, text="❌", command=self.close, bg="#1e1e1e", fg="white", borderwidth=0)
+        self.close_btn = tk.Button(
+            self,
+            text="❌",
+            command=self.close,
+            bg="#1e1e1e",
+            fg="white",
+            borderwidth=0,
+        )
         self.close_btn.place(relx=0.0, rely=0.0, anchor="nw", x=10, y=10)
 
         # Entry apply bindings
@@ -246,8 +287,18 @@ class VLCOverlayWithControls(tk.Frame):
         if not self.running:
             return
 
+        if vlc is None:
+            print(f"❌ VLC import failed: {_VLC_IMPORT_ERROR}")
+            self.running = False
+            return
+
+        if _VLC_DIR is None or _PLUGINS_DIR is None:
+            print("❌ VLC runtime folder not available.")
+            self.running = False
+            return
+
         try:
-            plugin_path = str(_PLUGINS_DIR.resolve()) if _PLUGINS_DIR else None
+            plugin_path = str(_PLUGINS_DIR.resolve())
 
             args = [
                 "--no-video-title-show",
@@ -256,10 +307,7 @@ class VLCOverlayWithControls(tk.Frame):
                 "--no-stats",
                 "--no-media-library",
             ]
-            if plugin_path:
-                args.append(f"--plugin-path={plugin_path}")
 
-            # Dev switch: set env var FSP_VLC_RESET_CACHE=1 while you debug bundling
             if os.environ.get("FSP_VLC_RESET_CACHE", "0") == "1":
                 args.append("--reset-plugins-cache")
 
@@ -284,14 +332,13 @@ class VLCOverlayWithControls(tk.Frame):
             self.player.set_hwnd(window_id)  # Windows
         except Exception:
             try:
-                self.player.set_xwindow(window_id)  # X11
+                self.player.set_xwindow(window_id)  # Linux/X11
             except Exception:
                 try:
                     self.player.set_nsobject(window_id)  # macOS
                 except Exception as e:
                     print("❌ Could not bind VLC video output:", e)
 
-        # Start playback then seek start; optionally pause immediately
         self._apply_time_bounds()
         self._restart_from(self.start_time, pause_after=not self.autoplay)
 
@@ -306,7 +353,7 @@ class VLCOverlayWithControls(tk.Frame):
         except Exception:
             state = None
 
-        if state in (vlc.State.Ended, vlc.State.Stopped):
+        if vlc is not None and state in (vlc.State.Ended, vlc.State.Stopped):
             self._restart_from(self.start_time, pause_after=False)
             return
 
@@ -365,7 +412,6 @@ class VLCOverlayWithControls(tk.Frame):
             current = max(0, int(self.player.get_time() // 1000))
 
             self._apply_time_bounds()
-
             length = max(0, int(self.player.get_length() // 1000))
 
             if not self.seeking and length > 0:
@@ -374,14 +420,12 @@ class VLCOverlayWithControls(tk.Frame):
 
                 mins = lambda x: str(x // 60).zfill(2)
                 secs = lambda x: str(x % 60).zfill(2)
-                self.time_label.config(text=f"{mins(current)}:{secs(current)} / {mins(length)}:{secs(length)}")
+                self.time_label.config(
+                    text=f"{mins(current)}:{secs(current)} / {mins(length)}:{secs(length)}"
+                )
 
-            # ---- Segment loop boundary ----
             if self.stop_time is not None and current >= int(self.stop_time):
-                if self.segment_loop:
-                    self._restart_from(self.start_time, pause_after=False)
-                elif self.repeat_mode:
-                    # repeat mode but not segment-loop => still loop if stop exists (common expectation)
+                if self.segment_loop or self.repeat_mode:
                     self._restart_from(self.start_time, pause_after=False)
                 else:
                     try:
@@ -389,8 +433,7 @@ class VLCOverlayWithControls(tk.Frame):
                     except Exception:
                         pass
 
-            # ---- Ended handling ----
-            if state == vlc.State.Ended:
+            if vlc is not None and state == vlc.State.Ended:
                 if self.repeat_mode:
                     self._restart_from(self.start_time, pause_after=False)
                 else:
@@ -410,8 +453,6 @@ class VLCOverlayWithControls(tk.Frame):
 
     def toggle_segment_loop(self) -> None:
         self.segment_loop = not self.segment_loop
-        # Segment loop requires a stop; if user enables without stop, we just keep it ON
-        # but it won't trigger until stop_time exists.
         self._sync_toggle_buttons()
 
     def toggle_autoplay(self) -> None:
@@ -463,7 +504,6 @@ class VLCOverlayWithControls(tk.Frame):
                 except Exception:
                     pass
 
-                # Detach surface (prevents ghost/white surfaces)
                 try:
                     self.player.set_hwnd(0)
                 except Exception:
@@ -528,6 +568,14 @@ def show_video_overlay(
     autoplay: bool = True,
     on_save_segment=None,
 ) -> None:
+    if vlc is None or _VLC_DIR is None or _PLUGINS_DIR is None:
+        details = _VLC_IMPORT_ERROR if _VLC_IMPORT_ERROR is not None else "Bundled VLC runtime not available."
+        messagebox.showerror(
+            "Playback Failed",
+            f"Could not play video:\n{details}"
+        )
+        return
+
     app.popup_open = True
 
     existing = getattr(app, "video_overlay", None)
@@ -558,5 +606,4 @@ def show_video_overlay(
     )
     player.pack(fill="both", expand=True)
 
-    # Keep a reference to avoid GC
     app._vlc_player = player

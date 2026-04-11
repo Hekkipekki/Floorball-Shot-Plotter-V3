@@ -1,9 +1,10 @@
 import os
 import tkinter as tk
+from tkinter import messagebox
 from PIL import Image, ImageTk
 import ttkbootstrap as tb
 
-from core.demo import generate_demo_shots
+from core.demo import generate_demo_shots as demo_fill
 from core.init_state import init_variables
 from core.core_stats import CoreLogic
 
@@ -11,6 +12,7 @@ from gui.layout import setup_ui
 from gui.events import finalize_event
 from gui.backgrounds import init_background_files, set_background
 from gui.plot_controller import (
+    load_image,
     update_plot,
     apply_sensitivity,
     apply_kde,
@@ -19,6 +21,7 @@ from gui.plot_controller import (
     highlight_point,
     remove_nearest_point,
 )
+from gui.shotlog import update_treeview
 
 from data.match_store import (
     prompt_save_match,
@@ -30,8 +33,6 @@ from data.match_store import (
     save_csv_dialog,
     load_csv_dialog,
 )
-
-from services.event_service import add_shot_event, add_goal_event
 
 from paths import get_project_root
 from utils.helpers import get_resource_path, export_figure_as_image
@@ -56,7 +57,7 @@ class FloorballShotPlotter:
 
         init_variables(self)
 
-        self._ensure_new_match()
+        self.ensure_new_match_exists()
         self.current_match.set("New Match")
 
         self.logic = CoreLogic(self)
@@ -65,8 +66,11 @@ class FloorballShotPlotter:
         self.set_background = lambda name: set_background(self, name)
 
         setup_ui(self)
-        self._bind_events()
 
+        load_image(self)
+        self.update_plot()
+
+        self._bind_events()
         add_tooltips(self)
 
         self.finalize_event = lambda *args, **kwargs: finalize_event(self, *args, **kwargs)
@@ -107,46 +111,36 @@ class FloorballShotPlotter:
         self.root.bind_all("<Key-space>", lambda e: remove_nearest_point(self, e))
         connect_hover_events(self)
 
-    def _ensure_new_match(self):
+    # ---------------------------------------------------------
+    # Match safety
+    # ---------------------------------------------------------
+    def ensure_new_match_exists(self):
         if not hasattr(self, "match_logs"):
             self.match_logs = {}
-
         if "New Match" not in self.match_logs:
             self.match_logs["New Match"] = []
 
-    # ---------------------------------------------------------
-    # UI compatibility helpers
-    # ---------------------------------------------------------
+    def ensure_current_match_is_valid(self):
+        current = self.current_match.get()
+        if current not in self.match_logs and current not in ("All", "Season"):
+            if "New Match" in self.match_logs:
+                self.current_match.set("New Match")
+            elif self.match_logs:
+                self.current_match.set(next(iter(self.match_logs)))
+            else:
+                self.match_logs["New Match"] = []
+                self.current_match.set("New Match")
+
     def update_match_dropdown(self):
         if not hasattr(self, "match_dropdown"):
             return
 
         matches = list(self.match_logs.keys())
-
         if "All" not in matches:
             matches.insert(0, "All")
 
         self.match_dropdown["values"] = matches
-
-        current = self.current_match.get()
-        if current not in matches:
-            self.current_match.set("New Match" if "New Match" in matches else matches[0])
-
-    def clear_all_data(self):
-        match_name = self.current_match.get()
-
-        if match_name in ("All", "Season"):
-            return
-
-        if match_name not in self.match_logs:
-            self.match_logs[match_name] = []
-
-        self.match_logs[match_name] = []
-        self.log_entries = []
-        self.update_log_view_and_stats()
-
-    def generate_demo_shots(self):
-        generate_demo_shots(self)
+        self.ensure_current_match_is_valid()
 
     # ---------------------------------------------------------
     # Plot
@@ -178,11 +172,25 @@ class FloorballShotPlotter:
     def update_log_view_and_stats(self):
         self.logic.update_log_view_and_stats()
 
-    def update_stats_filtered(self):
-        self.update_log_view_and_stats()
+    def update_shot_log_treeview(self):
+        update_treeview(self.shotlog_tree, self.log_entries)
 
-    def update_stats(self):
-        self.logic.update_stats()
+    def update_period_button_styles(self):
+        selected = self.period_selected.get()
+        for period, btn in self.period_buttons.items():
+            style = "primary" if selected == period else "secondary"
+            btn.config(bootstyle=style)
+
+    def set_period_filter(self, period):
+        self.period_selected.set(period)
+        self.update_period_button_styles()
+        self.logic.update_log_view_and_stats()
+
+    def update_stats(self, entries=None):
+        self.logic.update_stats(entries)
+
+    def update_stats_filtered(self):
+        self.logic.update_log_view_and_stats()
 
     def update_expected_goals(self):
         self.logic.update_expected_goals()
@@ -193,43 +201,76 @@ class FloorballShotPlotter:
     # ---------------------------------------------------------
     # Events
     # ---------------------------------------------------------
-    def add_shot_event(self, *args, **kwargs):
-        add_shot_event(self, *args, **kwargs)
+    def add_shot_event(self, x, y, phase, situation, shot_type, passer, shooter, period=None, pass_x=None, pass_y=None):
+        self.logic.add_shot_event(x, y, phase, situation, shot_type, passer, shooter, period, pass_x, pass_y)
+        self.log_entries = self.logic.get_filtered_entries()
         self.update_log_view_and_stats()
 
-    def add_goal_event(self, *args, **kwargs):
-        add_goal_event(self, *args, **kwargs)
+    def add_goal_event(self, x, y, phase, situation, shot_type, passer, shooter, period=None, pass_x=None, pass_y=None):
+        self.logic.add_goal_event(x, y, phase, situation, shot_type, passer, shooter, period, pass_x, pass_y)
+        self.log_entries = self.logic.get_filtered_entries()
         self.update_log_view_and_stats()
+
+    def clear_all_data(self):
+        self.log_entries.clear()
+        current = self.current_match.get()
+        if current in self.match_logs:
+            self.match_logs[current] = []
+        self.update_log_view_and_stats()
+
+    def new_project(self):
+        if messagebox.askyesno("New Project", "Start a new project? This will clear all data."):
+            self.clear_all_data()
+            self.ensure_new_match_exists()
+            self.current_match.set("New Match")
+            self.update_match_dropdown()
+
+    def generate_demo_shots(self):
+        demo_fill(self)
 
     # ---------------------------------------------------------
     # Match / Data
     # ---------------------------------------------------------
-    def prompt_save_match(self):
-        prompt_save_match(self)
-
-    def handle_load_match(self):
-        self.load_match()
-
-    def handle_load_season(self):
-        self.load_season()
-
-    def load_selected_match(self, *_):
-        load_selected_match(self)
-
-    def load_match(self):
-        load_match_from_file(self)
-
-    def load_season(self):
-        load_all_matches(self)
-
-    def delete_current_match(self):
-        delete_current_match(self)
-
-    def auto_update_current_match(self):
-        auto_update_current_match(self)
-
     def save_csv(self):
         save_csv_dialog(self)
 
     def load_csv(self):
         load_csv_dialog(self)
+        self.ensure_new_match_exists()
+        self.ensure_current_match_is_valid()
+        self.update_match_dropdown()
+
+    def prompt_save_match(self):
+        prompt_save_match(self)
+        self.ensure_new_match_exists()
+        self.ensure_current_match_is_valid()
+        self.update_match_dropdown()
+
+    def load_selected_match(self, *_):
+        self.ensure_new_match_exists()
+        self.ensure_current_match_is_valid()
+        load_selected_match(self)
+        self.update_match_dropdown()
+
+    def handle_load_season(self):
+        load_all_matches(self)
+        self.ensure_new_match_exists()
+        self.ensure_current_match_is_valid()
+        self.update_match_dropdown()
+
+    def handle_load_match(self):
+        load_match_from_file(self)
+        self.ensure_new_match_exists()
+        self.ensure_current_match_is_valid()
+        self.update_match_dropdown()
+
+    def auto_update_current_match(self):
+        self.ensure_new_match_exists()
+        self.ensure_current_match_is_valid()
+        auto_update_current_match(self)
+
+    def delete_current_match(self):
+        delete_current_match(self)
+        self.ensure_new_match_exists()
+        self.ensure_current_match_is_valid()
+        self.update_match_dropdown()

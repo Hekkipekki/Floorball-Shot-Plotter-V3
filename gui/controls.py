@@ -1,6 +1,6 @@
 import ttkbootstrap as tb
 import tkinter as tk
-from ttkbootstrap.widgets import Combobox
+from tkinter import ttk
 from ttkbootstrap.constants import *
 from utils.tooltips import BetterToolTip
 
@@ -53,7 +53,7 @@ def setup_view_mode_controls(self, parent: tb.Frame) -> None:
         self.view_mode.set(selected)
         self.update_plot()
 
-    self.view_mode_dropdown = Combobox(
+    self.view_mode_dropdown = ttk.Combobox(
         frame,
         values=view_options,
         textvariable=self.view_mode,
@@ -100,7 +100,7 @@ def setup_stats_filter_controls(self, parent: tb.Frame) -> None:
 
     tb.Label(row, text="Filter by Period:", font=("Segoe UI", 10)).grid(row=0, column=0, sticky="w")
     period_options = ["All", "1", "2", "3", "OT"]
-    self.stats_period_dropdown = Combobox(
+    self.stats_period_dropdown = ttk.Combobox(
         row,
         textvariable=self.stats_period,
         values=period_options,
@@ -146,7 +146,7 @@ def setup_heatmap_settings_group(self, parent: tb.Frame) -> None:
 
     # 🎨 Color selection
     tb.Label(frame, text="Select heatmap color:", font=("Segoe UI", 10)).pack(padx=5, pady=(2, 1), anchor="w")
-    self.colormap_combobox = Combobox(
+    self.colormap_combobox = ttk.Combobox(
         frame,
         values=["inferno", "plasma", "magma", "hot", "jet"],
         textvariable=self.cmap,
@@ -158,7 +158,7 @@ def setup_heatmap_settings_group(self, parent: tb.Frame) -> None:
 
     # 📐 Quality
     tb.Label(frame, text="Heatmap Quality:", font=("Segoe UI", 10)).pack(padx=5, pady=(1, 1), anchor="w")
-    self.resolution_combobox = Combobox(
+    self.resolution_combobox = ttk.Combobox(
         frame,
         values=list(self.resolution_options.keys()),
         textvariable=self.resolution_preset,
@@ -171,7 +171,7 @@ def setup_heatmap_settings_group(self, parent: tb.Frame) -> None:
     # 🧠 Presets
     tb.Label(frame, text="Preset:", font=("Segoe UI", 10)).pack(padx=5, pady=(1, 1), anchor="w")
     self.heatmap_preset = tk.StringVar(value="Match Analysis")
-    self.heatmap_preset_dropdown = Combobox(
+    self.heatmap_preset_dropdown = ttk.Combobox(
         frame,
         values=[
             "Match Analysis", "Multi-Match", "Season Review", "Season Review (Goal only)"

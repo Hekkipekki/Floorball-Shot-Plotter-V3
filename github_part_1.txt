@@ -1,0 +1,1138 @@
+Directory structure:
+└── hekkipekki-floorball-shot-plotter-v3/
+    ├── main.py
+    ├── paths.py
+    ├── Run.bat
+    ├── core/
+    │   ├── __init__.py
+    │   ├── app_controller.py
+    │   ├── core_stats.py
+    │   ├── demo.py
+    │   ├── init_state.py
+    │   └── xg.py
+    ├── CSV/
+    │   └── Test.csv
+    ├── data/
+    │   ├── __init__.py
+    │   └── match_store.py
+    ├── Games/
+    │   ├── Säsong 2024, 2025/
+    │   │   └── FC Dalen 1.json
+    │   └── Säsong 26/
+    │       └── test.json
+    ├── gui/
+    │   ├── __init__.py
+    │   ├── backgrounds.py
+    │   ├── controls.py
+    │   ├── events.py
+    │   ├── layout.py
+    │   ├── messages.py
+    │   ├── plot_canvas.py
+    │   ├── plot_controller.py
+    │   ├── plotting.py
+    │   └── shotlog.py
+    ├── Resources/
+    │   └── xG/
+    │       ├── prompt.txt
+    │       └── Räkna ut områdena/
+    │           └── prompt.txt
+    └── utils/
+        ├── __init__.py
+        ├── dialogs.py
+        ├── helpers.py
+        ├── tooltips.py
+        └── videoplayer.py
+
+================================================
+FILE: main.py
+================================================
+import tkinter as tk
+from core.app_controller import FloorballShotPlotter
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = FloorballShotPlotter(root)
+    root.mainloop()
+
+
+
+================================================
+FILE: paths.py
+================================================
+import os
+import sys
+
+def get_project_root():
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    else:
+        # Gå upp tills vi hittar main.py eller Floorball Shot Plotter-roten
+        path = os.path.abspath(__file__)
+        while True:
+            path = os.path.dirname(path)
+            if os.path.exists(os.path.join(path, "main.py")) or path == os.path.dirname(path):
+                break
+        return path
+
+
+================================================
+FILE: Run.bat
+================================================
+@echo off
+cd /d "%~dp0"
+echo Starting Floorball Shot Plotter...
+python main.py
+pause
+
+
+================================================
+FILE: core/__init__.py
+================================================
+[Empty file]
+
+
+================================================
+FILE: core/app_controller.py
+================================================
+import os
+import tkinter as tk
+from PIL import Image, ImageTk
+import ttkbootstrap as tb
+
+from core.demo import generate_demo_shots
+from core.init_state import init_variables
+from core.core_stats import CoreLogic
+
+from gui.layout import setup_ui
+from gui.events import finalize_event
+from gui.backgrounds import init_background_files, set_background
+from gui.plot_controller import (
+    update_plot,
+    apply_sensitivity,
+    apply_kde,
+    clear_highlight,
+    connect_hover_events,
+    highlight_point,
+    remove_nearest_point,
+)
+
+from data.match_store import (
+    prompt_save_match,
+    load_selected_match,
+    load_match_from_file,
+    load_all_matches,
+    delete_current_match,
+    auto_update_current_match,
+    save_csv_dialog,
+    load_csv_dialog,
+)
+
+from services.event_service import add_shot_event, add_goal_event
+
+from paths import get_project_root
+from utils.helpers import get_resource_path, export_figure_as_image
+from utils.tooltips import add_tooltips
+
+
+APP_TITLE = "Floorball Shot Plotter v3.0 - By Daniel Norberg"
+GAMES_DIR = "Games"
+
+
+class FloorballShotPlotter:
+    def __init__(self, root):
+        self.root = root
+        self.root.title(APP_TITLE)
+
+        self._configure_window()
+        self._configure_paths()
+        self._load_icons()
+
+        self.popup_open = False
+        self.video_overlay = None
+
+        init_variables(self)
+
+        self._ensure_new_match()
+        self.current_match.set("New Match")
+
+        self.logic = CoreLogic(self)
+
+        init_background_files(self)
+        self.set_background = lambda name: set_background(self, name)
+
+        setup_ui(self)
+        self._bind_events()
+
+        add_tooltips(self)
+
+        self.finalize_event = lambda *args, **kwargs: finalize_event(self, *args, **kwargs)
+
+    # ---------------------------------------------------------
+    # Bootstrap
+    # ---------------------------------------------------------
+    def _configure_window(self):
+        try:
+            self.root.state("zoomed")
+        except Exception:
+            w, h = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
+            self.root.geometry(f"{w}x{h}+0+0")
+
+        self.root.bind("<Escape>", lambda e: self.root.state("normal"))
+
+    def _configure_paths(self):
+        self.project_root = get_project_root()
+        os.makedirs(os.path.join(self.project_root, GAMES_DIR), exist_ok=True)
+
+    def _load_icons(self):
+        icon_path = get_resource_path("Resources", "Icons", "Icon.ico")
+        if os.path.exists(icon_path):
+            try:
+                self.root.iconbitmap(icon_path)
+            except Exception:
+                pass
+
+        trash_path = get_resource_path("Resources", "Icons", "trash.png")
+        try:
+            img = Image.open(trash_path).convert("RGBA")
+            self.trash_icon = ImageTk.PhotoImage(img)
+        except Exception:
+            self.trash_icon = None
+
+    def _bind_events(self):
+        self.root.bind_all("<space>", lambda e: remove_nearest_point(self, e))
+        self.root.bind_all("<Key-space>", lambda e: remove_nearest_point(self, e))
+        connect_hover_events(self)
+
+    def _ensure_new_match(self):
+        if not hasattr(self, "match_logs"):
+            self.match_logs = {}
+
+        if "New Match" not in self.match_logs:
+            self.match_logs["New Match"] = []
+
+    # ---------------------------------------------------------
+    # UI compatibility helpers
+    # ---------------------------------------------------------
+    def update_match_dropdown(self):
+        if not hasattr(self, "match_dropdown"):
+            return
+
+        matches = list(self.match_logs.keys())
+
+        if "All" not in matches:
+            matches.insert(0, "All")
+
+        self.match_dropdown["values"] = matches
+
+        current = self.current_match.get()
+        if current not in matches:
+            self.current_match.set("New Match" if "New Match" in matches else matches[0])
+
+    def clear_all_data(self):
+        match_name = self.current_match.get()
+
+        if match_name in ("All", "Season"):
+            return
+
+        if match_name not in self.match_logs:
+            self.match_logs[match_name] = []
+
+        self.match_logs[match_name] = []
+        self.log_entries = []
+        self.update_log_view_and_stats()
+
+    def generate_demo_shots(self):
+        generate_demo_shots(self)
+
+    # ---------------------------------------------------------
+    # Plot
+    # ---------------------------------------------------------
+    def update_plot(self):
+        update_plot(self)
+
+    def apply_sensitivity(self, from_slider=False):
+        apply_sensitivity(self, from_slider)
+
+    def apply_kde(self, from_slider=False):
+        apply_kde(self, from_slider)
+
+    def highlight_point(self, index):
+        highlight_point(self, index)
+
+    def clear_highlight(self):
+        clear_highlight(self)
+
+    def remove_nearest_point(self, event=None):
+        remove_nearest_point(self, event)
+
+    def export_plot(self):
+        export_figure_as_image(self, self.figure)
+
+    # ---------------------------------------------------------
+    # Stats / Log
+    # ---------------------------------------------------------
+    def update_log_view_and_stats(self):
+        self.logic.update_log_view_and_stats()
+
+    def update_stats_filtered(self):
+        self.update_log_view_and_stats()
+
+    def update_stats(self):
+        self.logic.update_stats()
+
+    def update_expected_goals(self):
+        self.logic.update_expected_goals()
+
+    def get_filtered_entries(self):
+        return self.logic.get_filtered_entries()
+
+    # ---------------------------------------------------------
+    # Events
+    # ---------------------------------------------------------
+    def add_shot_event(self, *args, **kwargs):
+        add_shot_event(self, *args, **kwargs)
+        self.update_log_view_and_stats()
+
+    def add_goal_event(self, *args, **kwargs):
+        add_goal_event(self, *args, **kwargs)
+        self.update_log_view_and_stats()
+
+    # ---------------------------------------------------------
+    # Match / Data
+    # ---------------------------------------------------------
+    def prompt_save_match(self):
+        prompt_save_match(self)
+
+    def handle_load_match(self):
+        self.load_match()
+
+    def handle_load_season(self):
+        self.load_season()
+
+    def load_selected_match(self, *_):
+        load_selected_match(self)
+
+    def load_match(self):
+        load_match_from_file(self)
+
+    def load_season(self):
+        load_all_matches(self)
+
+    def delete_current_match(self):
+        delete_current_match(self)
+
+    def auto_update_current_match(self):
+        auto_update_current_match(self)
+
+    def save_csv(self):
+        save_csv_dialog(self)
+
+    def load_csv(self):
+        load_csv_dialog(self)
+
+
+================================================
+FILE: core/core_stats.py
+================================================
+class CoreLogic:
+    """
+    Core logic for:
+    - filtering entries
+    - calculating stats
+    - calculating expected goals display values
+    - applying heatmap presets
+    - coordinating refresh of log/plot/stats
+
+    Event creation should NOT live here anymore.
+    That belongs in the event/service layer.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    # ---------------------------------------------------------
+    # Filtering
+    # ---------------------------------------------------------
+    def get_filtered_entries(self):
+        """
+        Returns entries for the currently selected match and plot period filter.
+        """
+        match = self.app.current_match.get()
+        period = self.app.period_selected.get()
+        return self._filter_entries(match, period)
+
+    def get_filtered_entries_by_period(self, period_filter):
+        """
+        Returns entries for the currently selected match and a supplied period filter.
+        Used mainly for stats/xG calculations.
+        """
+        match = self.app.current_match.get()
+        return self._filter_entries(match, period_filter)
+
+    def _filter_entries(self, match, period):
+        """
+        Internal shared filter logic.
+        Entry structure:
+            0  #,
+            1  S/G,
+            2  Phase,
+            3  Situation,
+            4  Type,
+            5  Passer,
+            6  Shooter,
+            7  Period,
+            8  xG,
+            9  X,
+            10 Y,
+            11 Pass X,
+            12 Pass Y,
+            13 Video
+        """
+        if match == "All":
+            entries = []
+            for logs in self.app.match_logs.values():
+                entries.extend(logs)
+        else:
+            entries = list(self.app.match_logs.get(match, []))
+
+        if period != "All":
+            entries = [entry for entry in entries if str(entry[7]) == str(period)]
+
+        return entries
+
+    # ---------------------------------------------------------
+    # Stats
+    # ---------------------------------------------------------
+    def update_stats(self, filtered_entries=None):
+        """
+        Updates the stat labels in the UI.
+        If no filtered_entries are provided, stats use the stats period filter.
+        """
+        if filtered_entries is None:
+            stats_period = self.app.stats_period.get()
+            entries = self.get_filtered_entries_by_period(stats_period)
+        else:
+            entries = filtered_entries
+
+        total = len([entry for entry in entries if entry[1] in ("S", "G")])
+        goals = len([entry for entry in entries if entry[1] == "G"])
+        saves = total - goals
+        save_pct = (saves / total) * 100 if total > 0 else 0.0
+
+        self.app.totalshots_val.config(text=str(total))
+        self.app.shots_val.config(text=str(saves))
+        self.app.goals_val.config(text=str(goals))
+        self.app.savepct_val.config(text=f"{save_pct:.2f}%")
+
+    def update_expected_goals(self):
+        """
+        Updates xG goals and actual goals labels based on the stats period filter.
+        """
+        stats_entries = self.get_filtered_entries_by_period(self.app.stats_period.get())
+
+        xg_sum = sum(entry[8] for entry in stats_entries if entry[1] == "S")
+        num_goals = sum(1 for entry in stats_entries if entry[1] == "G")
+
+        if hasattr(self.app, "xg_goals_val"):
+            self.app.xg_goals_val.config(text=f"{xg_sum:.2f}")
+
+        if hasattr(self.app, "actual_goals_val"):
+            self.app.actual_goals_val.config(text=str(num_goals))
+
+    # ---------------------------------------------------------
+    # Heatmap presets
+    # ---------------------------------------------------------
+    def apply_heatmap_preset(self):
+        """
+        Applies preset KDE/sensitivity values from the selected heatmap preset.
+        """
+        preset = self.app.heatmap_preset.get()
+
+        presets = {
+            "Match Analysis": (0.17, 0.16),
+            "Multi-Match": (0.23, 0.22),
+            "Season Review": (0.30, 0.25),
+            "Season Review (Goal only)": (0.23, 0.22),
+        }
+
+        kde, sens = presets.get(preset, (0.20, 0.20))
+
+        self.app.kde_bandwidth.set(kde)
+        self.app.sensitivity.set(sens)
+
+        if hasattr(self.app, "sens_entry"):
+            self.app.sens_entry.delete(0, "end")
+            self.app.sens_entry.insert(0, f"{sens:.2f}")
+
+        if hasattr(self.app, "kde_entry"):
+            self.app.kde_entry.delete(0, "end")
+            self.app.kde_entry.insert(0, f"{kde:.2f}")
+
+        self.app.update_plot()
+
+    def update_preset_description(self):
+        """
+        Updates the descriptive helper text for the selected heatmap preset.
+        """
+        if not hasattr(self.app, "preset_description"):
+            return
+
+        descriptions = {
+            "Match Analysis": "Well-rounded smoothing, includes most shots.",
+            "Multi-Match": "Balanced: shows main clusters, filters light noise.",
+            "Season Review": "Focused: only dense, recurring shot zones remain.",
+            "Season Review (Goal only)": "Goal-focused overview for entire season (~50-60 goals).",
+        }
+
+        preset = self.app.heatmap_preset.get()
+        text = descriptions.get(preset, "")
+        self.app.preset_description.config(text=text)
+
+    # ---------------------------------------------------------
+    # Refresh orchestration
+    # ---------------------------------------------------------
+    def update_log_view_and_stats(self):
+        """
+        Refreshes:
+        - visible log entries
+        - shot log treeview
+        - plot
+        - stats
+        - expected goals
+        """
+        filtered_entries = self.get_filtered_entries()
+        self.app.log_entries = filtered_entries
+
+        self.app.update_shot_log_treeview()
+        self.app.update_plot()
+
+        stats_entries = self.get_filtered_entries_by_period(self.app.stats_period.get())
+        self.update_stats(stats_entries)
+        self.update_expected_goals()
+
+
+================================================
+FILE: core/demo.py
+================================================
+import random
+from gui.messages import show_temporary_message
+
+def generate_demo_shots(app):
+    if app.view_mode.get() != "Plot":
+        print("⛔ Cannot generate demo shots outside of Plot view mode.")
+        show_temporary_message(app, "⛔ Switch to 'Plot' mode to add demo shots.")
+        return
+
+    print("🔁 Generating demo shots...")
+
+    current_match = app.current_match.get()
+
+    # ✅ Faser enligt dialogen
+    phases = [
+        "Full Court press", "Zone entry defense", "Zone Defense",
+        "Zone Exit", "Counter on counter", "Uncontrolled"
+    ]
+
+    # ✅ Situationer enligt dialogen
+    situations = [
+        "Breakaway", "2v0", "2v1", "3v1", "3v2",
+        "Rebound", "Penalty Shot", "Free shot"
+    ]
+
+    # ✅ Skottyper enligt dialogen
+    shot_types = [
+        "One-timer", "Controlled shot", "Own Goal",
+        "Deke", "Deflection"
+    ]
+
+    hands = ["Left", "Right"]
+    periods = ["1", "2", "3", "OT"]
+
+    width = 1455
+    height = 1000  # justerat
+
+    num_shots = 30
+    num_goals = random.randint(4, 6)
+    shot_or_goal_list = ["goal"] * num_goals + ["shot"] * (num_shots - num_goals)
+    random.shuffle(shot_or_goal_list)
+
+    for shot_or_goal in shot_or_goal_list:
+        x = random.randint(50, width - 50)
+        y = random.randint(50, height - 50)
+
+        phase = random.choice(phases)
+        situation = random.choice(situations)
+        shot_type = random.choice(shot_types)
+        passer = random.choice(hands)
+        shooter = random.choice(hands)
+        period = random.choice(periods)
+
+        # 💡 30% chans till passpunkt
+        if random.random() < 0.3:
+            pass_x = x - random.randint(20, 100)
+            pass_y = y - random.randint(20, 100)
+        else:
+            pass_x = pass_y = None
+
+        if shot_or_goal == "goal":
+            app.add_goal_event(x, y, phase, situation, shot_type, passer, shooter, period, pass_x, pass_y)
+        else:
+            app.add_shot_event(x, y, phase, situation, shot_type, passer, shooter, period, pass_x, pass_y)
+
+    print(f"✅ Finished generating {num_shots} demo shots for match: {current_match}")
+    app.period_selected.set("All")
+    app.update_stats_filtered()
+    app.update_shot_log_treeview()
+    app.update_plot()
+    app.update_stats()
+    show_temporary_message(app, "✅ Demo shots generated!")
+
+
+
+================================================
+FILE: core/init_state.py
+================================================
+import os
+import tkinter as tk
+from data.match_store import load_all_matches
+
+GAMES_FILE = "Games/matches.json"
+
+def init_variables(self) -> None:
+    # === GUI state ===
+    self.log_entries = []
+    self.view_mode = tk.StringVar(value="plot")
+    self.sensitivity = tk.DoubleVar(value=0.2)
+    self.kde_bandwidth = tk.DoubleVar(value=0.2)
+    self.cmap = tk.StringVar(value="jet")
+    self.period_selected = tk.StringVar(value="All")
+    self.stats_period = tk.StringVar(value="All")
+    self.current_match = tk.StringVar(value="All")
+    self.selected_background = tk.StringVar(value="Dark Mode.png")
+    self.bg_choice = tk.StringVar()
+    self.resolution_preset = tk.StringVar(value="Medium")
+    self.resolution_options = {
+        "Low": 300,
+        "Medium": 600,
+        "High": 800,
+        "Ultra": 1200
+    }
+
+    # === Plot / Zoom settings ===
+    self.original_xlim = (0, 1500)
+    self.original_ylim = (1000, 0)
+    self.zoom_level = 1.0
+    self.min_zoom = 1.0
+    self.max_zoom = 5.0
+
+    # Initiera tom struktur
+    self.match_logs = {"New Match": []}
+    self.current_match.set("New Match")
+
+    # === Interna objekt för highlight etc ===
+    self.highlight_artist = None
+    self.bg_files = []
+
+
+
+================================================
+FILE: core/xg.py
+================================================
+import math
+
+def get_xg_value(x, y, shot_type, defense_phase=None, stick_hand=None):
+    goal_x, goal_y = 0, 0
+    distance = math.sqrt((x - goal_x)**2 + (y - goal_y)**2)
+
+    if 550 <= x <= 965 and 600 <= y <= 820:
+        xg_value = 0.3
+    elif 550 <= x <= 965 and 355 <= y < 600:
+        xg_value = 0.18
+    elif 550 <= x <= 965 and 250 <= y <= 354:
+        xg_value = 0.04
+    elif 965 <= x <= 1160 and 355 <= y <= 760:
+        xg_value = 0.12
+    elif 1159 <= x <= 1315 and 355 <= y <= 760:
+        xg_value = 0.09
+    elif 1314 <= x <= 1500 and 355 <= y <= 760:
+        xg_value = 0.05
+    elif 345 <= x <= 550 and 355 <= y <= 760:
+        xg_value = 0.12
+    elif 200 <= x <= 344 and 355 <= y <= 760:
+        xg_value = 0.09
+    elif 0 <= x <= 199 and 355 <= y <= 760:
+        xg_value = 0.05
+    elif 200 <= x <= 0 and 0 <= y <= 249:
+        xg_value = 0.04
+    else:
+        xg_value = 0.02
+
+    shot_type_multipliers = {
+        "breakaway": 1.5,
+        "rebound": 1.2,
+        "penalty": 1.8,
+        "2v1": 1.4
+    }
+    xg_value *= shot_type_multipliers.get(shot_type, 1)
+
+    if stick_hand is not None:
+        left_side = x <= 500
+        right_side = x >= 1000
+        if left_side and stick_hand.lower() == "right":
+            xg_value *= 1.15
+        elif left_side and stick_hand.lower() == "left":
+            xg_value *= 0.85
+        elif right_side and stick_hand.lower() == "left":
+            xg_value *= 1.15
+        elif right_side and stick_hand.lower() == "right":
+            xg_value *= 0.85
+
+    if defense_phase is not None:
+        phase = defense_phase.lower()
+        if phase == "set defense":
+            xg_value *= 0.85
+        elif phase == "zone entry":
+            xg_value *= 1.10
+        elif phase == "turnover":
+            xg_value *= 1.25
+
+    return round(xg_value, 3)
+
+
+================================================
+FILE: CSV/Test.csv
+================================================
+#,S/G,Type,X,Y,Period,xG,Phase,Stick
+
+
+
+================================================
+FILE: data/__init__.py
+================================================
+[Empty file]
+
+
+================================================
+FILE: data/match_store.py
+================================================
+import os
+import json
+import csv
+from tkinter import messagebox, filedialog
+from gui.plot_controller import update_plot
+
+
+# === Grundläggande matchhantering ===
+
+def get_match_file(app, name):
+    safe_name = name.replace(" ", "_")
+    return os.path.join(app.project_root, "Games", f"{safe_name}.json")
+
+
+def prompt_save_match(app):
+    entries = app.get_filtered_entries()
+    if not entries:
+        messagebox.showinfo("No Data", "There is no match data to save.")
+        return
+
+    initial_dir = os.path.join(app.project_root, "Games")
+    os.makedirs(initial_dir, exist_ok=True)
+
+    file_path = filedialog.asksaveasfilename(
+        defaultextension=".json",
+        filetypes=[("JSON files", "*.json")],
+        initialdir=initial_dir,
+        title="Save Match As...",
+        initialfile="New Match"
+    )
+    if not file_path:
+        return
+
+    try:
+        serializable_entries = [_serialize_entry(e) for e in entries]
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(serializable_entries, f, indent=2, ensure_ascii=False)
+
+        name = os.path.splitext(os.path.basename(file_path))[0].replace("_", " ")
+        # store the *in-memory* entries as tuples (deserialized format)
+        app.match_logs[name] = [_deserialize_entry(e) for e in serializable_entries]
+        app.current_match.set(name)
+        app.update_match_dropdown()
+        messagebox.showinfo("Match Saved", f"Match '{name}' was saved.")
+    except Exception as e:
+        messagebox.showerror("Save Failed", f"Could not save match: {e}")
+
+
+def load_match_from_file(app):
+    file_path = filedialog.askopenfilename(
+        title="Select Match File",
+        filetypes=[("JSON Match Files", "*.json")],
+        initialdir=os.path.join(app.project_root, "Games")
+    )
+    if not file_path:
+        return
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            raw_data = json.load(f)
+
+        data = [_deserialize_entry(e) for e in raw_data]
+        name = os.path.splitext(os.path.basename(file_path))[0].replace("_", " ")
+        app.match_logs[name] = data
+        app.current_match.set(name)
+        app.update_match_dropdown()
+        load_selected_match(app)
+    except Exception as e:
+        messagebox.showerror("Load Failed", f"Could not load match: {e}")
+
+
+def load_selected_match(app):
+    name = app.current_match.get()
+
+    if hasattr(app, "delete_match_btn"):
+        app.delete_match_btn.config(state="normal" if name not in ["All", "Season"] else "disabled")
+
+    if name in ["All", "Season"]:
+        entries = [entry for match in app.match_logs.values() for entry in match]
+    else:
+        entries = list(app.match_logs.get(name, []))
+
+    app.log_entries = entries
+    app.update_shot_log_treeview()
+    update_plot(app)
+    app.logic.update_stats()
+    app.logic.update_expected_goals()
+
+
+def load_all_matches(app):
+    file_paths = filedialog.askopenfilenames(
+        title="Load Multiple Matches",
+        filetypes=[("JSON Match Files", "*.json")],
+        initialdir=os.path.join(app.project_root, "Games")
+    )
+    if not file_paths:
+        return
+
+    combined = {}
+    all_entries = []
+
+    for path in file_paths:
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                raw_data = json.load(f)
+            entries = [_deserialize_entry(e) for e in raw_data]
+            name = os.path.splitext(os.path.basename(path))[0].replace("_", " ")
+            combined[name] = entries
+            all_entries.extend(entries)
+        except Exception as e:
+            print(f"⚠️ Failed to load {path}: {e}")
+
+    if combined:
+        app.match_logs.update(combined)
+
+    if all_entries:
+        app.match_logs["Season"] = all_entries
+        app.current_match.set("Season")
+        load_selected_match(app)
+
+
+def auto_update_current_match(app):
+    name = app.current_match.get()
+    if name not in ["All", "Season"]:
+        file_path = get_match_file(app, name)
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+        entries = app.log_entries
+        serializable_entries = [_serialize_entry(e) for e in entries]
+
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(serializable_entries, f, indent=2, ensure_ascii=False)
+
+
+def delete_current_match(app):
+    name = app.current_match.get()
+    if name in ["All", "Season"] or name not in app.match_logs:
+        return
+
+    if not messagebox.askyesno("Delete Match", f"Delete match '{name}'?"):
+        return
+
+    del app.match_logs[name]
+    file_path = get_match_file(app, name)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
+    app.current_match.set(next(iter(app.match_logs)) if app.match_logs else "New Match")
+    app.update_match_dropdown()
+    load_selected_match(app)
+
+
+# === CSV-export/import ===
+
+def save_csv_dialog(app):
+    name = app.current_match.get() or "All"
+    file_path = filedialog.asksaveasfilename(
+        defaultextension=".csv",
+        filetypes=[("CSV files", "*.csv")],
+        initialfile=f"{name}_shots.csv"
+    )
+    if file_path:
+        _save_csv(file_path, app.log_entries)
+        messagebox.showinfo("CSV Exported", f"Shots from '{name}' saved.")
+
+
+def load_csv_dialog(app):
+    file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
+    if not file_path:
+        return
+
+    name = os.path.splitext(os.path.basename(file_path))[0].replace("_", " ")
+    entries = _load_csv(file_path)
+    app.match_logs[name] = entries
+    with open(get_match_file(app, name), "w", encoding="utf-8") as f:
+        json.dump([_serialize_entry(e) for e in entries], f, indent=2, ensure_ascii=False)
+
+    app.update_match_dropdown()
+    app.current_match.set(name)
+    load_selected_match(app)
+
+
+def _save_csv(path, entries):
+    try:
+        with open(path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                "#", "S/G", "Phase", "Situation", "Shot Type", "Passer", "Shooter",
+                "Period", "xG", "X", "Y", "Pass X", "Pass Y"
+            ])
+            for e in entries:
+                writer.writerow([
+                    e[0], e[1], e[2], e[3], e[4], e[5], e[6],
+                    e[7], e[8],
+                    round(e[9], 2), round(e[10], 2),
+                    round(e[11], 2) if e[11] is not None else "",
+                    round(e[12], 2) if e[12] is not None else ""
+                ])
+    except Exception as e:
+        print(f"⚠️ CSV Save Error: {e}")
+
+
+def _load_csv(path):
+    entries = []
+    try:
+        with open(path, newline="", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            next(reader, None)
+            for row in reader:
+                if len(row) >= 11:
+                    entries.append((
+                        int(row[0]), row[1], row[2], row[3], row[4],
+                        row[5], row[6], row[7], float(row[8]),
+                        float(row[9]), float(row[10]),
+                        float(row[11]) if len(row) > 11 and row[11] else None,
+                        float(row[12]) if len(row) > 12 and row[12] else None,
+                        None  # video column not supported in CSV
+                    ))
+    except Exception as e:
+        print(f"⚠️ CSV Load Error: {e}")
+    return entries
+
+
+# === Serializer helpers ===
+
+def _normalize_video(video):
+    """
+    Ensure we store video as:
+      None OR {"path": str, "start": float, "stop": float|None}
+    Accepts legacy string too.
+    """
+    if not video:
+        return None
+    if isinstance(video, dict):
+        path = str(video.get("path") or "")
+        if not path:
+            return None
+        start = float(video.get("start") or 0.0)
+        stop = video.get("stop", None)
+        stop = None if stop in ("", None) else float(stop)
+        return {"path": path, "start": start, "stop": stop}
+    # legacy string
+    s = str(video).strip()
+    if not s:
+        return None
+    return {"path": s, "start": 0.0, "stop": None}
+
+
+def _serialize_entry(entry):
+    """
+    Returns a JSON-safe list length 14.
+    Index 13 is a dict or None (never a tuple).
+    """
+    entry = list(entry) + [None] * (14 - len(entry))
+    base = list(entry[:13])
+    base.append(_normalize_video(entry[13]))
+    return base[:14]
+
+
+def _deserialize_entry(entry):
+    """
+    Returns a tuple length 14.
+    Upgrades legacy formats so entry[13] becomes dict/None.
+    """
+    entry = list(entry) + [None] * (14 - len(entry))
+    entry[13] = _normalize_video(entry[13])
+    return tuple(entry[:14])
+
+
+================================================
+FILE: Games/Säsong 2024, 2025/FC Dalen 1.json
+================================================
+[
+  [
+    1,
+    "S",
+    "Zone Defense",
+    "2v0",
+    "Controlled shot",
+    "Left",
+    "Left",
+    "All",
+    0.02,
+    599,
+    888,
+    94,
+    642,
+    null
+  ],
+  [
+    2,
+    "S",
+    "Zone entry defense",
+    "Breakaway",
+    "Controlled shot",
+    "Left",
+    "Left",
+    "All",
+    0.18,
+    663,
+    443,
+    753,
+    518,
+    null
+  ],
+  [
+    3,
+    "S",
+    "Counter on counter",
+    "Breakaway",
+    "Deke",
+    "Left",
+    "Left",
+    "All",
+    0.3,
+    867,
+    810,
+    847,
+    2,
+    null
+  ],
+  [
+    4,
+    "S",
+    "Zone entry defense",
+    "Breakaway",
+    "Controlled shot",
+    "Left",
+    "Left",
+    "All",
+    0.138,
+    1028,
+    714,
+    899,
+    526,
+    null
+  ],
+  [
+    5,
+    "S",
+    "Full Court press",
+    "Breakaway",
+    "One-timer",
+    "Left",
+    "Left",
+    "All",
+    0.3,
+    698,
+    803,
+    1073,
+    3,
+    null
+  ],
+  [
+    6,
+    "S",
+    "Zone entry defense",
+    "Breakaway",
+    "One-timer",
+    "Left",
+    "Left",
+    "All",
+    0.18,
+    637,
+    455,
+    1293,
+    539,
+    null
+  ],
+  [
+    7,
+    "S",
+    "Zone Defense",
+    "Breakaway",
+    "One-timer",
+    "Left",
+    "Left",
+    "All",
+    0.02,
+    646,
+    933,
+    251,
+    1183,
+    null
+  ],
+  [
+    8,
+    "S",
+    "Zone entry defense",
+    "Breakaway",
+    "One-timer",
+    "Left",
+    "Left",
+    "All",
+    0.02,
+    690,
+    896,
+    78,
+    934,
+    null
+  ],
+  [
+    9,
+    "S",
+    "Zone Exit",
+    "Breakaway",
+    "One-timer",
+    "Right",
+    "Left",
+    "All",
+    0.12,
+    986,
+    723,
+    715,
+    243,
+    null
+  ],
+  [
+    10,
+    "S",
+    "Zone entry defense",

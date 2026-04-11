@@ -1,0 +1,1138 @@
+    "Breakaway",
+    "Controlled shot",
+    "Left",
+    "Left",
+    "All",
+    0.017,
+    92,
+    230,
+    496,
+    60,
+    null
+  ],
+  [
+    11,
+    "S",
+    "Zone entry defense",
+    "Breakaway",
+    "Deflection",
+    "Left",
+    "Left",
+    "2",
+    0.017,
+    478,
+    853,
+    null,
+    null,
+    null
+  ],
+  [
+    12,
+    "S",
+    "Counter on counter",
+    "Breakaway",
+    "One-timer",
+    "Left",
+    "Left",
+    "2",
+    0.3,
+    663,
+    638,
+    1163,
+    187,
+    null
+  ],
+  [
+    13,
+    "S",
+    "Zone entry defense",
+    "Breakaway",
+    "Controlled shot",
+    "Left",
+    "Left",
+    "2",
+    0.3,
+    603,
+    721,
+    null,
+    null,
+    null
+  ],
+  [
+    14,
+    "S",
+    "Zone entry defense",
+    "Breakaway",
+    "One-timer",
+    "Left",
+    "Left",
+    "2",
+    0.3,
+    687,
+    803,
+    null,
+    null,
+    null
+  ],
+  [
+    15,
+    "S",
+    "Zone entry defense",
+    "Breakaway",
+    "One-timer",
+    "Right",
+    "Left",
+    "2",
+    0.3,
+    738,
+    718,
+    1100,
+    831,
+    null
+  ],
+  [
+    16,
+    "S",
+    "Zone Defense",
+    "Breakaway",
+    "One-timer",
+    "Left",
+    "Left",
+    "2",
+    0.138,
+    1086,
+    603,
+    963,
+    1113,
+    null
+  ],
+  [
+    17,
+    "S",
+    "Zone entry defense",
+    "Breakaway",
+    "Controlled shot",
+    "Left",
+    "Left",
+    "3",
+    0.18,
+    718,
+    423,
+    null,
+    null,
+    null
+  ],
+  [
+    18,
+    "S",
+    "Zone entry defense",
+    "Breakaway",
+    "Controlled shot",
+    "Left",
+    "Left",
+    "3",
+    0.017,
+    65,
+    84,
+    null,
+    null,
+    null
+  ],
+  [
+    19,
+    "S",
+    "Zone entry defense",
+    "Breakaway",
+    "One-timer",
+    "Left",
+    "Left",
+    "3",
+    0.3,
+    914,
+    706,
+    665,
+    371,
+    null
+  ]
+]
+
+
+================================================
+FILE: Games/Säsong 26/test.json
+================================================
+[
+  [
+    1,
+    "S",
+    "Zone Defense",
+    "Free shot",
+    "Deflection",
+    "Left",
+    "Right",
+    "1",
+    0.02,
+    780,
+    824,
+    null,
+    null,
+    null
+  ],
+  [
+    2,
+    "S",
+    "Uncontrolled",
+    "Free shot",
+    "Deflection",
+    "Right",
+    "Left",
+    "3",
+    0.18,
+    611,
+    511,
+    570,
+    450,
+    null
+  ],
+  [
+    3,
+    "S",
+    "Uncontrolled",
+    "2v1",
+    "Deflection",
+    "Left",
+    "Right",
+    "3",
+    0.023,
+    273,
+    317,
+    null,
+    null,
+    null
+  ],
+  [
+    4,
+    "S",
+    "Full Court press",
+    "3v2",
+    "Deke",
+    "Right",
+    "Right",
+    "1",
+    0.04,
+    660,
+    262,
+    588,
+    226,
+    null
+  ],
+  [
+    5,
+    "S",
+    "Full Court press",
+    "Rebound",
+    "One-timer",
+    "Left",
+    "Left",
+    "2",
+    0.076,
+    294,
+    749,
+    null,
+    null,
+    null
+  ],
+  [
+    6,
+    "S",
+    "Full Court press",
+    "2v0",
+    "One-timer",
+    "Right",
+    "Left",
+    "1",
+    0.017,
+    94,
+    214,
+    null,
+    null,
+    null
+  ],
+  [
+    7,
+    "S",
+    "Zone Defense",
+    "Breakaway",
+    "Own Goal",
+    "Left",
+    "Left",
+    "3",
+    0.3,
+    711,
+    661,
+    null,
+    null,
+    null
+  ],
+  [
+    8,
+    "S",
+    "Zone Defense",
+    "Penalty Shot",
+    "Controlled shot",
+    "Left",
+    "Right",
+    "1",
+    0.02,
+    854,
+    65,
+    817,
+    40,
+    null
+  ],
+  [
+    9,
+    "S",
+    "Zone Exit",
+    "2v1",
+    "Controlled shot",
+    "Left",
+    "Right",
+    "OT",
+    0.017,
+    1010,
+    764,
+    null,
+    null,
+    null
+  ],
+  [
+    10,
+    "S",
+    "Uncontrolled",
+    "Rebound",
+    "Deflection",
+    "Left",
+    "Right",
+    "3",
+    0.138,
+    345,
+    697,
+    null,
+    null,
+    null
+  ],
+  [
+    11,
+    "S",
+    "Full Court press",
+    "Rebound",
+    "Deflection",
+    "Right",
+    "Left",
+    "3",
+    0.023,
+    1317,
+    249,
+    null,
+    null,
+    null
+  ],
+  [
+    12,
+    "S",
+    "Uncontrolled",
+    "Free shot",
+    "Deflection",
+    "Right",
+    "Right",
+    "2",
+    0.023,
+    310,
+    160,
+    null,
+    null,
+    null
+  ],
+  [
+    13,
+    "S",
+    "Zone entry defense",
+    "Breakaway",
+    "Controlled shot",
+    "Right",
+    "Left",
+    "3",
+    0.02,
+    813,
+    838,
+    null,
+    null,
+    null
+  ],
+  [
+    14,
+    "S",
+    "Zone Defense",
+    "3v1",
+    "One-timer",
+    "Right",
+    "Right",
+    "2",
+    0.057,
+    146,
+    515,
+    111,
+    421,
+    null
+  ],
+  [
+    15,
+    "S",
+    "Full Court press",
+    "2v0",
+    "One-timer",
+    "Right",
+    "Right",
+    "1",
+    0.023,
+    204,
+    936,
+    175,
+    894,
+    null
+  ],
+  [
+    16,
+    "G",
+    "Full Court press",
+    "2v1",
+    "One-timer",
+    "Right",
+    "Left",
+    "OT",
+    1.0,
+    108,
+    343,
+    null,
+    null,
+    null
+  ],
+  [
+    17,
+    "S",
+    "Full Court press",
+    "Rebound",
+    "Controlled shot",
+    "Left",
+    "Right",
+    "OT",
+    0.3,
+    621,
+    811,
+    null,
+    null,
+    null
+  ],
+  [
+    18,
+    "G",
+    "Full Court press",
+    "2v0",
+    "Deke",
+    "Left",
+    "Right",
+    "3",
+    1.0,
+    367,
+    208,
+    null,
+    null,
+    null
+  ],
+  [
+    19,
+    "S",
+    "Zone Defense",
+    "3v2",
+    "Controlled shot",
+    "Right",
+    "Right",
+    "1",
+    0.3,
+    632,
+    761,
+    611,
+    730,
+    null
+  ],
+  [
+    20,
+    "G",
+    "Counter on counter",
+    "Free shot",
+    "One-timer",
+    "Left",
+    "Right",
+    "2",
+    1.0,
+    832,
+    929,
+    null,
+    null,
+    null
+  ],
+  [
+    21,
+    "S",
+    "Zone Defense",
+    "2v1",
+    "One-timer",
+    "Left",
+    "Right",
+    "2",
+    0.103,
+    329,
+    606,
+    261,
+    548,
+    null
+  ],
+  [
+    22,
+    "S",
+    "Zone Exit",
+    "2v1",
+    "Deflection",
+    "Right",
+    "Left",
+    "2",
+    0.023,
+    1180,
+    319,
+    null,
+    null,
+    null
+  ],
+  [
+    23,
+    "S",
+    "Zone Defense",
+    "3v2",
+    "Controlled shot",
+    "Left",
+    "Right",
+    "OT",
+    0.043,
+    1403,
+    698,
+    1354,
+    650,
+    null
+  ],
+  [
+    24,
+    "S",
+    "Full Court press",
+    "Rebound",
+    "Controlled shot",
+    "Left",
+    "Left",
+    "OT",
+    0.017,
+    282,
+    891,
+    null,
+    null,
+    null
+  ],
+  [
+    25,
+    "G",
+    "Zone Exit",
+    "Free shot",
+    "Deflection",
+    "Left",
+    "Left",
+    "2",
+    1.0,
+    617,
+    355,
+    null,
+    null,
+    null
+  ],
+  [
+    26,
+    "S",
+    "Zone Exit",
+    "3v2",
+    "Controlled shot",
+    "Right",
+    "Right",
+    "OT",
+    0.023,
+    342,
+    266,
+    null,
+    null,
+    null
+  ],
+  [
+    27,
+    "S",
+    "Full Court press",
+    "Rebound",
+    "Deflection",
+    "Left",
+    "Right",
+    "3",
+    0.017,
+    1386,
+    942,
+    1345,
+    876,
+    null
+  ],
+  [
+    28,
+    "G",
+    "Uncontrolled",
+    "3v2",
+    "Controlled shot",
+    "Right",
+    "Right",
+    "2",
+    1.0,
+    363,
+    686,
+    null,
+    null,
+    null
+  ],
+  [
+    29,
+    "S",
+    "Zone Defense",
+    "Penalty Shot",
+    "Deke",
+    "Left",
+    "Right",
+    "OT",
+    0.023,
+    216,
+    288,
+    null,
+    null,
+    null
+  ],
+  [
+    30,
+    "S",
+    "Full Court press",
+    "2v1",
+    "One-timer",
+    "Left",
+    "Left",
+    "2",
+    0.3,
+    766,
+    636,
+    null,
+    null,
+    null
+  ],
+  [
+    31,
+    "S",
+    "Full Court press",
+    "Breakaway",
+    "One-timer",
+    "Left",
+    "Left",
+    "All",
+    0.02,
+    966,
+    291,
+    1032,
+    513,
+    {
+      "path": "C:/Users/danno/Documents/johan.mp4",
+      "start": 2.0,
+      "stop": 4.0
+    }
+  ]
+]
+
+
+================================================
+FILE: gui/__init__.py
+================================================
+[Empty file]
+
+
+================================================
+FILE: gui/backgrounds.py
+================================================
+import os
+from gui.layout import update_background_menu  # Importera funktionen för att uppdatera menyn
+from utils.helpers import get_resource_path
+
+def get_available_backgrounds(app):
+    resources_path = get_resource_path("Resources")
+    if not os.path.exists(resources_path):
+        return []
+    return [f for f in os.listdir(resources_path) if f.lower().endswith(".png")]
+
+def init_background_files(app):
+    # Läs in tillgängliga bakgrundsbilder
+    app.bg_files = get_available_backgrounds(app)
+    if app.bg_files:
+        # Sätt första som standardval
+        app.bg_choice.set(app.bg_files[0])
+        app.selected_background.set(app.bg_files[0])
+    else:
+        # Om inga bilder finns, sätt till tomt värde
+        app.bg_choice.set("")
+        app.selected_background.set("")
+
+    # Uppdatera bakgrundsmenyn så att den visar aktuella bakgrunder
+    update_background_menu(app)
+
+def set_background(app, bg_name):
+    if bg_name in app.bg_files:
+        app.selected_background.set(bg_name)
+        # Ladda om bakgrundsbild och uppdatera plotten
+        from gui.plot_controller import load_image, update_plot
+        load_image(app)
+        update_plot(app)
+        # Uppdatera menyn för att reflektera aktiv bakgrund (valfritt)
+
+
+
+================================================
+FILE: gui/controls.py
+================================================
+import ttkbootstrap as tb
+import tkinter as tk
+from ttkbootstrap.widgets import Combobox
+from ttkbootstrap.constants import *
+from utils.tooltips import BetterToolTip
+
+# -----------------------------
+# 📌 PERIOD- OCH VIEW-KONTROLLER
+# -----------------------------
+def setup_period_controls(self, parent: tb.Frame) -> None:
+    frame = tb.Labelframe(parent, text="Period", bootstyle="primary")
+    frame.pack(fill="x", expand=False, pady=(5, 0), padx=3)
+    BetterToolTip(frame, "Select if you want to log shots/goals to a specific period.")
+
+    button_frame = tb.Frame(frame)
+    button_frame.pack(fill="x", padx=5, pady=(3, 3))
+
+    period_buttons = ["1", "2", "3", "OT", "All"]
+    tooltip_texts = {
+        "1": "Select to log events to Period 1.",
+        "2": "Select to log events to Period 2.",
+        "3": "Select to log events to Period 3.",
+        "OT": "Select to log events to Overtime.",
+        "All": "Show events from all periods."
+    }
+    self.period_buttons = {}
+
+    for period in period_buttons:
+        btn_width = 4 if period == "All" else 3 if period == "OT" else 2
+        button = tb.Button(
+            button_frame,
+            text=period,
+            command=lambda p=period: self.set_period_filter(p),
+            width=btn_width,
+            bootstyle="primary"
+        )
+        button.pack(side="left", padx=3, pady=(2, 4))
+        BetterToolTip(button, tooltip_texts[period])
+        self.period_buttons[period] = button
+
+    self.period_selected.trace("w", lambda *args: self.update_period_button_styles())
+
+
+def setup_view_mode_controls(self, parent: tb.Frame) -> None:
+    frame = tb.Labelframe(parent, text="View Mode", bootstyle="primary")
+    frame.pack(fill="x", pady=(5, 0), padx=3)
+
+    view_options = ["Plot", "Heatmap", "Goal Heatmap", "Save Heatmap"]
+    self.view_mode.set("Plot")
+
+    def on_select(event=None):
+        selected = self.view_mode_dropdown.get()
+        self.view_mode.set(selected)
+        self.update_plot()
+
+    self.view_mode_dropdown = Combobox(
+        frame,
+        values=view_options,
+        textvariable=self.view_mode,
+        state="readonly",
+        bootstyle="info"
+    )
+    self.view_mode_dropdown.pack(fill="x", padx=5)
+    self.view_mode_dropdown.bind("<<ComboboxSelected>>", on_select)
+    BetterToolTip(self.view_mode_dropdown,
+        "Change the visualization mode:\n"
+        "- Plot = regular shot plot\n"
+        "- Heatmaps = density views of shots or goals"
+    )
+
+
+# -----------------------------
+# 📈 STATISTIK OCH XG-VISNING
+# -----------------------------
+def setup_stats_filter_controls(self, parent: tb.Frame) -> None:
+    frame = tb.Labelframe(parent, text="Statistics", bootstyle="primary")
+    frame.pack(fill="x", pady=(5, 0), padx=3)
+    stats = tb.Frame(frame)
+    stats.pack(anchor="center", padx=5, pady=(5, 0))
+    stats.grid_columnconfigure(0, weight=1)
+    stats.grid_columnconfigure(1, weight=1)
+
+    def label_row(row, text, var_attr):
+        label = tb.Label(stats, text=text, font=("Segoe UI", 10))
+        label.grid(row=row, column=0, sticky="w", padx=(5, 0), pady=2)
+        value = tb.Label(stats, text="0", anchor="w", font=("Segoe UI", 11))
+        value.grid(row=row, column=1, sticky="w", padx=(10, 0), pady=2)
+        setattr(self, var_attr, value)
+
+    label_row(0, "Shots (Saved):", "shots_val")
+    label_row(1, "Goals Conceded:", "goals_val")
+    label_row(2, "Total Shots:", "totalshots_val")
+    label_row(3, "Save %:", "savepct_val")
+
+    tb.Separator(frame, orient="horizontal").pack(fill="x", pady=(6, 3))
+    row = tb.Frame(frame)
+    row.pack(anchor="w", padx=5, pady=(0, 5), fill="x")
+    row.grid_columnconfigure(0, weight=1)
+    row.grid_columnconfigure(1, weight=1)
+
+    tb.Label(row, text="Filter by Period:", font=("Segoe UI", 10)).grid(row=0, column=0, sticky="w")
+    period_options = ["All", "1", "2", "3", "OT"]
+    self.stats_period_dropdown = Combobox(
+        row,
+        textvariable=self.stats_period,
+        values=period_options,
+        state="readonly",
+        width=9,
+        bootstyle="info"
+    )
+    self.stats_period_dropdown.grid(row=0, column=1, sticky="e")
+    self.stats_period_dropdown.bind("<<ComboboxSelected>>", lambda e: self.update_stats_filtered())
+
+
+def setup_expected_goals_controls(self, parent: tb.Frame) -> None:
+    frame = tb.Labelframe(parent, text="Expected Goals", bootstyle="primary")
+    frame.pack(fill="x", pady=(5, 0), padx=3)
+
+    stats = tb.Frame(frame)
+    stats.pack(anchor="center", padx=5, pady=(5, 5))
+    stats.grid_columnconfigure(0, weight=1)
+    stats.grid_columnconfigure(1, weight=1)
+
+    tooltip = "Expected Goals (xG): how many goals should have been conceded based on shot quality."
+
+    label_xg = tb.Label(stats, text="xG Goals:", font=("Segoe UI", 11))
+    label_xg.grid(row=0, column=0, sticky="w", padx=(5, 0), pady=1)
+    self.xg_goals_val = tb.Label(stats, text="0.00", anchor="w", font=("Segoe UI", 11))
+    self.xg_goals_val.grid(row=0, column=1, sticky="w", padx=(10, 0), pady=1)
+
+    label_goals = tb.Label(stats, text="Goals:", font=("Segoe UI", 11))
+    label_goals.grid(row=1, column=0, sticky="w", padx=(5, 0), pady=1)
+    self.actual_goals_val = tb.Label(stats, text="0", anchor="w", font=("Segoe UI", 11))
+    self.actual_goals_val.grid(row=1, column=1, sticky="w", padx=(10, 0), pady=1)
+
+    for w in [frame, label_xg, self.xg_goals_val, label_goals, self.actual_goals_val]:
+        BetterToolTip(w, tooltip)
+
+
+# -----------------------------
+# 🎨 HEATMAP- OCH KÄNSLIGHET
+# -----------------------------
+def setup_heatmap_settings_group(self, parent: tb.Frame) -> None:
+    frame = tb.Labelframe(parent, text="Heatmap Settings", bootstyle="primary")
+    frame.pack(fill="x", pady=(3, 0), padx=3)
+
+    # 🎨 Color selection
+    tb.Label(frame, text="Select heatmap color:", font=("Segoe UI", 10)).pack(padx=5, pady=(2, 1), anchor="w")
+    self.colormap_combobox = Combobox(
+        frame,
+        values=["inferno", "plasma", "magma", "hot", "jet"],
+        textvariable=self.cmap,
+        state="readonly",
+        bootstyle="primary"
+    )
+    self.colormap_combobox.pack(fill="x", padx=5, pady=(0, 2))
+    self.colormap_combobox.bind("<<ComboboxSelected>>", lambda e: self.update_plot())
+
+    # 📐 Quality
+    tb.Label(frame, text="Heatmap Quality:", font=("Segoe UI", 10)).pack(padx=5, pady=(1, 1), anchor="w")
+    self.resolution_combobox = Combobox(
+        frame,
+        values=list(self.resolution_options.keys()),
+        textvariable=self.resolution_preset,
+        state="readonly",
+        bootstyle="primary"
+    )
+    self.resolution_combobox.pack(fill="x", padx=5, pady=(0, 2))
+    self.resolution_combobox.bind("<<ComboboxSelected>>", lambda e: self.update_plot())
+
+    # 🧠 Presets
+    tb.Label(frame, text="Preset:", font=("Segoe UI", 10)).pack(padx=5, pady=(1, 1), anchor="w")
+    self.heatmap_preset = tk.StringVar(value="Match Analysis")
+    self.heatmap_preset_dropdown = Combobox(
+        frame,
+        values=[
+            "Match Analysis", "Multi-Match", "Season Review", "Season Review (Goal only)"
+        ],
+        textvariable=self.heatmap_preset,
+        state="readonly",
+        bootstyle="primary"
+    )
+    self.heatmap_preset_dropdown.pack(fill="x", padx=5, pady=(0, 2))
+    self.heatmap_preset_dropdown.bind("<<ComboboxSelected>>", lambda e: self.on_preset_changed())
+
+    self.preset_description = tb.Label(
+        frame,
+        text="",
+        font=("Segoe UI", 8, "italic"),
+        wraplength=220,              # Anpassa bredden efter behov
+        justify="left"
+    )
+    self.preset_description.pack(padx=5, pady=(0, 5), anchor="w")
+
+    # 🎚 Sensitivity
+    tb.Label(frame, text="Sensitivity:", font=("Segoe UI", 10)).pack(padx=5, pady=(1, 1), anchor="w")
+    self.sens_slider = tb.Scale(
+        frame, from_=0.01, to=1.0, orient="horizontal",
+        variable=self.sensitivity, length=110,
+        command=lambda val: self.apply_sensitivity(from_slider=True)
+    )
+    self.sens_slider.pack(fill="x", padx=5)
+    self.sens_entry = tb.Entry(frame, width=4)
+    self.sens_entry.insert(0, f"{self.sensitivity.get():.2f}")
+    self.sens_entry.pack(padx=5, pady=(0, 2), anchor="e")
+    self.sens_entry.bind("<Return>", lambda e: self.apply_sensitivity(from_slider=False))
+
+    # 🎚 KDE Bandwidth
+    tb.Label(frame, text="KDE Bandwidth:", font=("Segoe UI", 10)).pack(padx=5, pady=(1, 1), anchor="w")
+    self.kde_slider = tb.Scale(
+        frame, from_=0.01, to=1.0, orient="horizontal",
+        variable=self.kde_bandwidth, length=110,
+        command=lambda val: self.apply_kde(from_slider=True)
+    )
+    self.kde_slider.pack(fill="x", padx=5)
+    self.kde_entry = tb.Entry(frame, width=4)
+    self.kde_entry.insert(0, f"{self.kde_bandwidth.get():.2f}")
+    self.kde_entry.pack(padx=5, pady=(0, 2), anchor="e")
+    self.kde_entry.bind("<Return>", lambda e: self.apply_kde(from_slider=False))
+
+
+# -----------------------------
+# 📁 MATCHHANTERING OCH DEMO
+# -----------------------------
+def setup_match_management(self, parent: tb.Frame) -> None:
+    frame = tb.Labelframe(parent, text="Match Manager", bootstyle="primary")
+    frame.pack(fill="x", pady=(5, 10), padx=3)
+
+    # 🔄 Load Match
+    load_btn = tb.Button(
+        frame,
+        text="Load Match...",
+        command=self.handle_load_match,
+        bootstyle="primary",
+        width=25
+    )
+    load_btn.pack(fill="x", padx=5, pady=(5, 3))
+
+    # 🔁 Load Season
+    season_btn = tb.Button(
+        frame,
+        text="Load Several Matches",
+        command=self.handle_load_season,
+        bootstyle="primary",
+        width=25
+    )
+    season_btn.pack(fill="x", padx=5, pady=(0, 3))
+
+    # ❌ Delete Match
+    self.delete_match_btn = tb.Button(
+        frame,
+        text="Delete This Match",
+        command=self.delete_current_match,
+        bootstyle="primary",
+        width=25
+    )
+    self.delete_match_btn.pack(fill="x", padx=5, pady=(0, 3))
+
+    # 💾 Save
+    save_btn = tb.Button(
+        frame,
+        text="Save as....",
+        command=self.prompt_save_match,
+        bootstyle="primary",
+        width=25
+    )
+    save_btn.pack(fill="x", padx=5, pady=(0, 5))
+
+    # Tooltips (valfritt)
+    BetterToolTip(load_btn, "Choose from existing matches to load.")
+    BetterToolTip(season_btn, "Load all matches or grouped folders.")
+    BetterToolTip(self.delete_match_btn, "Remove the currently selected match.")
+    BetterToolTip(save_btn, "Save the current shots/goals as a new match.")
+
+def setup_demo_shots_button(self, parent: tb.Frame) -> None:
+    frame = tb.Labelframe(parent, text="Demo Data", bootstyle="primary")
+    frame.pack(fill="x", pady=(5, 10), padx=3)
+
+    demo_btn = tb.Button(
+        frame,
+        text="Generate Demo Shots",
+        command=self.generate_demo_shots,
+        bootstyle="primary",
+        width=25
+    )
+    demo_btn.pack(fill="x", padx=5, pady=5)
+
+    BetterToolTip(demo_btn, "Generate example shots and goals for testing and experimentation.")
+
+
+
+================================================
+FILE: gui/events.py
+================================================
+import tkinter as tk
+from tkinter import messagebox
+
+# --- Centrering och popup-hantering ---
+
+def center_popup_in_canvas(app, width=260, height=220, top_offset=150):
+    canvas_widget = app.canvas.get_tk_widget()
+    canvas_widget.update_idletasks()
+    x_canvas = canvas_widget.winfo_rootx()
+    y_canvas = canvas_widget.winfo_rooty()
+    canvas_width = canvas_widget.winfo_width()
+    x = x_canvas + (canvas_width - width) // 2
+    y = y_canvas + top_offset
+    return x, y
+
+def format_geometry_string(width, height, x, y):
+    return f"{width}x{height}+{x}+{y}"
+
+def prepare_popup(popup, app, width=260, height=220, top_offset=400):
+    popup.withdraw()
+    popup.update_idletasks()
+    x, y = center_popup_in_canvas(app, width, height, top_offset)
+    popup.geometry(format_geometry_string(width, height, x, y))
+    popup.deiconify()
+
+# --- Space för att radera punkt ---
+
+def on_space_key_pressed(app, event):
+    canvas_widget = app.canvas.get_tk_widget()
+    mouse_x = canvas_widget.winfo_pointerx() - canvas_widget.winfo_rootx()
+    mouse_y = canvas_widget.winfo_pointery() - canvas_widget.winfo_rooty()
+    canvas_height = canvas_widget.winfo_height()
+    corrected_mouse_y = canvas_height - mouse_y
+    app.remove_nearest_point(mouse_x, corrected_mouse_y)
+
+# --- Klick på canvasen ---
+
+def onclick(self, event):
+    if self.view_mode.get() != "Plot":
+        print("⛔ Cannot place shots/goals outside of Plot view mode.")
+        return
+    if not event.xdata or not event.ydata or self.popup_open:
+        return
+
+    if getattr(self, "expecting_pass_click", False):
+        self.expecting_pass_click = False
+        if hasattr(self, "pending_pass_data"):
+            main_x, main_y, phase, situation, shot_type, passer, shooter = self.pending_pass_data
+            pass_x = int(round(event.xdata))
+            pass_y = int(round(event.ydata))
+            self.add_shot_event(main_x, main_y, phase, situation, shot_type, passer, shooter, pass_x=pass_x, pass_y=pass_y)
+            del self.pending_pass_data
+        return
+
+    if event.button == 1:
+        show_phase_dialog(self, event.xdata, event.ydata, shot_or_goal="shot")
+    elif event.button == 3:
+        show_phase_dialog(self, event.xdata, event.ydata, shot_or_goal="goal")
+
+# --- Dialogsteg ---
+
+def show_phase_dialog(self, x, y, shot_or_goal):
+    if self.popup_open:
+        return
+    self.popup_open = True
+
+    popup = tk.Toplevel(self.root)
+    popup.title("Select Phase")
+    popup.transient(self.root)
+    popup.grab_set()
+    popup.bind("<Destroy>", lambda _: setattr(self, "popup_open", False))
+    popup.bind("<Escape>", lambda e: popup.destroy())
+
+    phases = {
+        "Full Court press": "Trying to activate from the normal entry defense, up to a full court press.",
+        "Zone entry defense": "The team is playing the normal defense system, trying to prevent the opponent from playing a zone entry with quality.",
+        "Zone Defense": "You are trying to defend after the opponent has settled in playing zone offense.",
+        "Zone Exit": "The opponent activates counter-press after you have won the ball in your own zone.",
+        "Counter on counter": "When a team counters after having won the ball from the opponent's counter-attack.",
+        "Uncontrolled": "When a situation cannot be placed under any other game situation.",
+    }
+
+    frame = tk.Frame(popup)
+    frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+    desc_label = tk.Label(frame, text="", wraplength=250, justify="center", anchor='center')
+    desc_label.pack_forget()
+
+    for phase, description in phases.items():
+        btn = tk.Button(
+            frame, text=phase, bg="#223344", fg="white", relief=tk.RAISED,
+            padx=10, pady=5, anchor="center", justify="center", font=("Arial", 9, "bold"),
+            command=lambda p=phase: [popup.destroy(), show_situation_dialog(self, x, y, p, shot_or_goal)]
+        )
+        btn.pack(fill=tk.X, pady=3)
+        btn.bind("<Enter>", lambda e, txt=description: desc_label.config(text=txt))
+        btn.bind("<Leave>", lambda e: desc_label.config(text=""))
+
+    desc_label.pack(fill=tk.BOTH, expand=True, pady=(10, 5))
+    cancel = tk.Button(frame, text="Cancel", command=popup.destroy)
+    cancel.pack(fill=tk.X, pady=(0, 5))
+    prepare_popup(popup, self, width=265, height=350)
+
+def show_situation_dialog(self, x, y, phase, shot_or_goal):
+    popup = tk.Toplevel(self.root)
+    popup.title("Select Situation")
+    popup.transient(self.root)
+    popup.grab_set()
+    popup.bind("<Escape>", lambda e: popup.destroy())
+
+    situations = {
+        "Breakaway": "Attacker breaks through alone on the goalkeeper.",
+        "2v0": "Two attackers against the goalkeeper without defenders.",
+        "2v1": "Two attackers versus one defender.",
+        "3v1": "Three attackers versus one defender.",
+        "3v2": "Three attackers versus two defenders.",
+        "Rebound": "Shot opportunity following a saved or blocked shot.",
+        "Penalty Shot": "Awarded direct shot from penalty mark.",
+        "Free shot": "No pressure or game system affects this situation.",
+    }
+
+    frame = tk.Frame(popup)
+    frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+    desc_label = tk.Label(frame, text="", wraplength=250, justify="center", anchor="center")
+    desc_label.pack_forget()
+
+    for label, description in situations.items():
+        btn = tk.Button(
+            frame, text=label, bg="#223344", fg="white", relief=tk.RAISED,
