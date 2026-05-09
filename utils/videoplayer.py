@@ -1,32 +1,23 @@
 # utils/videoplayer.py
 """
-Embedded VLC overlay player for Floorball Shot Plotter.
+Modern embedded VLC overlay player for Floorball Shot Plotter.
 
 Features:
-- Portable-friendly: configure bundled VLC runtime BEFORE importing python-vlc
-- Preloads bundled libvlc/libvlccore on Windows to avoid wrong cwd lookup
-- Force bundled VLC plugins (avoid Program Files VLC)
-- Stable overlay stacking: never lower canvas_frame, just raise overlay
-- Repeat + segment loop
-- Start/Stop fields apply (Enter / FocusOut)
-- Auto-play toggle
-- Save Segment button (writes back to caller via callback)
-- Clean close(): stop -> detach hwnd -> release -> destroy only overlay we created
-
-Notes:
-- Expects a bundled runtime in:
-    <project_root>/vlc/
-        libvlc.dll
-        libvlccore.dll
-        plugins/
-- If VLC cannot be initialized, the rest of the app should still run.
+- Uses bundled VLC runtime
+- Fills the center canvas panel
+- Minimal bottom controls
+- Clickable / draggable timeline
+- Start / Stop segment fields
+- Play / Pause / Stop
+- Loop Segment ON/OFF
+- Save Segment callback
+- ESC / X close
 """
 
 from __future__ import annotations
 
 import ctypes
 import os
-import time
 from pathlib import Path
 import tkinter as tk
 from tkinter import messagebox
@@ -35,16 +26,9 @@ from paths import get_project_root
 
 
 # ------------------------------------------------------------
-# VLC runtime bootstrap (MUST run before import vlc)
+# VLC runtime bootstrap
 # ------------------------------------------------------------
 def _configure_vlc_runtime() -> tuple[Path | None, Path | None]:
-    """
-    Configure a bundled VLC runtime before importing python-vlc.
-
-    Returns:
-        (vlc_dir, plugins_dir) if successful
-        (None, None) if bundled runtime is not usable
-    """
     base = Path(get_project_root())
     vlc_dir = base / "vlc"
     plugins_dir = vlc_dir / "plugins"
@@ -56,17 +40,12 @@ def _configure_vlc_runtime() -> tuple[Path | None, Path | None]:
         return None, None
 
     try:
-        # Make DLL directory visible to Windows loader
         if hasattr(os, "add_dll_directory"):
             os.add_dll_directory(str(vlc_dir))
 
-        # Keep PATH updated as fallback
         os.environ["PATH"] = f"{vlc_dir};{os.environ.get('PATH', '')}"
-
-        # VLC plugin path
         os.environ["VLC_PLUGIN_PATH"] = str(plugins_dir.resolve())
 
-        # Preload DLLs explicitly to avoid python-vlc falling back to .\\libvlc.dll
         ctypes.CDLL(str(libvlccore_path.resolve()))
         ctypes.CDLL(str(libvlc_path.resolve()))
 
@@ -81,13 +60,51 @@ _VLC_DIR, _PLUGINS_DIR = _configure_vlc_runtime()
 
 try:
     import vlc  # type: ignore
+
     _VLC_IMPORT_ERROR: Exception | None = None
 except Exception as e:
     vlc = None
     _VLC_IMPORT_ERROR = e
 
 
+# ------------------------------------------------------------
+# Helpers
+# ------------------------------------------------------------
+def _format_time(seconds: float | int | None) -> str:
+    if seconds is None:
+        return "--:--"
+
+    try:
+        seconds = max(0, int(float(seconds)))
+    except Exception:
+        return "--:--"
+
+    minutes = seconds // 60
+    secs = seconds % 60
+    return f"{minutes:02d}:{secs:02d}"
+
+
+def _parse_float(value: str, fallback: float | None = None) -> float | None:
+    value = (value or "").strip().replace(",", ".")
+    if value == "":
+        return fallback
+
+    try:
+        return float(value)
+    except ValueError:
+        return fallback
+
+
+# ------------------------------------------------------------
+# Player
+# ------------------------------------------------------------
 class VLCOverlayWithControls(tk.Frame):
+    BG = "#0b0f14"
+    PANEL_BG = "#111820"
+    PANEL_BG_SOFT = "#17212b"
+    TEXT = "#f4f7fa"
+    MUTED = "#aab4bf"
+
     def __init__(
         self,
         master: tk.Misc,
@@ -97,387 +114,415 @@ class VLCOverlayWithControls(tk.Frame):
         stop: float | None = None,
         autoplay: bool = True,
         app=None,
-        on_save_segment=None,   # callable(start: float, stop: float|None) -> None
+        on_save_segment=None,
         **kwargs,
     ):
-        super().__init__(master, bg="#1e1e1e", **kwargs)
+        super().__init__(master, bg=self.BG, **kwargs)
 
         self.app = app
         self.video_path = video_path
         self.on_save_segment = on_save_segment
 
-        self.start_time: float = float(start or 0.0)
-        self.stop_time: float | None = float(stop) if stop not in (None, "") else None
+        self.start_time = float(start or 0.0)
+        self.stop_time = None if stop in ("", None) else float(stop)
 
+        self.loop_segment = tk.BooleanVar(value=True)
+        self.user_dragging = False
         self.running = True
+        self.duration_seconds = 0.0
+        self._was_playing_before_drag = False
 
-        # Toggle modes
-        self.autoplay = bool(autoplay)
-        self.repeat_mode = False
-        self.segment_loop = False
-
-        self.seeking = False
-        self.last_seek_time = 0.0
-
-        # VLC
         self.instance = None
         self.player = None
 
-        # ---------------- UI ----------------
-        self.canvas = tk.Canvas(self, bg="black", highlightthickness=0)
-        self.canvas.pack(fill="both", expand=True)
+        self._build_ui()
+        self._init_vlc()
 
-        self.controls = tk.Frame(self, bg="#2c2c2c")
-        self.controls.pack(fill="x", padx=5, pady=4)
+        self.bind_all("<Escape>", self._on_escape)
 
-        tk.Label(self.controls, text="Start:", bg="#2c2c2c", fg="white").pack(side="left", padx=(5, 2))
-        self.start_entry = tk.Entry(self.controls, width=7)
-        self.start_entry.insert(0, str(int(self.start_time)))
-        self.start_entry.pack(side="left")
+        if autoplay:
+            self.after(350, self.play)
 
-        tk.Label(self.controls, text="Stop:", bg="#2c2c2c", fg="white").pack(side="left", padx=(10, 2))
-        self.stop_entry = tk.Entry(self.controls, width=7)
-        self.stop_entry.insert(0, "" if self.stop_time is None else str(int(self.stop_time)))
-        self.stop_entry.pack(side="left")
+        self.after(250, self._update_loop)
 
-        self.slider = tk.Scale(
-            self.controls,
-            from_=0,
-            to=1000,
-            orient="horizontal",
-            length=320,
-            showvalue=False,
-        )
-        self.slider.pack(side="left", padx=(20, 10))
-        self.slider.bind("<ButtonPress-1>", self.on_slider_press)
-        self.slider.bind("<ButtonRelease-1>", self.on_slider_release)
+    # --------------------------------------------------------
+    # UI
+    # --------------------------------------------------------
+    def _build_ui(self) -> None:
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
 
-        self.time_label = tk.Label(
-            self.controls,
-            text="00:00 / 00:00",
-            bg="#2c2c2c",
-            fg="white",
-            font=("Segoe UI", 9),
-        )
-        self.time_label.pack(side="left", padx=(10, 0))
-
-        self.play_btn = tk.Button(self.controls, text="▶", command=self.play)
-        self.play_btn.pack(side="left", padx=2)
-        self.pause_btn = tk.Button(self.controls, text="⏸", command=self.pause)
-        self.pause_btn.pack(side="left", padx=2)
-        self.stop_btn = tk.Button(self.controls, text="⏹", command=self.stop)
-        self.stop_btn.pack(side="left", padx=2)
-
-        self.save_btn = tk.Button(self.controls, text="💾 Save Segment", command=self.save_segment)
-        self.save_btn.pack(side="right", padx=(6, 10))
-
-        self.autoplay_btn = tk.Button(self.controls, text="▶ Auto", command=self.toggle_autoplay)
-        self.autoplay_btn.pack(side="right", padx=(6, 0))
-
-        self.segment_btn = tk.Button(self.controls, text="🎯 Segment", command=self.toggle_segment_loop)
-        self.segment_btn.pack(side="right", padx=(6, 0))
-
-        self.repeat_btn = tk.Button(self.controls, text="🔁 Repeat", command=self.toggle_repeat)
-        self.repeat_btn.pack(side="right", padx=(6, 0))
-
-        self._sync_toggle_buttons()
+        self.video_area = tk.Frame(self, bg="black", highlightthickness=0)
+        self.video_area.grid(row=0, column=0, sticky="nsew")
 
         self.close_btn = tk.Button(
             self,
-            text="❌",
+            text="×",
             command=self.close,
-            bg="#1e1e1e",
-            fg="white",
-            borderwidth=0,
+            bg="#111820",
+            fg=self.TEXT,
+            activebackground="#263646",
+            activeforeground=self.TEXT,
+            bd=0,
+            font=("Segoe UI", 16, "bold"),
+            cursor="hand2",
         )
-        self.close_btn.place(relx=0.0, rely=0.0, anchor="nw", x=10, y=10)
+        self.close_btn.place(x=10, y=10, width=36, height=36)
 
-        # Entry apply bindings
-        self.start_entry.bind("<Return>", self._on_start_apply)
-        self.start_entry.bind("<FocusOut>", self._on_bounds_apply)
-        self.stop_entry.bind("<Return>", self._on_bounds_apply)
-        self.stop_entry.bind("<FocusOut>", self._on_bounds_apply)
-
-        # ESC
-        self.bind_all("<Escape>", self._on_escape)
-
-        # Init VLC + tick
-        self.after(0, self._init_player_safe)
-        self.after(200, self.update_slider)
-
-    # ---------------------------
-    # UI state
-    # ---------------------------
-    def _sync_toggle_buttons(self) -> None:
-        self.repeat_btn.config(
-            text=("🔁 Repeating" if self.repeat_mode else "🔁 Repeat"),
-            relief=("sunken" if self.repeat_mode else "raised"),
+        self.controls = tk.Frame(
+            self,
+            bg=self.PANEL_BG,
+            highlightthickness=1,
+            highlightbackground="#253445",
         )
-        self.segment_btn.config(
-            text=("🎯 Segment ON" if self.segment_loop else "🎯 Segment"),
-            relief=("sunken" if self.segment_loop else "raised"),
-        )
-        self.autoplay_btn.config(
-            text=("▶ Auto ON" if self.autoplay else "▶ Auto"),
-            relief=("sunken" if self.autoplay else "raised"),
+        self.controls.place(
+            relx=0.5,
+            rely=1.0,
+            anchor="s",
+            relwidth=0.96,
+            height=86,
+            y=-12,
         )
 
-    # ---------------------------
-    # Bounds / seek helpers
-    # ---------------------------
-    def _apply_time_bounds(self) -> None:
-        try:
-            s = self.start_entry.get().strip()
-            self.start_time = float(s) if s else 0.0
-        except Exception:
-            self.start_time = 0.0
+        self.controls.grid_columnconfigure(1, weight=1)
 
-        try:
-            raw = self.stop_entry.get().strip()
-            self.stop_time = float(raw) if raw else None
-        except Exception:
-            self.stop_time = None
+        self.time_label = tk.Label(
+            self.controls,
+            text="00:00 / --:--",
+            bg=self.PANEL_BG,
+            fg=self.TEXT,
+            font=("Segoe UI", 9, "bold"),
+            width=13,
+        )
+        self.time_label.grid(row=0, column=0, padx=(10, 6), pady=(8, 0), sticky="w")
 
-    def _seek_seconds(self, seconds: float) -> None:
-        if not self.player:
-            return
-        try:
-            self.player.set_time(int(max(0.0, seconds) * 1000))
-        except Exception:
-            pass
+        self.timeline = tk.Scale(
+            self.controls,
+            from_=0,
+            to=100,
+            orient="horizontal",
+            showvalue=False,
+            resolution=0.1,
+            bg=self.PANEL_BG,
+            fg=self.TEXT,
+            troughcolor="#2a3542",
+            highlightthickness=0,
+            bd=0,
+            command=self._on_timeline_drag,
+        )
+        self.timeline.grid(
+            row=0,
+            column=1,
+            columnspan=8,
+            padx=(0, 10),
+            pady=(5, 0),
+            sticky="ew",
+        )
+        self.timeline.bind("<ButtonPress-1>", self._on_timeline_press)
+        self.timeline.bind("<B1-Motion>", self._on_timeline_motion)
+        self.timeline.bind("<ButtonRelease-1>", self._on_timeline_release)
 
-    def _restart_from(self, seconds: float, *, pause_after: bool = False) -> None:
-        if not self.player or not self.instance:
-            return
+        tk.Label(
+            self.controls,
+            text="Start",
+            bg=self.PANEL_BG,
+            fg=self.MUTED,
+            font=("Segoe UI", 9),
+        ).grid(row=1, column=0, padx=(10, 4), pady=(6, 8), sticky="e")
 
-        try:
-            self.player.stop()
-        except Exception:
-            pass
+        self.start_entry = tk.Entry(
+            self.controls,
+            bg=self.PANEL_BG_SOFT,
+            fg=self.TEXT,
+            insertbackground=self.TEXT,
+            relief="flat",
+            justify="center",
+            font=("Segoe UI", 9),
+            width=7,
+        )
+        self.start_entry.insert(0, f"{self.start_time:g}")
+        self.start_entry.grid(row=1, column=1, padx=(0, 8), pady=(6, 8), sticky="w")
 
-        try:
-            media = self.instance.media_new(self.video_path)
-            self.player.set_media(media)
-            self.player.play()
-        except Exception as e:
-            print("⚠️ restart failed:", e)
-            return
+        tk.Label(
+            self.controls,
+            text="Stop",
+            bg=self.PANEL_BG,
+            fg=self.MUTED,
+            font=("Segoe UI", 9),
+        ).grid(row=1, column=2, padx=(0, 4), pady=(6, 8), sticky="e")
 
-        def _after_start():
-            self._seek_seconds(seconds)
-            if pause_after:
-                try:
-                    self.player.set_pause(1)
-                except Exception:
-                    pass
+        self.stop_entry = tk.Entry(
+            self.controls,
+            bg=self.PANEL_BG_SOFT,
+            fg=self.TEXT,
+            insertbackground=self.TEXT,
+            relief="flat",
+            justify="center",
+            font=("Segoe UI", 9),
+            width=7,
+        )
+        self.stop_entry.insert(0, "" if self.stop_time is None else f"{self.stop_time:g}")
+        self.stop_entry.grid(row=1, column=3, padx=(0, 12), pady=(6, 8), sticky="w")
 
-        self.after(250, _after_start)
+        self.play_btn = self._control_button("▶ / ⏸", self.toggle_play)
+        self.play_btn.grid(row=1, column=4, padx=3, pady=(6, 8), sticky="ew")
 
-    def _on_bounds_apply(self, _event=None):
-        self._apply_time_bounds()
+        self.stop_btn = self._control_button("■", self.stop)
+        self.stop_btn.grid(row=1, column=5, padx=3, pady=(6, 8), sticky="ew")
 
-    def _on_start_apply(self, _event=None):
-        self._apply_time_bounds()
-        self._restart_from(self.start_time, pause_after=not self.autoplay)
+        self.loop_btn = self._control_button("Loop: ON", self.toggle_loop)
+        self.loop_btn.grid(row=1, column=6, padx=3, pady=(6, 8), sticky="ew")
 
-    # ---------------------------
-    # VLC init / playback
-    # ---------------------------
-    def _init_player_safe(self) -> None:
-        if not self.running:
-            return
+        self.save_btn = self._control_button("💾 Save", self.save_segment)
+        self.save_btn.grid(row=1, column=7, padx=3, pady=(6, 8), sticky="ew")
 
+        self.close_small_btn = self._control_button("Close", self.close)
+        self.close_small_btn.grid(row=1, column=8, padx=(3, 10), pady=(6, 8), sticky="ew")
+
+        self.start_entry.bind("<Return>", lambda _e: self.apply_segment_fields())
+        self.stop_entry.bind("<Return>", lambda _e: self.apply_segment_fields())
+        self.start_entry.bind("<FocusOut>", lambda _e: self.apply_segment_fields())
+        self.stop_entry.bind("<FocusOut>", lambda _e: self.apply_segment_fields())
+
+    def _control_button(self, text: str, command) -> tk.Button:
+        return tk.Button(
+            self.controls,
+            text=text,
+            command=command,
+            bg=self.PANEL_BG_SOFT,
+            fg=self.TEXT,
+            activebackground="#263646",
+            activeforeground=self.TEXT,
+            bd=0,
+            padx=10,
+            pady=4,
+            font=("Segoe UI", 9, "bold"),
+            cursor="hand2",
+        )
+
+    # --------------------------------------------------------
+    # VLC
+    # --------------------------------------------------------
+    def _init_vlc(self) -> None:
         if vlc is None:
-            print(f"❌ VLC import failed: {_VLC_IMPORT_ERROR}")
-            self.running = False
-            return
-
-        if _VLC_DIR is None or _PLUGINS_DIR is None:
-            print("❌ VLC runtime folder not available.")
-            self.running = False
-            return
+            raise RuntimeError(_VLC_IMPORT_ERROR or "python-vlc unavailable")
 
         try:
-            plugin_path = str(_PLUGINS_DIR.resolve())
-
-            args = [
+            self.instance = vlc.Instance(
                 "--no-video-title-show",
                 "--quiet",
-                "--no-osd",
-                "--no-stats",
-                "--no-media-library",
-            ]
-
-            if os.environ.get("FSP_VLC_RESET_CACHE", "0") == "1":
-                args.append("--reset-plugins-cache")
-
-            self.instance = vlc.Instance(*args)
+            )
             self.player = self.instance.media_player_new()
+            media = self.instance.media_new(self.video_path)
+            self.player.set_media(media)
+
+            self.video_area.update_idletasks()
+            hwnd = self.video_area.winfo_id()
+            self.player.set_hwnd(hwnd)
 
         except Exception as e:
-            print("❌ VLC instance/player init failed:", e)
-            self.running = False
-            return
+            messagebox.showerror("Playback Failed", f"Could not initialize video player:\n{e}")
+            self.close()
 
-        self.init_player()
-
-    def init_player(self) -> None:
-        if not self.running or self.player is None or self.instance is None:
-            return
-
-        self.update_idletasks()
-        window_id = self.canvas.winfo_id()
-
-        try:
-            self.player.set_hwnd(window_id)  # Windows
-        except Exception:
-            try:
-                self.player.set_xwindow(window_id)  # Linux/X11
-            except Exception:
-                try:
-                    self.player.set_nsobject(window_id)  # macOS
-                except Exception as e:
-                    print("❌ Could not bind VLC video output:", e)
-
-        self._apply_time_bounds()
-        self._restart_from(self.start_time, pause_after=not self.autoplay)
-
+    # --------------------------------------------------------
+    # Playback controls
+    # --------------------------------------------------------
     def play(self) -> None:
-        if not self.player or not self.instance:
+        if self.player is None:
             return
 
-        self._apply_time_bounds()
-
-        try:
-            state = self.player.get_state()
-        except Exception:
-            state = None
-
-        if vlc is not None and state in (vlc.State.Ended, vlc.State.Stopped):
-            self._restart_from(self.start_time, pause_after=False)
-            return
+        self.apply_segment_fields()
 
         try:
             self.player.play()
+            self.after(250, lambda: self.seek_to(self.start_time))
         except Exception as e:
-            print("⚠️ Play failed:", e)
+            print("⚠️ play failed:", e)
 
-    def pause(self) -> None:
-        if not self.player:
+    def toggle_play(self) -> None:
+        if self.player is None:
             return
+
         try:
-            self.player.set_pause(1)
+            current_ms = self.player.get_time()
+            length_ms = self.player.get_length()
+
+            if length_ms > 0 and current_ms >= length_ms - 300:
+                self.play()
+                return
+
+            if self.player.is_playing():
+                self.player.pause()
+                return
+
+            self.apply_segment_fields()
+            self.player.play()
+
+            if current_ms <= 0:
+                self.after(150, lambda: self.seek_to(self.start_time))
+
         except Exception as e:
-            print("⚠️ Pause failed:", e)
+            print("⚠️ toggle_play failed:", e)
 
     def stop(self) -> None:
-        if not self.player:
-            return
-        try:
-            self.player.stop()
-        except Exception:
-            pass
-
-    # ---------------------------
-    # Slider / loop logic
-    # ---------------------------
-    def on_slider_press(self, _event) -> None:
-        self.seeking = True
-        self.pause()
-
-    def on_slider_release(self, _event) -> None:
-        self.seeking = False
-        self.seek()
-        self.play()
-
-    def seek(self, _event=None) -> None:
-        if not self.player:
-            return
-        now = time.time()
-        if now - self.last_seek_time < 0.1:
-            return
-        self.last_seek_time = now
-        try:
-            value = int(self.slider.get())
-            self.player.set_time(value * 1000)
-        except Exception:
-            pass
-
-    def update_slider(self) -> None:
-        if not self.running or self.player is None:
+        if self.player is None:
             return
 
         try:
-            state = self.player.get_state()
-            current = max(0, int(self.player.get_time() // 1000))
+            if self.player.is_playing():
+                self.player.pause()
 
-            self._apply_time_bounds()
-            length = max(0, int(self.player.get_length() // 1000))
-
-            if not self.seeking and length > 0:
-                self.slider.config(to=length)
-                self.slider.set(current)
-
-                mins = lambda x: str(x // 60).zfill(2)
-                secs = lambda x: str(x % 60).zfill(2)
-                self.time_label.config(
-                    text=f"{mins(current)}:{secs(current)} / {mins(length)}:{secs(length)}"
-                )
-
-            if self.stop_time is not None and current >= int(self.stop_time):
-                if self.segment_loop or self.repeat_mode:
-                    self._restart_from(self.start_time, pause_after=False)
-                else:
-                    try:
-                        self.player.set_pause(1)
-                    except Exception:
-                        pass
-
-            if vlc is not None and state == vlc.State.Ended:
-                if self.repeat_mode:
-                    self._restart_from(self.start_time, pause_after=False)
-                else:
-                    try:
-                        self.player.set_pause(1)
-                    except Exception:
-                        pass
+            self.apply_segment_fields()
+            self.seek_to(self.start_time)
+            self.timeline.set(self.start_time)
 
         except Exception as e:
-            print("⚠️ update_slider error:", e)
+            print("⚠️ stop failed:", e)
 
-        self.after(200, self.update_slider)
+    def seek_to(self, seconds: float) -> None:
+        if self.player is None:
+            return
 
-    def toggle_repeat(self) -> None:
-        self.repeat_mode = not self.repeat_mode
-        self._sync_toggle_buttons()
+        try:
+            self.player.set_time(int(max(0.0, float(seconds)) * 1000))
+        except Exception as e:
+            print("⚠️ seek failed:", e)
 
-    def toggle_segment_loop(self) -> None:
-        self.segment_loop = not self.segment_loop
-        self._sync_toggle_buttons()
+    def toggle_loop(self) -> None:
+        self.loop_segment.set(not self.loop_segment.get())
+        self.loop_btn.config(text=f"Loop: {'ON' if self.loop_segment.get() else 'OFF'}")
 
-    def toggle_autoplay(self) -> None:
-        self.autoplay = not self.autoplay
-        self._sync_toggle_buttons()
+    # --------------------------------------------------------
+    # Segment
+    # --------------------------------------------------------
+    def apply_segment_fields(self) -> None:
+        start = _parse_float(self.start_entry.get(), self.start_time)
+        stop = _parse_float(self.stop_entry.get(), self.stop_time)
 
-    # ---------------------------
-    # Save segment back to caller
-    # ---------------------------
+        if start is None:
+            start = 0.0
+
+        if stop is not None and stop <= start:
+            stop = None
+            self.stop_entry.delete(0, "end")
+
+        self.start_time = max(0.0, float(start))
+        self.stop_time = None if stop is None else max(0.0, float(stop))
+
     def save_segment(self) -> None:
-        self._apply_time_bounds()
+        self.apply_segment_fields()
+
         if callable(self.on_save_segment):
             try:
                 self.on_save_segment(self.start_time, self.stop_time)
             except Exception as e:
                 print("⚠️ on_save_segment failed:", e)
 
-    # ---------------------------
-    # Close / cleanup
-    # ---------------------------
-    def _on_escape(self, _event=None):
+        self.save_btn.config(text="✓ Saved")
+        self.after(1200, lambda: self.save_btn.config(text="💾 Save"))
+
+    # --------------------------------------------------------
+    # Timeline
+    # --------------------------------------------------------
+    def _seek_timeline_from_mouse(self, event) -> None:
+        if self.player is None:
+            return
+
         try:
-            self.close()
+            self.apply_segment_fields()
+
+            width = max(1, self.timeline.winfo_width())
+            fraction = min(max(event.x / width, 0.0), 1.0)
+
+            duration = self.duration_seconds
+            if duration <= 0:
+                length_ms = self.player.get_length()
+                duration = max(0.0, length_ms / 1000) if length_ms and length_ms > 0 else 0.0
+
+            if duration <= 0:
+                return
+
+            target_time = duration * fraction
+
+            self.timeline.set(target_time)
+            self.seek_to(target_time)
+
         except Exception as e:
-            print("⚠️ close() error on ESC:", e)
+            print("⚠️ timeline click seek failed:", e)
+
+    def _on_timeline_press(self, event=None) -> None:
+        self.user_dragging = True
+
+        if self.player is not None:
+            try:
+                self._was_playing_before_drag = bool(self.player.is_playing())
+            except Exception:
+                self._was_playing_before_drag = False
+
+        if event is not None:
+            self._seek_timeline_from_mouse(event)
+
+    def _on_timeline_motion(self, event=None) -> None:
+        if event is not None:
+            self._seek_timeline_from_mouse(event)
+
+    def _on_timeline_drag(self, _value) -> None:
+        pass
+
+    def _on_timeline_release(self, event=None) -> None:
+        self.user_dragging = False
+
+        if self.player is None:
+            return
+
+        try:
+            if event is not None:
+                self._seek_timeline_from_mouse(event)
+
+            if self._was_playing_before_drag and not self.player.is_playing():
+                self.player.play()
+
+        except Exception as e:
+            print("⚠️ timeline release failed:", e)
+
+    def _update_loop(self) -> None:
+        if not self.running:
+            return
+
+        try:
+            if self.player is not None:
+                current_ms = self.player.get_time()
+                length_ms = self.player.get_length()
+
+                current = max(0.0, current_ms / 1000) if current_ms and current_ms > 0 else 0.0
+                duration = max(0.0, length_ms / 1000) if length_ms and length_ms > 0 else 0.0
+
+                if duration > 0:
+                    self.duration_seconds = duration
+                    self.timeline.config(to=duration)
+
+                if not self.user_dragging:
+                    self.timeline.set(current)
+
+                end_label = self.stop_time if self.stop_time is not None else self.duration_seconds
+                self.time_label.config(text=f"{_format_time(current)} / {_format_time(end_label)}")
+
+                if self.loop_segment.get() and self.player.is_playing():
+                    loop_end = self.stop_time if self.stop_time is not None else self.duration_seconds
+
+                    if loop_end and current >= loop_end - 0.08:
+                        self.seek_to(self.start_time)
+
+        except Exception as e:
+            print("⚠️ video update loop error:", e)
+
+        self.after(150, self._update_loop)
+
+    # --------------------------------------------------------
+    # Close
+    # --------------------------------------------------------
+    def _on_escape(self, _event=None):
+        self.close()
         return "break"
 
     def close(self) -> None:
@@ -495,11 +540,6 @@ class VLCOverlayWithControls(tk.Frame):
         try:
             if self.player is not None:
                 try:
-                    self.player.audio_set_volume(0)
-                except Exception:
-                    pass
-
-                try:
                     self.player.stop()
                 except Exception:
                     pass
@@ -514,9 +554,14 @@ class VLCOverlayWithControls(tk.Frame):
                 except Exception:
                     pass
 
-                self.after(80, self._safe_release)
+                try:
+                    self.player.release()
+                except Exception:
+                    pass
+
+                self.player = None
         except Exception as e:
-            print("⚠️ close stop/detach error:", e)
+            print("⚠️ player cleanup failed:", e)
 
         try:
             if self.instance is not None:
@@ -527,13 +572,10 @@ class VLCOverlayWithControls(tk.Frame):
 
         try:
             if app is not None and getattr(app, "video_overlay", None) is not None:
-                try:
-                    app.video_overlay.destroy()
-                except Exception:
-                    pass
+                app.video_overlay.destroy()
                 app.video_overlay = None
         except Exception as e:
-            print("⚠️ overlay destroy error:", e)
+            print("⚠️ overlay destroy failed:", e)
 
         try:
             if app is not None and hasattr(app, "canvas"):
@@ -546,14 +588,6 @@ class VLCOverlayWithControls(tk.Frame):
                 app.popup_open = False
         except Exception:
             pass
-
-    def _safe_release(self) -> None:
-        try:
-            if self.player is not None:
-                self.player.release()
-                self.player = None
-        except Exception as e:
-            print("⚠️ player.release error:", e)
 
 
 # ------------------------------------------------------------
@@ -570,10 +604,7 @@ def show_video_overlay(
 ) -> None:
     if vlc is None or _VLC_DIR is None or _PLUGINS_DIR is None:
         details = _VLC_IMPORT_ERROR if _VLC_IMPORT_ERROR is not None else "Bundled VLC runtime not available."
-        messagebox.showerror(
-            "Playback Failed",
-            f"Could not play video:\n{details}"
-        )
+        messagebox.showerror("Playback Failed", f"Could not play video:\n{details}")
         return
 
     app.popup_open = True
@@ -591,7 +622,7 @@ def show_video_overlay(
     except Exception:
         pass
 
-    app.video_overlay = tk.Frame(app.canvas_frame, bg="#1e1e1e", bd=2, relief="ridge")
+    app.video_overlay = tk.Frame(app.canvas_frame, bg="#0b0f14", bd=0, relief="flat")
     app.video_overlay.place(x=0, y=0, relwidth=1.0, relheight=1.0)
     app.video_overlay.tkraise()
 
