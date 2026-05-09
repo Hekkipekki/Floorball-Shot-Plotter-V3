@@ -1,5 +1,4 @@
 @echo off
-cd /d "%~dp0"
-echo Starting Floorball Shot Plotter...
-python main.py
-pause
+cd /d "C:\Dev Projects\Floorball Shot Plotter V3"
+start "" python main.py
+exit

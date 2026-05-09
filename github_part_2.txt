@@ -1,0 +1,2806 @@
+FILE: gui/plotting.py
+================================================
+import numpy as np
+from scipy.stats import gaussian_kde
+import matplotlib.patches as mpatches
+
+from core.entry_helpers import get_result, get_type, get_xy
+from gui.constants import (
+    PLOT_POINT_EDGE_COLOR,
+    PLOT_POINT_EDGE_WIDTH,
+    PLOT_SHOT_SIZE,
+    PLOT_GOAL_SIZE,
+    PLOT_SHOT_ZORDER,
+    PLOT_GOAL_ZORDER,
+    PLOT_GOAL_COLOR,
+    PLOT_FALLBACK_SHOT_COLOR,
+    PLOT_FALLBACK_SHOT_LABEL,
+    PLOT_SHOT_TYPE_STYLES,
+    PLOT_LEGEND_LOC,
+    PLOT_LEGEND_BBOX,
+    PLOT_LEGEND_FRAME_ON,
+    PLOT_LEGEND_FACE_COLOR,
+    PLOT_LEGEND_EDGE_COLOR,
+    PLOT_LEGEND_FONT_SIZE,
+    PLOT_LEGEND_LABEL_SPACING,
+    PLOT_LEGEND_HANDLE_LENGTH,
+    PLOT_LEGEND_BORDER_PAD,
+    PLOT_LEGEND_BORDER_AXES_PAD,
+    PLOT_LEGEND_FRAME_ALPHA,
+)
+
+
+def plot_points(app, entries):
+    shots = [e for e in entries if get_result(e) == "S"]
+    goals = [e for e in entries if get_result(e) == "G"]
+
+    goal_points = [get_xy(e) for e in goals]
+    goal_points = [(x, y) for x, y in goal_points if x is not None and y is not None]
+
+    goal_x = [x for x, _ in goal_points]
+    goal_y = [y for _, y in goal_points]
+
+    seen_types = set()
+    legend_patches = []
+
+    for entry in shots:
+        shot_type = (get_type(entry) or "").strip()
+        x, y = get_xy(entry)
+        if x is None or y is None:
+            continue
+
+        color, label = PLOT_SHOT_TYPE_STYLES.get(
+            shot_type,
+            (PLOT_FALLBACK_SHOT_COLOR, PLOT_FALLBACK_SHOT_LABEL),
+        )
+
+        app.ax.scatter(
+            x,
+            y,
+            c=color,
+            s=PLOT_SHOT_SIZE,
+            edgecolors=PLOT_POINT_EDGE_COLOR,
+            linewidths=PLOT_POINT_EDGE_WIDTH,
+            zorder=PLOT_SHOT_ZORDER,
+        )
+
+        if label not in seen_types:
+            seen_types.add(label)
+            legend_patches.append(mpatches.Patch(color=color, label=label))
+
+    if goal_points:
+        app.ax.scatter(
+            goal_x,
+            goal_y,
+            c=PLOT_GOAL_COLOR,
+            s=PLOT_GOAL_SIZE,
+            edgecolors=PLOT_POINT_EDGE_COLOR,
+            linewidths=PLOT_POINT_EDGE_WIDTH,
+            zorder=PLOT_GOAL_ZORDER,
+        )
+        legend_patches.append(mpatches.Patch(color=PLOT_GOAL_COLOR, label="Goal"))
+
+    if legend_patches:
+        app.ax.legend(
+            handles=legend_patches,
+            loc=PLOT_LEGEND_LOC,
+            bbox_to_anchor=PLOT_LEGEND_BBOX,
+            frameon=PLOT_LEGEND_FRAME_ON,
+            facecolor=PLOT_LEGEND_FACE_COLOR,
+            edgecolor=PLOT_LEGEND_EDGE_COLOR,
+            fontsize=PLOT_LEGEND_FONT_SIZE,
+            labelspacing=PLOT_LEGEND_LABEL_SPACING,
+            handlelength=PLOT_LEGEND_HANDLE_LENGTH,
+            borderpad=PLOT_LEGEND_BORDER_PAD,
+            borderaxespad=PLOT_LEGEND_BORDER_AXES_PAD,
+            framealpha=PLOT_LEGEND_FRAME_ALPHA,
+        )
+
+    app.ax.set_xlim(app.original_xlim)
+    app.ax.set_ylim(app.original_ylim)
+
+
+def plot_heatmap(app, entries, view_type):
+    if view_type == "Goal Heatmap":
+        entries = [e for e in entries if get_result(e) == "G"]
+    elif view_type == "Save Heatmap":
+        entries = [e for e in entries if get_result(e) == "S"]
+    elif view_type == "Heatmap":
+        entries = [e for e in entries if get_result(e) in ("S", "G")]
+
+    points = [get_xy(e) for e in entries]
+    points = [(x, y) for x, y in points if x is not None and y is not None]
+
+    if len(points) < 3:
+        print("⚠️ Too few points to compute KDE.")
+        return
+
+    x = [x for x, _ in points]
+    y = [y for _, y in points]
+
+    nbins = app.resolution_options[app.resolution_preset.get()]
+    bandwidth = app.kde_bandwidth.get()
+    sensitivity = app.sensitivity.get()
+    cmap_name = app.cmap.get()
+
+    print(f"📍 [plot_heatmap] {view_type} entries:")
+    for entry in entries:
+        result = get_result(entry)
+        px, py = get_xy(entry)
+        if px is not None and py is not None:
+            print(f"   → {result} {px}, {py}")
+    print(f"🔍 HEATMAP → nbins={nbins}, bandwidth={bandwidth:.2f}, sensitivity={sensitivity:.2f}")
+
+    values = np.vstack([x, y])
+    kernel = gaussian_kde(values, bw_method=bandwidth)
+
+    width = app.original_xlim[1]
+    height = app.original_ylim[0]
+    xi, yi = np.mgrid[0:width:nbins * 1j, 0:height:nbins * 1j]
+    coords = np.vstack([xi.ravel(), yi.ravel()])
+    zi = kernel(coords).reshape(xi.shape)
+
+    zi = np.clip(zi, 0, None)
+    zi = np.ma.masked_where(zi < max(zi.max() * sensitivity, 1e-8), zi)
+
+    app.ax.imshow(
+        zi.T,
+        cmap=cmap_name,
+        alpha=0.6,
+        extent=[*app.original_xlim, *app.original_ylim],
+        origin="upper",
+        aspect="auto",
+        interpolation="none",
+    )
+
+
+================================================
+FILE: gui/shotlog_interactions.py
+================================================
+from tkinter import messagebox
+from core.schema import IDX_NUMBER
+
+
+def reset_shot_log(app):
+    if not messagebox.askyesno("Confirm Reset", "Are you sure you want to reset all data?"):
+        return
+    app.log_entries.clear()
+    app.update_shot_log_treeview()
+    app.update_plot()
+    app.update_stats()
+
+
+def find_master_entry_index(app, entry):
+    current_match = app.current_match.get()
+    if current_match in ("All", "Season"):
+        return None
+
+    match_entries = app.match_logs.get(current_match, [])
+    entry_number = entry[IDX_NUMBER]
+
+    for i, candidate in enumerate(match_entries):
+        if len(candidate) > 0 and candidate[IDX_NUMBER] == entry_number:
+            return i
+
+    return None
+
+
+def update_entry_in_all_places(app, visible_index, updated_entry):
+    if not (0 <= visible_index < len(app.log_entries)):
+        return
+
+    app.log_entries[visible_index] = tuple(updated_entry)
+
+    master_index = find_master_entry_index(app, app.log_entries[visible_index])
+    current_match = app.current_match.get()
+
+    if master_index is not None and current_match in app.match_logs:
+        match_entries = list(app.match_logs[current_match])
+        match_entries[master_index] = tuple(updated_entry)
+        app.match_logs[current_match] = match_entries
+
+    app.update_shot_log_treeview()
+
+    try:
+        app.auto_update_current_match()
+    except Exception as e:
+        print("⚠️ Auto-save current match failed:", e)
+
+
+def on_row_double_click(event, tree, app):
+    iid = tree.identify_row(event.y)
+    if not iid:
+        return
+    try:
+        index = int(iid)
+        if 0 <= index < len(app.log_entries):
+            current_entry = app.log_entries[index]
+            current_match = app.current_match.get()
+
+            if current_match not in ("All", "Season"):
+                master_index = find_master_entry_index(app, current_entry)
+                if master_index is not None:
+                    del app.match_logs[current_match][master_index]
+                    app.update_log_view_and_stats()
+                    app.auto_update_current_match()
+                    return
+
+            del app.log_entries[index]
+            app.update_shot_log_treeview()
+            app.update_plot()
+            app.update_stats()
+    except Exception as e:
+        print("Double-click error:", e)
+
+
+def on_hover_shot(event, tree, app):
+    iid = tree.identify_row(event.y)
+    if not iid:
+        if tree._last_hovered_row_id is not None:
+            tree._last_hovered_row_id = None
+            app.clear_highlight()
+        return
+
+    if iid == tree._last_hovered_row_id:
+        return
+
+    try:
+        index = int(iid)
+        if 0 <= index < len(app.log_entries):
+            tree._last_hovered_row_id = iid
+            app.highlight_point(index)
+    except Exception as e:
+        print("Hover error:", e)
+        app.clear_highlight()
+        tree._last_hovered_row_id = None
+
+
+def on_leave_shotlog(event, tree, app):
+    if tree._last_hovered_row_id is not None:
+        tree._last_hovered_row_id = None
+        app.clear_highlight()
+
+
+================================================
+FILE: gui/shotlog_video.py
+================================================
+import os
+import tkinter as tk
+from tkinter import messagebox, filedialog, simpledialog
+import webbrowser
+
+from core.schema import IDX_VIDEO, ENTRY_LENGTH
+
+
+def video_to_dict(video):
+    if not video:
+        return None
+    if isinstance(video, dict):
+        return video
+    return {"path": str(video), "start": 0.0, "stop": None}
+
+
+def video_display_symbol(video):
+    v = video_to_dict(video)
+    return "🎬" if v and v.get("path") else ""
+
+
+def ensure_video_field(app, index):
+    entry = list(app.log_entries[index])
+    if len(entry) < ENTRY_LENGTH:
+        entry += [None] * (ENTRY_LENGTH - len(entry))
+        app._shotlog_update_entry(index, entry)
+
+
+def set_video_dict(app, index, path_or_url: str):
+    ensure_video_field(app, index)
+    entry = list(app.log_entries[index])
+    entry[IDX_VIDEO] = {"path": path_or_url, "start": 0.0, "stop": None}
+    app._shotlog_update_entry(index, entry)
+
+
+def link_offline(app, index):
+    path = filedialog.askopenfilename(
+        title="Select Video File",
+        filetypes=[("Video Files", "*.mp4 *.mov *.avi *.mkv")]
+    )
+    if path:
+        set_video_dict(app, index, path)
+
+
+def link_online(app, index):
+    url = simpledialog.askstring("Link Online Video", "Enter video URL:")
+    if url:
+        set_video_dict(app, index, url)
+
+
+def remove_video(app, index):
+    ensure_video_field(app, index)
+    entry = list(app.log_entries[index])
+    entry[IDX_VIDEO] = None
+    app._shotlog_update_entry(index, entry)
+
+
+def play_or_edit_video(app, index):
+    ensure_video_field(app, index)
+    video = video_to_dict(app.log_entries[index][IDX_VIDEO])
+    if not video or not video.get("path"):
+        return
+
+    path = video["path"]
+    start = float(video.get("start") or 0.0)
+    stop = video.get("stop", None)
+
+    def save_segment_cb(new_start, new_stop):
+        ensure_video_field(app, index)
+        entry = list(app.log_entries[index])
+        v = video_to_dict(entry[IDX_VIDEO]) or {"path": path, "start": 0.0, "stop": None}
+        v["start"] = float(new_start or 0.0)
+        v["stop"] = None if new_stop in ("", None) else float(new_stop)
+        entry[IDX_VIDEO] = v
+        app._shotlog_update_entry(index, entry)
+
+    try:
+        if str(path).startswith("http"):
+            webbrowser.open(path)
+        else:
+            if os.path.exists(path):
+                from utils.videoplayer import show_video_overlay
+
+                show_video_overlay(
+                    app,
+                    path,
+                    start=start,
+                    stop=stop,
+                    autoplay=True,
+                    on_save_segment=save_segment_cb,
+                )
+            else:
+                messagebox.showwarning("Video Missing", "Video file could not be found.")
+    except Exception as e:
+        messagebox.showerror("Playback Failed", f"Could not play video:\n{e}")
+
+
+def open_video_menu(event, tree, app):
+    iid = tree.identify_row(event.y)
+    if not iid:
+        return
+
+    tree.selection_set(iid)
+    index = int(iid)
+
+    if not (0 <= index < len(app.log_entries)):
+        return
+
+    ensure_video_field(app, index)
+    current_video = video_to_dict(app.log_entries[index][IDX_VIDEO])
+    has_video = bool(current_video and current_video.get("path"))
+
+    menu = tk.Menu(tree, tearoff=0)
+
+    if has_video:
+        menu.add_command(label="🎬 Play / Edit Segment", command=lambda: play_or_edit_video(app, index))
+        menu.add_separator()
+        menu.add_command(label="🎞️ Relink Offline Video", command=lambda: link_offline(app, index))
+        menu.add_command(label="🌐 Relink Online Video", command=lambda: link_online(app, index))
+        menu.add_separator()
+        menu.add_command(label="❌ Remove Video Link", command=lambda: remove_video(app, index))
+    else:
+        menu.add_command(label="🎞️ Link Offline Video", command=lambda: link_offline(app, index))
+        menu.add_command(label="🌐 Link Online Video", command=lambda: link_online(app, index))
+
+    menu.post(event.x_root, event.y_root)
+
+
+================================================
+FILE: gui/shotlog_view.py
+================================================
+import ttkbootstrap as tb
+from PIL import Image, ImageTk
+
+from assets import get_icon_path
+from core.entry_helpers import (
+    get_number,
+    get_phase,
+    get_result,
+    get_situation,
+    get_type,
+    get_passer,
+    get_shooter,
+    get_period,
+    get_xg,
+    get_video,
+)
+from gui.constants import (
+    PAD_X,
+    PAD_Y,
+    SHOTLOG_COL_WIDTH_NUMBER,
+    SHOTLOG_COL_WIDTH_PASSER,
+    SHOTLOG_COL_WIDTH_PERIOD,
+    SHOTLOG_COL_WIDTH_PHASE,
+    SHOTLOG_COL_WIDTH_RESULT,
+    SHOTLOG_COL_WIDTH_SHOOTER,
+    SHOTLOG_COL_WIDTH_SITUATION,
+    SHOTLOG_COL_WIDTH_TYPE,
+    SHOTLOG_COL_WIDTH_VIDEO,
+    SHOTLOG_COL_WIDTH_XG,
+    SHOTLOG_FONT_FAMILY,
+    SHOTLOG_FONT_SIZE,
+    SHOTLOG_VIDEO_ICON_BG,
+    SHOTLOG_VIDEO_ICON_SIZE,
+)
+from gui.shotlog_video import video_display_symbol, open_video_menu
+from gui.shotlog_interactions import (
+    on_hover_shot,
+    on_leave_shotlog,
+    on_row_double_click,
+)
+
+
+def setup_shotlog_frame(app, parent):
+    style = tb.Style()
+    style.configure("Treeview", font=(SHOTLOG_FONT_FAMILY, SHOTLOG_FONT_SIZE))
+
+    frame = tb.Labelframe(parent, text="Shot Log", bootstyle="primary")
+    frame.pack(fill="both", expand=True, padx=PAD_X, pady=PAD_Y)
+    frame.rowconfigure(0, weight=1)
+    frame.columnconfigure(0, weight=1)
+
+    columns = ("#", "S/G", "Phase", "Situation", "Type", "Passer", "Shooter", "P", "xG", "Video")
+    col_widths = {
+        "#": SHOTLOG_COL_WIDTH_NUMBER,
+        "S/G": SHOTLOG_COL_WIDTH_RESULT,
+        "Phase": SHOTLOG_COL_WIDTH_PHASE,
+        "Situation": SHOTLOG_COL_WIDTH_SITUATION,
+        "Type": SHOTLOG_COL_WIDTH_TYPE,
+        "Passer": SHOTLOG_COL_WIDTH_PASSER,
+        "Shooter": SHOTLOG_COL_WIDTH_SHOOTER,
+        "P": SHOTLOG_COL_WIDTH_PERIOD,
+        "xG": SHOTLOG_COL_WIDTH_XG,
+        "Video": SHOTLOG_COL_WIDTH_VIDEO,
+    }
+
+    tree = tb.Treeview(frame, columns=columns, show="headings", bootstyle="primary")
+
+    for col in columns:
+        if col == "Video":
+            tree.heading(col, text="🎬")
+        else:
+            tree.heading(col, text=col)
+        tree.column(col, anchor="center", width=col_widths.get(col, 60), stretch=False)
+
+    tree.grid(row=0, column=0, sticky="nsew")
+
+    v_scrollbar = tb.Scrollbar(frame, orient="vertical", command=tree.yview)
+    v_scrollbar.grid(row=0, column=1, sticky="ns")
+
+    h_scrollbar = tb.Scrollbar(frame, orient="horizontal", command=tree.xview)
+    h_scrollbar.grid(row=1, column=0, sticky="ew")
+
+    tree.configure(
+        yscrollcommand=v_scrollbar.set,
+        xscrollcommand=h_scrollbar.set,
+    )
+
+    tree.bind("<Motion>", lambda e: on_hover_shot(e, tree, app))
+    tree.bind("<Leave>", lambda e: on_leave_shotlog(e, tree, app))
+    tree.bind("<Double-1>", lambda e: on_row_double_click(e, tree, app))
+    tree.bind("<Button-3>", lambda e: open_video_menu(e, tree, app))
+
+    tree._last_hovered_row_id = None
+    app.shotlog_tree = tree
+
+def update_treeview(tree, entries):
+    tree.delete(*tree.get_children())
+
+    for i, entry in enumerate(entries):
+        video_symbol = video_display_symbol(get_video(entry))
+
+        values = [
+            get_number(entry),
+            get_result(entry),
+            get_phase(entry),
+            get_situation(entry),
+            get_type(entry),
+            get_passer(entry),
+            get_shooter(entry),
+            get_period(entry),
+            f"{get_xg(entry):.2f}",
+            video_symbol,
+        ]
+
+        tree.insert("", "end", iid=str(i), values=values)
+
+
+================================================
+FILE: gui/theme.py
+================================================
+from __future__ import annotations
+
+import ttkbootstrap as tb
+
+from gui.constants import DEFAULT_THEME
+
+
+def apply_theme(app, theme_name: str = DEFAULT_THEME):
+    """
+    Create and apply the ttkbootstrap theme for the app.
+    """
+    app.style = tb.Style()
+    app.style.theme_use(theme_name)
+
+
+================================================
+FILE: gui/events/__init__.py
+================================================
+from gui.events.click_handlers import onclick, on_space_key_pressed
+from gui.events.event_finalize import finalize_event
+
+
+================================================
+FILE: gui/events/click_handlers.py
+================================================
+def on_space_key_pressed(app, event):
+    app.remove_nearest_point()
+
+
+def is_plot_click_allowed(app, event):
+    if app.view_mode.get() != "Plot":
+        print("⛔ Cannot place shots/goals outside of Plot view mode.")
+        return False
+
+    if event.xdata is None or event.ydata is None or app.popup_open:
+        return False
+
+    return True
+
+
+def onclick(self, event):
+    if not is_plot_click_allowed(self, event):
+        return
+
+    if getattr(self, "expecting_pass_click", False):
+        self.expecting_pass_click = False
+        if hasattr(self, "pending_pass_data"):
+            main_x, main_y, phase, situation, shot_type, passer, shooter = self.pending_pass_data
+            pass_x = int(round(event.xdata))
+            pass_y = int(round(event.ydata))
+            self.add_shot_event(
+                main_x,
+                main_y,
+                phase,
+                situation,
+                shot_type,
+                passer,
+                shooter,
+                pass_x=pass_x,
+                pass_y=pass_y,
+            )
+            del self.pending_pass_data
+        return
+
+    from gui.events.event_dialogs import show_phase_dialog
+
+    if event.button == 1:
+        show_phase_dialog(self, event.xdata, event.ydata, shot_or_goal="shot")
+    elif event.button == 3:
+        show_phase_dialog(self, event.xdata, event.ydata, shot_or_goal="goal")
+
+
+================================================
+FILE: gui/events/event_dialogs.py
+================================================
+import tkinter as tk
+
+from gui.events.popup_utils import prepare_popup
+from gui.events.event_finalize import finalize_event
+
+
+def _create_base_popup(app, title, on_destroy=None):
+    popup = tk.Toplevel(app.root)
+    popup.title(title)
+    popup.transient(app.root)
+    popup.grab_set()
+    popup.bind("<Escape>", lambda e: popup.destroy())
+
+    if on_destroy is not None:
+        popup.bind("<Destroy>", lambda _: on_destroy())
+
+    frame = tk.Frame(popup)
+    frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+    desc_label = tk.Label(
+        frame,
+        text="",
+        wraplength=250,
+        justify="center",
+        anchor="center",
+    )
+    desc_label.pack_forget()
+
+    return popup, frame, desc_label
+
+
+def show_option_dialog(
+    app,
+    title,
+    options,
+    on_select,
+    width,
+    height,
+    on_destroy=None,
+):
+    popup, frame, desc_label = _create_base_popup(app, title, on_destroy=on_destroy)
+
+    for label, description in options.items():
+        btn = tk.Button(
+            frame,
+            text=label,
+            bg="#223344",
+            fg="white",
+            relief=tk.RAISED,
+            padx=10,
+            pady=5,
+            anchor="center",
+            justify="center",
+            font=("Arial", 9, "bold"),
+            command=lambda value=label: [popup.destroy(), on_select(value)],
+        )
+        btn.pack(fill=tk.X, pady=3)
+        btn.bind("<Enter>", lambda e, txt=description: desc_label.config(text=txt))
+        btn.bind("<Leave>", lambda e: desc_label.config(text=""))
+
+    desc_label.pack(fill=tk.BOTH, expand=True, pady=(10, 5))
+
+    cancel = tk.Button(frame, text="Cancel", command=popup.destroy)
+    cancel.pack(fill=tk.X, pady=(0, 5))
+
+    prepare_popup(popup, app, width=width, height=height)
+
+
+def show_phase_dialog(self, x, y, shot_or_goal):
+    if self.popup_open:
+        return
+
+    self.popup_open = True
+
+    phases = {
+        "Full Court press": "Trying to activate from the normal entry defense, up to a full court press.",
+        "Zone entry defense": "The team is playing the normal defense system, trying to prevent the opponent from playing a zone entry with quality.",
+        "Zone Defense": "You are trying to defend after the opponent has settled in playing zone offense.",
+        "Zone Exit": "The opponent activates counter-press after you have won the ball in your own zone.",
+        "Counter on counter": "When a team counters after having won the ball from the opponent's counter-attack.",
+        "Uncontrolled": "When a situation cannot be placed under any other game situation.",
+    }
+
+    show_option_dialog(
+        self,
+        title="Select Phase",
+        options=phases,
+        on_select=lambda phase: show_situation_dialog(self, x, y, phase, shot_or_goal),
+        width=265,
+        height=350,
+        on_destroy=lambda: setattr(self, "popup_open", False),
+    )
+
+
+def show_situation_dialog(self, x, y, phase, shot_or_goal):
+    situations = {
+        "Breakaway": "Attacker breaks through alone on the goalkeeper.",
+        "2v0": "Two attackers against the goalkeeper without defenders.",
+        "2v1": "Two attackers versus one defender.",
+        "3v1": "Three attackers versus one defender.",
+        "3v2": "Three attackers versus two defenders.",
+        "Rebound": "Shot opportunity following a saved or blocked shot.",
+        "Penalty Shot": "Awarded direct shot from penalty mark.",
+        "Free shot": "No pressure or game system affects this situation.",
+    }
+
+    show_option_dialog(
+        self,
+        title="Select Situation",
+        options=situations,
+        on_select=lambda situation: show_shot_type_dialog(self, x, y, phase, situation, shot_or_goal),
+        width=265,
+        height=370,
+    )
+
+
+def show_shot_type_dialog(self, x, y, phase, situation, shot_or_goal):
+    shot_types = {
+        "One-timer": "A direct shot taken immediately after receiving the ball.",
+        "Controlled shot": "A composed, aimed shot with time and balance.",
+        "Own Goal": "Shot directed by defending team into their own net.",
+        "Deke": "A deceptive move to fake out the goalie before shooting.",
+        "Deflection": "A shot redirected by a player’s stick or body after an initial shot or pass.",
+        "Penalty Shot": "Awarded direct shot from penalty mark.",
+        "Free shot": "Direct Shot, no passes.",
+    }
+
+    show_option_dialog(
+        self,
+        title="Select Shot Type",
+        options=shot_types,
+        on_select=lambda shot_type: show_shooter_hand_dialog(
+            self, x, y, phase, situation, shot_type, shot_or_goal
+        ),
+        width=265,
+        height=320,
+    )
+
+
+def show_shooter_hand_dialog(self, x, y, phase, situation, shot_type, shot_or_goal):
+    hands = {
+        "Left": "Shooter holds the stick on the left side.",
+        "Right": "Shooter holds the stick on the right side.",
+    }
+
+    def handle_selection(shooter_hand):
+        unassisted = situation in ("Free shot", "Penalty Shot") or shot_type in ("Free shot", "Penalty Shot")
+        if unassisted:
+            finalize_event(self, x, y, phase, situation, shot_type, "", shooter_hand, shot_or_goal)
+        else:
+            show_passer_hand_dialog(self, x, y, phase, situation, shot_type, shooter_hand, shot_or_goal)
+
+    show_option_dialog(
+        self,
+        title="Shooter Stick Hand",
+        options=hands,
+        on_select=handle_selection,
+        width=265,
+        height=150,
+    )
+
+
+def show_passer_hand_dialog(self, x, y, phase, situation, shot_type, shooter, shot_or_goal):
+    hands = {
+        "Left": "Passer holds the stick on the left side.",
+        "Right": "Passer holds the stick on the right side.",
+    }
+
+    show_option_dialog(
+        self,
+        title="Passer Stick Hand",
+        options=hands,
+        on_select=lambda passer_hand: finalize_event(
+            self, x, y, phase, situation, shot_type, passer_hand, shooter, shot_or_goal
+        ),
+        width=265,
+        height=150,
+    )
+
+
+def show_pass_origin_dialog(self, x, y, phase, situation, shot_type, passer, shooter):
+    popup = tk.Toplevel(self.root)
+    popup.title("Mark Pass Origin?")
+    popup.transient(self.root)
+    popup.grab_set()
+    popup.bind("<Escape>", lambda e: popup.destroy())
+    popup.bind("<Destroy>", lambda _: setattr(self, "popup_open", False))
+
+    frame = tk.Frame(popup)
+    frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+
+    label = tk.Label(
+        frame,
+        text="Do you want to place a pass origin point?",
+        wraplength=250,
+        justify="center",
+        font=("Arial", 9, "bold"),
+    )
+    label.pack(pady=(0, 15))
+
+    btn_yes = tk.Button(
+        frame,
+        text="Yes (mark manually)",
+        bg="#27ae60",
+        fg="white",
+        font=("Arial", 8, "bold"),
+        command=lambda: [
+            popup.destroy(),
+            setattr(self, "pending_pass_data", (x, y, phase, situation, shot_type, passer, shooter)),
+            setattr(self, "expecting_pass_click", True),
+        ],
+    )
+    btn_yes.pack(fill=tk.X, pady=(0, 8))
+
+    btn_no = tk.Button(
+        frame,
+        text="No (skip pass origin)",
+        bg="#c0392b",
+        fg="white",
+        font=("Arial", 10, "bold"),
+        command=lambda: [
+            popup.destroy(),
+            self.add_shot_event(x, y, phase, situation, shot_type, passer, shooter),
+        ],
+    )
+    btn_no.pack(fill=tk.X)
+
+    prepare_popup(popup, self, width=300, height=120)
+
+
+================================================
+FILE: gui/events/event_finalize.py
+================================================
+def finalize_event(app, x, y, phase, situation, shot_type, passer, shooter, shot_or_goal, popup=None):
+    x = int(round(x))
+    y = int(round(y))
+
+    if popup:
+        popup.destroy()
+
+    if app.view_mode.get() != "Plot":
+        print("⛔ Cannot place shots outside of Plot view.")
+        return
+
+    if shot_or_goal == "goal":
+        app.add_goal_event(x, y, phase, situation, shot_type, passer, shooter)
+    else:
+        if situation == "Penalty Shot" or shot_type == "Free shot":
+            app.add_shot_event(x, y, phase, situation, shot_type, passer, shooter)
+        else:
+            from gui.events.event_dialogs import show_pass_origin_dialog
+            show_pass_origin_dialog(app, x, y, phase, situation, shot_type, passer, shooter)
+
+
+================================================
+FILE: gui/events/popup_utils.py
+================================================
+def center_popup_in_canvas(app, width=260, height=220, top_offset=150):
+    canvas_widget = app.canvas.get_tk_widget()
+    canvas_widget.update_idletasks()
+    x_canvas = canvas_widget.winfo_rootx()
+    y_canvas = canvas_widget.winfo_rooty()
+    canvas_width = canvas_widget.winfo_width()
+    x = x_canvas + (canvas_width - width) // 2
+    y = y_canvas + top_offset
+    return x, y
+
+
+def format_geometry_string(width, height, x, y):
+    return f"{width}x{height}+{x}+{y}"
+
+
+def prepare_popup(popup, app, width=260, height=220, top_offset=400):
+    popup.withdraw()
+    popup.update_idletasks()
+    x, y = center_popup_in_canvas(app, width, height, top_offset)
+    popup.geometry(format_geometry_string(width, height, x, y))
+    popup.deiconify()
+
+
+================================================
+FILE: gui/events/config/__init__.py
+================================================
+[Empty file]
+
+
+================================================
+FILE: gui/events/config/dialog_config.py
+================================================
+# --- Dialog content (WHAT) ---
+
+PHASE_OPTIONS = {
+    "Full Court press": "Trying to activate from the normal entry defense, up to a full court press.",
+    "Zone entry defense": "The team is playing the normal defense system, trying to prevent the opponent from playing a zone entry with quality.",
+    "Zone Defense": "You are trying to defend after the opponent has settled in playing zone offense.",
+    "Zone Exit": "The opponent activates counter-press after you have won the ball in your own zone.",
+    "Counter on counter": "When a team counters after having won the ball from the opponent's counter-attack.",
+    "Uncontrolled": "When a situation cannot be placed under any other game situation.",
+}
+PHASE_DIALOG_SIZE = (265, 350)
+
+
+SITUATION_OPTIONS = {
+    "Breakaway": "Attacker breaks through alone on the goalkeeper.",
+    "2v0": "Two attackers against the goalkeeper without defenders.",
+    "2v1": "Two attackers versus one defender.",
+    "3v1": "Three attackers versus one defender.",
+    "3v2": "Three attackers versus two defenders.",
+    "Rebound": "Shot opportunity following a saved or blocked shot.",
+    "Penalty Shot": "Awarded direct shot from penalty mark.",
+    "Free shot": "No pressure or game system affects this situation.",
+}
+SITUATION_DIALOG_SIZE = (265, 370)
+
+
+SHOT_TYPE_OPTIONS = {
+    "One-timer": "A direct shot taken immediately after receiving the ball.",
+    "Controlled shot": "A composed, aimed shot with time and balance.",
+    "Own Goal": "Shot directed by defending team into their own net.",
+    "Deke": "A deceptive move to fake out the goalie before shooting.",
+    "Deflection": "A shot redirected by a player’s stick or body after an initial shot or pass.",
+    "Penalty Shot": "Awarded direct shot from penalty mark.",
+    "Free shot": "Direct Shot, no passes.",
+}
+SHOT_TYPE_DIALOG_SIZE = (265, 320)
+
+
+HAND_OPTIONS = {
+    "Left": "Stick on left side.",
+    "Right": "Stick on right side.",
+}
+HAND_DIALOG_SIZE = (265, 150)
+
+
+PASS_ORIGIN_DIALOG_SIZE = (300, 120)
+
+
+================================================
+FILE: gui/events/config/dialog_style.py
+================================================
+# --- Dialog style (HOW it looks) ---
+
+DIALOG_BUTTON_STYLE = {
+    "bg": "#223344",
+    "fg": "white",
+    "relief": "raised",
+    "font": ("Arial", 9, "bold"),
+    "padx": 10,
+    "pady": 5,
+}
+
+DIALOG_LABEL_STYLE = {
+    "wraplength": 250,
+    "justify": "center",
+    "anchor": "center",
+}
+
+DIALOG_TITLE_FONT = ("Arial", 9, "bold")
+
+DIALOG_PADDING = {
+    "padx": 10,
+    "pady": 10,
+}
+
+DIALOG_DESC_PADDING = (10, 5)
+
+
+================================================
+FILE: gui/events/config/event_dialogs.py
+================================================
+import tkinter as tk
+
+from gui.events.popup_utils import prepare_popup
+from gui.events.event_finalize import finalize_event
+
+from gui.events.config.dialog_config import (
+    PHASE_OPTIONS,
+    PHASE_DIALOG_SIZE,
+    SITUATION_OPTIONS,
+    SITUATION_DIALOG_SIZE,
+    SHOT_TYPE_OPTIONS,
+    SHOT_TYPE_DIALOG_SIZE,
+    HAND_OPTIONS,
+    HAND_DIALOG_SIZE,
+    PASS_ORIGIN_DIALOG_SIZE,
+)
+
+from gui.events.config.dialog_style import (
+    DIALOG_BUTTON_STYLE,
+    DIALOG_LABEL_STYLE,
+    DIALOG_PADDING,
+    DIALOG_DESC_PADDING,
+)
+
+
+# --- Base builder ---
+
+def show_option_dialog(app, title, options, on_select, size, on_destroy=None):
+    popup = tk.Toplevel(app.root)
+    popup.title(title)
+    popup.transient(app.root)
+    popup.grab_set()
+    popup.bind("<Escape>", lambda e: popup.destroy())
+
+    if on_destroy:
+        popup.bind("<Destroy>", lambda _: on_destroy())
+
+    frame = tk.Frame(popup)
+    frame.pack(fill=tk.BOTH, expand=True, **DIALOG_PADDING)
+
+    desc_label = tk.Label(frame, text="", **DIALOG_LABEL_STYLE)
+    desc_label.pack_forget()
+
+    for label, description in options.items():
+        btn = tk.Button(
+            frame,
+            text=label,
+            command=lambda v=label: [popup.destroy(), on_select(v)],
+            **DIALOG_BUTTON_STYLE,
+        )
+        btn.pack(fill=tk.X, pady=3)
+        btn.bind("<Enter>", lambda e, txt=description: desc_label.config(text=txt))
+        btn.bind("<Leave>", lambda e: desc_label.config(text=""))
+
+    desc_label.pack(fill=tk.BOTH, expand=True, pady=DIALOG_DESC_PADDING)
+
+    tk.Button(frame, text="Cancel", command=popup.destroy).pack(fill=tk.X, pady=(0, 5))
+
+    prepare_popup(popup, app, width=size[0], height=size[1])
+
+
+# --- Dialog flow ---
+
+def show_phase_dialog(self, x, y, shot_or_goal):
+    if self.popup_open:
+        return
+
+    self.popup_open = True
+
+    show_option_dialog(
+        self,
+        "Select Phase",
+        PHASE_OPTIONS,
+        lambda phase: show_situation_dialog(self, x, y, phase, shot_or_goal),
+        PHASE_DIALOG_SIZE,
+        on_destroy=lambda: setattr(self, "popup_open", False),
+    )
+
+
+def show_situation_dialog(self, x, y, phase, shot_or_goal):
+    show_option_dialog(
+        self,
+        "Select Situation",
+        SITUATION_OPTIONS,
+        lambda situation: show_shot_type_dialog(self, x, y, phase, situation, shot_or_goal),
+        SITUATION_DIALOG_SIZE,
+    )
+
+
+def show_shot_type_dialog(self, x, y, phase, situation, shot_or_goal):
+    show_option_dialog(
+        self,
+        "Select Shot Type",
+        SHOT_TYPE_OPTIONS,
+        lambda shot_type: show_shooter_hand_dialog(
+            self, x, y, phase, situation, shot_type, shot_or_goal
+        ),
+        SHOT_TYPE_DIALOG_SIZE,
+    )
+
+
+def show_shooter_hand_dialog(self, x, y, phase, situation, shot_type, shot_or_goal):
+    def handle(shooter):
+        unassisted = situation in ("Free shot", "Penalty Shot") or shot_type in ("Free shot", "Penalty Shot")
+        if unassisted:
+            finalize_event(self, x, y, phase, situation, shot_type, "", shooter, shot_or_goal)
+        else:
+            show_passer_hand_dialog(self, x, y, phase, situation, shot_type, shooter, shot_or_goal)
+
+    show_option_dialog(
+        self,
+        "Shooter Stick Hand",
+        HAND_OPTIONS,
+        handle,
+        HAND_DIALOG_SIZE,
+    )
+
+
+def show_passer_hand_dialog(self, x, y, phase, situation, shot_type, shooter, shot_or_goal):
+    show_option_dialog(
+        self,
+        "Passer Stick Hand",
+        HAND_OPTIONS,
+        lambda passer: finalize_event(
+            self, x, y, phase, situation, shot_type, passer, shooter, shot_or_goal
+        ),
+        HAND_DIALOG_SIZE,
+    )
+
+
+# --- Special case (keep separate) ---
+
+def show_pass_origin_dialog(self, x, y, phase, situation, shot_type, passer, shooter):
+    popup = tk.Toplevel(self.root)
+    popup.title("Mark Pass Origin?")
+    popup.transient(self.root)
+    popup.grab_set()
+    popup.bind("<Escape>", lambda e: popup.destroy())
+    popup.bind("<Destroy>", lambda _: setattr(self, "popup_open", False))
+
+    frame = tk.Frame(popup)
+    frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+
+    tk.Label(
+        frame,
+        text="Do you want to place a pass origin point?",
+        wraplength=250,
+        justify="center",
+    ).pack(pady=(0, 15))
+
+    tk.Button(
+        frame,
+        text="Yes (mark manually)",
+        bg="#27ae60",
+        fg="white",
+        command=lambda: [
+            popup.destroy(),
+            setattr(self, "pending_pass_data", (x, y, phase, situation, shot_type, passer, shooter)),
+            setattr(self, "expecting_pass_click", True),
+        ],
+    ).pack(fill=tk.X, pady=(0, 8))
+
+    tk.Button(
+        frame,
+        text="No (skip pass origin)",
+        bg="#c0392b",
+        fg="white",
+        command=lambda: [
+            popup.destroy(),
+            self.add_shot_event(x, y, phase, situation, shot_type, passer, shooter),
+        ],
+    ).pack(fill=tk.X)
+
+    prepare_popup(popup, self, *PASS_ORIGIN_DIALOG_SIZE)
+
+
+================================================
+FILE: gui/panels/center_plot.py
+================================================
+from __future__ import annotations
+
+import tkinter as tk
+import ttkbootstrap as tb
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
+
+from gui.constants import (
+    FIGURE_HEIGHT,
+    FIGURE_SUBPLOT_BOTTOM,
+    FIGURE_SUBPLOT_LEFT,
+    FIGURE_SUBPLOT_RIGHT,
+    FIGURE_SUBPLOT_TOP,
+    FIGURE_WIDTH,
+)
+from gui.events import onclick, on_space_key_pressed
+from utils.tooltips import BetterToolTip
+
+
+def create_center_plot(parent, app):
+    frame = tb.Frame(parent)
+    frame.pack(side="left", fill="both", expand=True)
+
+    figure = Figure(figsize=(FIGURE_WIDTH, FIGURE_HEIGHT))
+    figure.subplots_adjust(
+        left=FIGURE_SUBPLOT_LEFT,
+        right=FIGURE_SUBPLOT_RIGHT,
+        top=FIGURE_SUBPLOT_TOP,
+        bottom=FIGURE_SUBPLOT_BOTTOM,
+    )
+
+    ax = figure.add_subplot(111)
+    canvas = FigureCanvasTkAgg(figure, master=frame)
+    canvas_widget = canvas.get_tk_widget()
+    canvas_widget.pack(fill="both", expand=True)
+
+    app.figure = figure
+    app.ax = ax
+    app.canvas = canvas
+
+    # Keep compatibility with older code that expects canvas_frame to exist
+    app.canvas_frame = frame
+
+    # Optional compatibility with older plot code
+    app.selector_dot, = app.ax.plot([], [], "o", markersize=15, alpha=0.5)
+    app.highlight_artist = None
+
+    # Focus / key binding
+    canvas_widget.focus_set()
+    canvas_widget.bind("<space>", lambda e: on_space_key_pressed(app, e))
+
+    # Click binding for adding shots / goals
+    app.canvas.mpl_connect("button_press_event", lambda e: onclick(app, e))
+
+    # Small info label, same idea as before
+    app.instructions_label = tk.Label(
+        canvas_widget,
+        text="ⓘ Hotkeys Info",
+        bg="lightyellow",
+        font=("Arial", 9, "bold"),
+        relief="ridge",
+        borderwidth=1,
+    )
+    app.instructions_label.place(x=5, y=5)
+
+    BetterToolTip(
+        app.instructions_label,
+        "🎯 Hotkeys:\n\n"
+        "👡 Left Click  = Add Shot\n"
+        "👡 Right Click = Add Goal\n"
+        "⎵ Space       = Remove Nearest Dot\n"
+        "👡 Double Click (Shot Log) = Delete Entry\n"
+        "👡 Right Click (Shot Log) = Link / Play Video",
+    )
+
+    return frame
+
+
+================================================
+FILE: gui/panels/left_controls.py
+================================================
+from __future__ import annotations
+
+import ttkbootstrap as tb
+
+from gui.constants import LEFT_PANEL_WIDTH
+from gui.controls import setup_controls
+
+
+def create_left_panel(parent, app):
+    frame = tb.Frame(parent, width=LEFT_PANEL_WIDTH)
+    frame.pack(side="left", fill="y")
+    frame.pack_propagate(False)
+
+    setup_controls(frame, app)
+
+    return frame
+
+
+================================================
+FILE: gui/panels/right_shotlog.py
+================================================
+from __future__ import annotations
+
+import ttkbootstrap as tb
+
+from gui.constants import RIGHT_PANEL_WIDTH
+from gui.shotlog_view import setup_shotlog_frame
+
+
+def create_right_panel(parent, app):
+    frame = tb.Frame(parent, width=RIGHT_PANEL_WIDTH)
+    frame.pack(side="right", fill="y")
+    frame.pack_propagate(False)
+
+    setup_shotlog_frame(app, frame)
+
+    return frame
+
+
+================================================
+FILE: gui/panels/controls/__init__.py
+================================================
+# Control panel submodules
+
+
+================================================
+FILE: gui/panels/controls/heatmap_controls.py
+================================================
+import tkinter as tk
+import ttkbootstrap as tb
+from tkinter import ttk
+
+from gui.constants import (
+    ENTRY_SMALL_WIDTH,
+    PAD_X,
+    PRESET_DESCRIPTION_WRAP,
+    SECTION_PAD_X,
+)
+
+
+def setup_heatmap_settings_group(app, parent: tb.Frame) -> None:
+    frame = tb.Labelframe(parent, text="Heatmap Settings", bootstyle="primary")
+    frame.pack(fill="x", pady=(3, 0), padx=SECTION_PAD_X)
+
+    tb.Label(frame, text="Select heatmap color:", font=("Segoe UI", 10)).pack(
+        padx=PAD_X, pady=(2, 1), anchor="w"
+    )
+    app.colormap_combobox = ttk.Combobox(
+        frame,
+        values=["inferno", "plasma", "magma", "hot", "jet"],
+        textvariable=app.cmap,
+        state="readonly",
+        bootstyle="primary",
+    )
+    app.colormap_combobox.pack(fill="x", padx=PAD_X, pady=(0, 2))
+    app.colormap_combobox.bind("<<ComboboxSelected>>", lambda e: app.update_plot())
+
+    tb.Label(frame, text="Heatmap Quality:", font=("Segoe UI", 10)).pack(
+        padx=PAD_X, pady=(1, 1), anchor="w"
+    )
+    app.resolution_combobox = ttk.Combobox(
+        frame,
+        values=list(app.resolution_options.keys()),
+        textvariable=app.resolution_preset,
+        state="readonly",
+        bootstyle="primary",
+    )
+    app.resolution_combobox.pack(fill="x", padx=PAD_X, pady=(0, 2))
+    app.resolution_combobox.bind("<<ComboboxSelected>>", lambda e: app.update_plot())
+
+    tb.Label(frame, text="Preset:", font=("Segoe UI", 10)).pack(
+        padx=PAD_X, pady=(1, 1), anchor="w"
+    )
+    app.heatmap_preset = tk.StringVar(value="Match Analysis")
+    app.heatmap_preset_dropdown = ttk.Combobox(
+        frame,
+        values=[
+            "Match Analysis",
+            "Multi-Match",
+            "Season Review",
+            "Season Review (Goal only)",
+        ],
+        textvariable=app.heatmap_preset,
+        state="readonly",
+        bootstyle="primary",
+    )
+    app.heatmap_preset_dropdown.pack(fill="x", padx=PAD_X, pady=(0, 2))
+    app.heatmap_preset_dropdown.bind("<<ComboboxSelected>>", lambda e: app.on_preset_changed())
+
+    app.preset_description = tb.Label(
+        frame,
+        text="",
+        font=("Segoe UI", 8, "italic"),
+        wraplength=PRESET_DESCRIPTION_WRAP,
+        justify="left",
+    )
+    app.preset_description.pack(padx=PAD_X, pady=(0, PAD_X), anchor="w")
+
+    tb.Label(frame, text="Sensitivity:", font=("Segoe UI", 10)).pack(
+        padx=PAD_X, pady=(1, 1), anchor="w"
+    )
+    app.sens_slider = tb.Scale(
+        frame,
+        from_=0.01,
+        to=1.0,
+        orient="horizontal",
+        variable=app.sensitivity,
+        length=110,
+        command=lambda val: app.apply_sensitivity(from_slider=True),
+    )
+    app.sens_slider.pack(fill="x", padx=PAD_X)
+
+    app.sens_entry = tb.Entry(frame, width=ENTRY_SMALL_WIDTH)
+    app.sens_entry.insert(0, f"{app.sensitivity.get():.2f}")
+    app.sens_entry.pack(padx=PAD_X, pady=(0, 2), anchor="e")
+    app.sens_entry.bind("<Return>", lambda e: app.apply_sensitivity(from_slider=False))
+
+    tb.Label(frame, text="KDE Bandwidth:", font=("Segoe UI", 10)).pack(
+        padx=PAD_X, pady=(1, 1), anchor="w"
+    )
+    app.kde_slider = tb.Scale(
+        frame,
+        from_=0.01,
+        to=1.0,
+        orient="horizontal",
+        variable=app.kde_bandwidth,
+        length=110,
+        command=lambda val: app.apply_kde(from_slider=True),
+    )
+    app.kde_slider.pack(fill="x", padx=PAD_X)
+
+    app.kde_entry = tb.Entry(frame, width=ENTRY_SMALL_WIDTH)
+    app.kde_entry.insert(0, f"{app.kde_bandwidth.get():.2f}")
+    app.kde_entry.pack(padx=PAD_X, pady=(0, 2), anchor="e")
+    app.kde_entry.bind("<Return>", lambda e: app.apply_kde(from_slider=False))
+
+
+================================================
+FILE: gui/panels/controls/match_controls.py
+================================================
+import ttkbootstrap as tb
+
+from gui.constants import PAD_X, PAD_Y, SECTION_PAD_X, BOTTOM_SECTION_PAD_Y, STANDARD_BUTTON_WIDTH
+from utils.tooltips import BetterToolTip
+
+
+def setup_match_management(app, parent: tb.Frame) -> None:
+    frame = tb.Labelframe(parent, text="Match Manager", bootstyle="primary")
+    frame.pack(fill="x", pady=BOTTOM_SECTION_PAD_Y, padx=SECTION_PAD_X)
+
+    load_btn = tb.Button(
+        frame,
+        text="Load Match...",
+        command=app.handle_load_match,
+        bootstyle="primary",
+        width=STANDARD_BUTTON_WIDTH,
+    )
+    load_btn.pack(fill="x", padx=PAD_X, pady=(PAD_Y, 3))
+
+    season_btn = tb.Button(
+        frame,
+        text="Load Several Matches",
+        command=app.handle_load_season,
+        bootstyle="primary",
+        width=STANDARD_BUTTON_WIDTH,
+    )
+    season_btn.pack(fill="x", padx=PAD_X, pady=(0, 3))
+
+    app.delete_match_btn = tb.Button(
+        frame,
+        text="Delete This Match",
+        command=app.delete_current_match,
+        bootstyle="primary",
+        width=STANDARD_BUTTON_WIDTH,
+    )
+    app.delete_match_btn.pack(fill="x", padx=PAD_X, pady=(0, 3))
+
+    save_btn = tb.Button(
+        frame,
+        text="Save as....",
+        command=app.prompt_save_match,
+        bootstyle="primary",
+        width=STANDARD_BUTTON_WIDTH,
+    )
+    save_btn.pack(fill="x", padx=PAD_X, pady=(0, PAD_Y))
+
+    BetterToolTip(load_btn, "Choose from existing matches to load.")
+    BetterToolTip(season_btn, "Load all matches or grouped folders.")
+    BetterToolTip(app.delete_match_btn, "Remove the currently selected match.")
+    BetterToolTip(save_btn, "Save the current shots/goals as a new match.")
+
+
+def setup_demo_shots_button(app, parent: tb.Frame) -> None:
+    frame = tb.Labelframe(parent, text="Demo Data", bootstyle="primary")
+    frame.pack(fill="x", pady=BOTTOM_SECTION_PAD_Y, padx=SECTION_PAD_X)
+
+    demo_btn = tb.Button(
+        frame,
+        text="Generate Demo Shots",
+        command=app.generate_demo_shots,
+        bootstyle="primary",
+        width=STANDARD_BUTTON_WIDTH,
+    )
+    demo_btn.pack(fill="x", padx=PAD_X, pady=PAD_Y)
+
+    BetterToolTip(demo_btn, "Generate example shots and goals for testing and experimentation.")
+
+
+================================================
+FILE: gui/panels/controls/period_controls.py
+================================================
+import ttkbootstrap as tb
+from tkinter import ttk
+
+from gui.constants import PAD_X, SECTION_PAD_X, SECTION_PAD_Y
+from utils.tooltips import BetterToolTip
+
+
+def setup_period_controls(app, parent: tb.Frame) -> None:
+    frame = tb.Labelframe(parent, text="Period", bootstyle="primary")
+    frame.pack(fill="x", expand=False, pady=SECTION_PAD_Y, padx=SECTION_PAD_X)
+    BetterToolTip(frame, "Select if you want to log shots/goals to a specific period.")
+
+    button_frame = tb.Frame(frame)
+    button_frame.pack(fill="x", padx=PAD_X, pady=(3, 3))
+
+    period_buttons = ["1", "2", "3", "OT", "All"]
+    tooltip_texts = {
+        "1": "Select to log events to Period 1.",
+        "2": "Select to log events to Period 2.",
+        "3": "Select to log events to Period 3.",
+        "OT": "Select to log events to Overtime.",
+        "All": "Show events from all periods.",
+    }
+    app.period_buttons = {}
+
+    for period in period_buttons:
+        btn_width = 4 if period == "All" else 3 if period == "OT" else 2
+        button = tb.Button(
+            button_frame,
+            text=period,
+            command=lambda p=period: app.set_period_filter(p),
+            width=btn_width,
+            bootstyle="primary",
+        )
+        button.pack(side="left", padx=3, pady=(2, 4))
+        BetterToolTip(button, tooltip_texts[period])
+        app.period_buttons[period] = button
+
+    app.period_selected.trace("w", lambda *args: app.update_period_button_styles())
+
+
+def setup_view_mode_controls(app, parent: tb.Frame) -> None:
+    frame = tb.Labelframe(parent, text="View Mode", bootstyle="primary")
+    frame.pack(fill="x", pady=SECTION_PAD_Y, padx=SECTION_PAD_X)
+
+    view_options = ["Plot", "Heatmap", "Goal Heatmap", "Save Heatmap"]
+    app.view_mode.set("Plot")
+
+    def on_select(event=None):
+        selected = app.view_mode_dropdown.get()
+        app.view_mode.set(selected)
+        app.update_plot()
+
+    app.view_mode_dropdown = ttk.Combobox(
+        frame,
+        values=view_options,
+        textvariable=app.view_mode,
+        state="readonly",
+        bootstyle="info",
+    )
+    app.view_mode_dropdown.pack(fill="x", padx=PAD_X)
+    app.view_mode_dropdown.bind("<<ComboboxSelected>>", on_select)
+
+    BetterToolTip(
+        app.view_mode_dropdown,
+        "Change the visualization mode:\n"
+        "- Plot = regular shot plot\n"
+        "- Heatmaps = density views of shots or goals",
+    )
+
+
+================================================
+FILE: gui/panels/controls/stats_controls.py
+================================================
+import ttkbootstrap as tb
+from tkinter import ttk
+
+from gui.constants import PAD_X, SECTION_PAD_X, SECTION_PAD_Y
+from utils.tooltips import BetterToolTip
+
+
+def setup_stats_filter_controls(app, parent: tb.Frame) -> None:
+    frame = tb.Labelframe(parent, text="Statistics", bootstyle="primary")
+    frame.pack(fill="x", pady=SECTION_PAD_Y, padx=SECTION_PAD_X)
+
+    stats = tb.Frame(frame)
+    stats.pack(anchor="center", padx=PAD_X, pady=(PAD_X, 0))
+    stats.grid_columnconfigure(0, weight=1)
+    stats.grid_columnconfigure(1, weight=1)
+
+    def label_row(row, text, var_attr):
+        label = tb.Label(stats, text=text, font=("Segoe UI", 10))
+        label.grid(row=row, column=0, sticky="w", padx=(PAD_X, 0), pady=2)
+
+        value = tb.Label(stats, text="0", anchor="w", font=("Segoe UI", 11))
+        value.grid(row=row, column=1, sticky="w", padx=(10, 0), pady=2)
+        setattr(app, var_attr, value)
+
+    label_row(0, "Shots (Saved):", "shots_val")
+    label_row(1, "Goals Conceded:", "goals_val")
+    label_row(2, "Total Shots:", "totalshots_val")
+    label_row(3, "Save %:", "savepct_val")
+
+    tb.Separator(frame, orient="horizontal").pack(fill="x", pady=(6, 3))
+
+    row = tb.Frame(frame)
+    row.pack(anchor="w", padx=PAD_X, pady=(0, PAD_X), fill="x")
+    row.grid_columnconfigure(0, weight=1)
+    row.grid_columnconfigure(1, weight=1)
+
+    tb.Label(row, text="Filter by Period:", font=("Segoe UI", 10)).grid(row=0, column=0, sticky="w")
+
+    period_options = ["All", "1", "2", "3", "OT"]
+    app.stats_period_dropdown = ttk.Combobox(
+        row,
+        textvariable=app.stats_period,
+        values=period_options,
+        state="readonly",
+        width=9,
+        bootstyle="info",
+    )
+    app.stats_period_dropdown.grid(row=0, column=1, sticky="e")
+    app.stats_period_dropdown.bind("<<ComboboxSelected>>", lambda e: app.update_stats_filtered())
+
+
+def setup_expected_goals_controls(app, parent: tb.Frame) -> None:
+    frame = tb.Labelframe(parent, text="Expected Goals", bootstyle="primary")
+    frame.pack(fill="x", pady=SECTION_PAD_Y, padx=SECTION_PAD_X)
+
+    stats = tb.Frame(frame)
+    stats.pack(anchor="center", padx=PAD_X, pady=(PAD_X, PAD_X))
+    stats.grid_columnconfigure(0, weight=1)
+    stats.grid_columnconfigure(1, weight=1)
+
+    tooltip = "Expected Goals (xG): how many goals should have been conceded based on shot quality."
+
+    label_xg = tb.Label(stats, text="xG Goals:", font=("Segoe UI", 11))
+    label_xg.grid(row=0, column=0, sticky="w", padx=(PAD_X, 0), pady=1)
+
+    app.xg_goals_val = tb.Label(stats, text="0.00", anchor="w", font=("Segoe UI", 11))
+    app.xg_goals_val.grid(row=0, column=1, sticky="w", padx=(10, 0), pady=1)
+
+    label_goals = tb.Label(stats, text="Goals:", font=("Segoe UI", 11))
+    label_goals.grid(row=1, column=0, sticky="w", padx=(PAD_X, 0), pady=1)
+
+    app.actual_goals_val = tb.Label(stats, text="0", anchor="w", font=("Segoe UI", 11))
+    app.actual_goals_val.grid(row=1, column=1, sticky="w", padx=(10, 0), pady=1)
+
+    for widget in [frame, label_xg, app.xg_goals_val, label_goals, app.actual_goals_val]:
+        BetterToolTip(widget, tooltip)
+
+
+================================================
+FILE: utils/__init__.py
+================================================
+[Empty file]
+
+
+================================================
+FILE: utils/export.py
+================================================
+from __future__ import annotations
+
+import os
+from tkinter import filedialog, messagebox
+
+
+def export_figure_as_image(app, figure):
+    file_path = filedialog.asksaveasfilename(
+        defaultextension=".png",
+        filetypes=[("PNG Image", "*.png")],
+        title="Export Plot As Image",
+    )
+
+    if file_path:
+        figure.savefig(file_path, bbox_inches="tight", dpi=300)
+        messagebox.showinfo(
+            "Image Saved",
+            f"Exported plot to:\n{os.path.basename(file_path)}",
+        )
+
+
+================================================
+FILE: utils/tooltips.py
+================================================
+# ui/tooltips.py
+import tkinter as tk
+from tkinter import font as tkfont
+import ttkbootstrap as tb
+
+class BetterToolTip:
+    def __init__(self, widget, text, delay=500):
+        self.widget = widget
+        self.text = text
+        self.delay = delay
+        self.tooltip_window = None
+        self._after_id = None
+
+        self.widget.bind("<Enter>", self.schedule)
+        self.widget.bind("<Leave>", self.hide_tooltip)
+        self.widget.bind("<Motion>", self.on_motion)
+
+    def schedule(self, event=None):
+        self.unschedule()
+        self._after_id = self.widget.after(self.delay, self.show_tooltip)
+
+    def unschedule(self):
+        if self._after_id:
+            self.widget.after_cancel(self._after_id)
+            self._after_id = None
+
+    def show_tooltip(self, event=None):
+        if self.tooltip_window or not self.widget.winfo_ismapped():
+            return
+
+        x = self.widget.winfo_rootx() + 20
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 5
+        tooltip_width = 250
+        screen_width = self.widget.winfo_screenwidth()
+
+        if x + tooltip_width > screen_width:
+            x = screen_width - tooltip_width - 10
+
+        self.tooltip_window = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry(f"+{x}+{y}")
+        tw.configure(bg="#333333")
+
+        label = tk.Label(
+            tw,
+            text=self.text,
+            justify="left",
+            background="#333333",
+            foreground="#ffffff",
+            relief="flat",
+            borderwidth=0,
+            font=tkfont.Font(family="Segoe UI", size=9),
+            wraplength=tooltip_width,
+            padx=10,
+            pady=5
+        )
+        label.pack(ipadx=1)
+
+    def hide_tooltip(self, event=None):
+        self.unschedule()
+        if self.tooltip_window:
+            self.tooltip_window.destroy()
+            self.tooltip_window = None
+
+    def on_motion(self, event):
+        self.schedule()
+
+def update_preset_tooltip(app):
+    if not hasattr(app, "heatmap_preset_dropdown"):
+        return
+
+    descriptions = {
+        "Match Analysis": (
+            "🎯 For single games (20–30 shots)\n"
+            "🧠 Shows most shot areas\n"
+            "📈 High detail, minimal filtering"
+        ),
+        "Multi-Match": (
+            "🎯 For 3–5 games (60–100 shots or goals)\n"
+            "🧠 Balanced smoothing and filtering\n"
+            "📈 Highlights dominant areas"
+        ),
+        "Season Review": (
+            "🎯 For season overview (200+ shots or goals)\n"
+            "🧠 Filters out rare zones\n"
+            "📈 Only persistent patterns remain"
+        ),
+        "Season Review (Goal only)": (
+            "🎯 Goal heatmap for full season (~50–60 goals)\n"
+            "📈 Only clustered goal areas remain"
+        )
+    }
+
+    selected = app.heatmap_preset.get()
+    tooltip_text = descriptions.get(selected, "Select a preset to configure heatmap settings.")
+    BetterToolTip(app.heatmap_preset_dropdown, tooltip_text)
+
+def add_tooltips(app):
+    if hasattr(app, "period_buttons"):
+        for period, btn in app.period_buttons.items():
+            BetterToolTip(btn, f"Filter to show only period {period} data.")
+
+    if hasattr(app, "view_mode_dropdown"):
+        BetterToolTip(app.view_mode_dropdown,
+            "Change the visualization mode:\n"
+            "- Plot = regular shot plot\n"
+            "- Heatmaps = density views of shots or goals"
+        )
+
+    if hasattr(app, "stats_period_dropdown"):
+        BetterToolTip(app.stats_period_dropdown, "Filter the statistics and shot log by period.")
+
+    if hasattr(app, "colormap_combobox"):
+        BetterToolTip(app.colormap_combobox, "Choose a colormap for the heatmap (e.g., inferno, plasma, jet).")
+
+    if hasattr(app, "resolution_combobox"):
+        BetterToolTip(app.resolution_combobox,
+            "Set heatmap resolution.\n"
+            "Low = faster rendering\n"
+            "Ultra = highly detailed."
+        )
+
+    if hasattr(app, "heatmap_preset_dropdown"):
+        BetterToolTip(app.heatmap_preset_dropdown,
+            "Select preset KDE + Sensitivity values:\n"
+            "- Match Analysis = precise, local detail\n"
+            "- Season Review = dense zones only"
+        )
+
+    if hasattr(app, "sens_slider"):
+        BetterToolTip(app.sens_slider,
+            "Sensitivity:\n"
+            "- Low = more areas visible\n"
+            "- High = only dense zones visible\n\n"
+            "Controls how many shots are needed\n"
+            "in an area for it to appear on the heatmap."
+        )
+
+    if hasattr(app, "sens_entry"):
+        BetterToolTip(app.sens_entry,
+            "Manually enter a sensitivity value (0.01 – 1.0).\n"
+            "Higher values filter out weak zones."
+        )
+
+    if hasattr(app, "kde_slider"):
+        BetterToolTip(app.kde_slider,
+            "KDE Bandwidth:\n"
+            "- Low = more detailed and sharp zones\n"
+            "- High = broader, blended zones\n\n"
+            "Controls how far each shot influences nearby space."
+        )
+
+    if hasattr(app, "kde_entry"):
+        BetterToolTip(app.kde_entry,
+            "Manually enter KDE bandwidth (0.01 – 1.0).\n"
+            "Higher values smooth more, lower values are sharper."
+        )
+
+    if hasattr(app, "generate_demo_shots"):
+        try:
+            for child in app.left_panel.winfo_children():
+                if isinstance(child, tb.Labelframe) and "Demo Data" in child.cget("text"):
+                    for btn in child.winfo_children():
+                        if isinstance(btn, tb.Button):
+                            BetterToolTip(btn, "Generate example shots and goals for testing.")
+        except Exception as e:
+            print("Tooltip assignment for demo button failed:", e)
+
+
+
+================================================
+FILE: utils/videoplayer.py
+================================================
+# utils/videoplayer.py
+"""
+Embedded VLC overlay player for Floorball Shot Plotter.
+
+Features:
+- Portable-friendly: configure bundled VLC runtime BEFORE importing python-vlc
+- Preloads bundled libvlc/libvlccore on Windows to avoid wrong cwd lookup
+- Force bundled VLC plugins (avoid Program Files VLC)
+- Stable overlay stacking: never lower canvas_frame, just raise overlay
+- Repeat + segment loop
+- Start/Stop fields apply (Enter / FocusOut)
+- Auto-play toggle
+- Save Segment button (writes back to caller via callback)
+- Clean close(): stop -> detach hwnd -> release -> destroy only overlay we created
+
+Notes:
+- Expects a bundled runtime in:
+    <project_root>/vlc/
+        libvlc.dll
+        libvlccore.dll
+        plugins/
+- If VLC cannot be initialized, the rest of the app should still run.
+"""
+
+from __future__ import annotations
+
+import ctypes
+import os
+import time
+from pathlib import Path
+import tkinter as tk
+from tkinter import messagebox
+
+from paths import get_project_root
+
+
+# ------------------------------------------------------------
+# VLC runtime bootstrap (MUST run before import vlc)
+# ------------------------------------------------------------
+def _configure_vlc_runtime() -> tuple[Path | None, Path | None]:
+    """
+    Configure a bundled VLC runtime before importing python-vlc.
+
+    Returns:
+        (vlc_dir, plugins_dir) if successful
+        (None, None) if bundled runtime is not usable
+    """
+    base = Path(get_project_root())
+    vlc_dir = base / "vlc"
+    plugins_dir = vlc_dir / "plugins"
+    libvlc_path = vlc_dir / "libvlc.dll"
+    libvlccore_path = vlc_dir / "libvlccore.dll"
+
+    if not libvlc_path.exists() or not libvlccore_path.exists() or not plugins_dir.exists():
+        print("⚠️ Bundled VLC runtime not found or incomplete.")
+        return None, None
+
+    try:
+        # Make DLL directory visible to Windows loader
+        if hasattr(os, "add_dll_directory"):
+            os.add_dll_directory(str(vlc_dir))
+
+        # Keep PATH updated as fallback
+        os.environ["PATH"] = f"{vlc_dir};{os.environ.get('PATH', '')}"
+
+        # VLC plugin path
+        os.environ["VLC_PLUGIN_PATH"] = str(plugins_dir.resolve())
+
+        # Preload DLLs explicitly to avoid python-vlc falling back to .\\libvlc.dll
+        ctypes.CDLL(str(libvlccore_path.resolve()))
+        ctypes.CDLL(str(libvlc_path.resolve()))
+
+        return vlc_dir, plugins_dir
+
+    except Exception as e:
+        print(f"❌ Failed to preload bundled VLC DLLs: {e}")
+        return None, None
+
+
+_VLC_DIR, _PLUGINS_DIR = _configure_vlc_runtime()
+
+try:
+    import vlc  # type: ignore
+    _VLC_IMPORT_ERROR: Exception | None = None
+except Exception as e:
+    vlc = None
+    _VLC_IMPORT_ERROR = e
+
+
+class VLCOverlayWithControls(tk.Frame):
+    def __init__(
+        self,
+        master: tk.Misc,
+        video_path: str,
+        *,
+        start: float = 0.0,
+        stop: float | None = None,
+        autoplay: bool = True,
+        app=None,
+        on_save_segment=None,   # callable(start: float, stop: float|None) -> None
+        **kwargs,
+    ):
+        super().__init__(master, bg="#1e1e1e", **kwargs)
+
+        self.app = app
+        self.video_path = video_path
+        self.on_save_segment = on_save_segment
+
+        self.start_time: float = float(start or 0.0)
+        self.stop_time: float | None = float(stop) if stop not in (None, "") else None
+
+        self.running = True
+
+        # Toggle modes
+        self.autoplay = bool(autoplay)
+        self.repeat_mode = False
+        self.segment_loop = False
+
+        self.seeking = False
+        self.last_seek_time = 0.0
+
+        # VLC
+        self.instance = None
+        self.player = None
+
+        # ---------------- UI ----------------
+        self.canvas = tk.Canvas(self, bg="black", highlightthickness=0)
+        self.canvas.pack(fill="both", expand=True)
+
+        self.controls = tk.Frame(self, bg="#2c2c2c")
+        self.controls.pack(fill="x", padx=5, pady=4)
+
+        tk.Label(self.controls, text="Start:", bg="#2c2c2c", fg="white").pack(side="left", padx=(5, 2))
+        self.start_entry = tk.Entry(self.controls, width=7)
+        self.start_entry.insert(0, str(int(self.start_time)))
+        self.start_entry.pack(side="left")
+
+        tk.Label(self.controls, text="Stop:", bg="#2c2c2c", fg="white").pack(side="left", padx=(10, 2))
+        self.stop_entry = tk.Entry(self.controls, width=7)
+        self.stop_entry.insert(0, "" if self.stop_time is None else str(int(self.stop_time)))
+        self.stop_entry.pack(side="left")
+
+        self.slider = tk.Scale(
+            self.controls,
+            from_=0,
+            to=1000,
+            orient="horizontal",
+            length=320,
+            showvalue=False,
+        )
+        self.slider.pack(side="left", padx=(20, 10))
+        self.slider.bind("<ButtonPress-1>", self.on_slider_press)
+        self.slider.bind("<ButtonRelease-1>", self.on_slider_release)
+
+        self.time_label = tk.Label(
+            self.controls,
+            text="00:00 / 00:00",
+            bg="#2c2c2c",
+            fg="white",
+            font=("Segoe UI", 9),
+        )
+        self.time_label.pack(side="left", padx=(10, 0))
+
+        self.play_btn = tk.Button(self.controls, text="▶", command=self.play)
+        self.play_btn.pack(side="left", padx=2)
+        self.pause_btn = tk.Button(self.controls, text="⏸", command=self.pause)
+        self.pause_btn.pack(side="left", padx=2)
+        self.stop_btn = tk.Button(self.controls, text="⏹", command=self.stop)
+        self.stop_btn.pack(side="left", padx=2)
+
+        self.save_btn = tk.Button(self.controls, text="💾 Save Segment", command=self.save_segment)
+        self.save_btn.pack(side="right", padx=(6, 10))
+
+        self.autoplay_btn = tk.Button(self.controls, text="▶ Auto", command=self.toggle_autoplay)
+        self.autoplay_btn.pack(side="right", padx=(6, 0))
+
+        self.segment_btn = tk.Button(self.controls, text="🎯 Segment", command=self.toggle_segment_loop)
+        self.segment_btn.pack(side="right", padx=(6, 0))
+
+        self.repeat_btn = tk.Button(self.controls, text="🔁 Repeat", command=self.toggle_repeat)
+        self.repeat_btn.pack(side="right", padx=(6, 0))
+
+        self._sync_toggle_buttons()
+
+        self.close_btn = tk.Button(
+            self,
+            text="❌",
+            command=self.close,
+            bg="#1e1e1e",
+            fg="white",
+            borderwidth=0,
+        )
+        self.close_btn.place(relx=0.0, rely=0.0, anchor="nw", x=10, y=10)
+
+        # Entry apply bindings
+        self.start_entry.bind("<Return>", self._on_start_apply)
+        self.start_entry.bind("<FocusOut>", self._on_bounds_apply)
+        self.stop_entry.bind("<Return>", self._on_bounds_apply)
+        self.stop_entry.bind("<FocusOut>", self._on_bounds_apply)
+
+        # ESC
+        self.bind_all("<Escape>", self._on_escape)
+
+        # Init VLC + tick
+        self.after(0, self._init_player_safe)
+        self.after(200, self.update_slider)
+
+    # ---------------------------
+    # UI state
+    # ---------------------------
+    def _sync_toggle_buttons(self) -> None:
+        self.repeat_btn.config(
+            text=("🔁 Repeating" if self.repeat_mode else "🔁 Repeat"),
+            relief=("sunken" if self.repeat_mode else "raised"),
+        )
+        self.segment_btn.config(
+            text=("🎯 Segment ON" if self.segment_loop else "🎯 Segment"),
+            relief=("sunken" if self.segment_loop else "raised"),
+        )
+        self.autoplay_btn.config(
+            text=("▶ Auto ON" if self.autoplay else "▶ Auto"),
+            relief=("sunken" if self.autoplay else "raised"),
+        )
+
+    # ---------------------------
+    # Bounds / seek helpers
+    # ---------------------------
+    def _apply_time_bounds(self) -> None:
+        try:
+            s = self.start_entry.get().strip()
+            self.start_time = float(s) if s else 0.0
+        except Exception:
+            self.start_time = 0.0
+
+        try:
+            raw = self.stop_entry.get().strip()
+            self.stop_time = float(raw) if raw else None
+        except Exception:
+            self.stop_time = None
+
+    def _seek_seconds(self, seconds: float) -> None:
+        if not self.player:
+            return
+        try:
+            self.player.set_time(int(max(0.0, seconds) * 1000))
+        except Exception:
+            pass
+
+    def _restart_from(self, seconds: float, *, pause_after: bool = False) -> None:
+        if not self.player or not self.instance:
+            return
+
+        try:
+            self.player.stop()
+        except Exception:
+            pass
+
+        try:
+            media = self.instance.media_new(self.video_path)
+            self.player.set_media(media)
+            self.player.play()
+        except Exception as e:
+            print("⚠️ restart failed:", e)
+            return
+
+        def _after_start():
+            self._seek_seconds(seconds)
+            if pause_after:
+                try:
+                    self.player.set_pause(1)
+                except Exception:
+                    pass
+
+        self.after(250, _after_start)
+
+    def _on_bounds_apply(self, _event=None):
+        self._apply_time_bounds()
+
+    def _on_start_apply(self, _event=None):
+        self._apply_time_bounds()
+        self._restart_from(self.start_time, pause_after=not self.autoplay)
+
+    # ---------------------------
+    # VLC init / playback
+    # ---------------------------
+    def _init_player_safe(self) -> None:
+        if not self.running:
+            return
+
+        if vlc is None:
+            print(f"❌ VLC import failed: {_VLC_IMPORT_ERROR}")
+            self.running = False
+            return
+
+        if _VLC_DIR is None or _PLUGINS_DIR is None:
+            print("❌ VLC runtime folder not available.")
+            self.running = False
+            return
+
+        try:
+            plugin_path = str(_PLUGINS_DIR.resolve())
+
+            args = [
+                "--no-video-title-show",
+                "--quiet",
+                "--no-osd",
+                "--no-stats",
+                "--no-media-library",
+            ]
+
+            if os.environ.get("FSP_VLC_RESET_CACHE", "0") == "1":
+                args.append("--reset-plugins-cache")
+
+            self.instance = vlc.Instance(*args)
+            self.player = self.instance.media_player_new()
+
+        except Exception as e:
+            print("❌ VLC instance/player init failed:", e)
+            self.running = False
+            return
+
+        self.init_player()
+
+    def init_player(self) -> None:
+        if not self.running or self.player is None or self.instance is None:
+            return
+
+        self.update_idletasks()
+        window_id = self.canvas.winfo_id()
+
+        try:
+            self.player.set_hwnd(window_id)  # Windows
+        except Exception:
+            try:
+                self.player.set_xwindow(window_id)  # Linux/X11
+            except Exception:
+                try:
+                    self.player.set_nsobject(window_id)  # macOS
+                except Exception as e:
+                    print("❌ Could not bind VLC video output:", e)
+
+        self._apply_time_bounds()
+        self._restart_from(self.start_time, pause_after=not self.autoplay)
+
+    def play(self) -> None:
+        if not self.player or not self.instance:
+            return
+
+        self._apply_time_bounds()
+
+        try:
+            state = self.player.get_state()
+        except Exception:
+            state = None
+
+        if vlc is not None and state in (vlc.State.Ended, vlc.State.Stopped):
+            self._restart_from(self.start_time, pause_after=False)
+            return
+
+        try:
+            self.player.play()
+        except Exception as e:
+            print("⚠️ Play failed:", e)
+
+    def pause(self) -> None:
+        if not self.player:
+            return
+        try:
+            self.player.set_pause(1)
+        except Exception as e:
+            print("⚠️ Pause failed:", e)
+
+    def stop(self) -> None:
+        if not self.player:
+            return
+        try:
+            self.player.stop()
+        except Exception:
+            pass
+
+    # ---------------------------
+    # Slider / loop logic
+    # ---------------------------
+    def on_slider_press(self, _event) -> None:
+        self.seeking = True
+        self.pause()
+
+    def on_slider_release(self, _event) -> None:
+        self.seeking = False
+        self.seek()
+        self.play()
+
+    def seek(self, _event=None) -> None:
+        if not self.player:
+            return
+        now = time.time()
+        if now - self.last_seek_time < 0.1:
+            return
+        self.last_seek_time = now
+        try:
+            value = int(self.slider.get())
+            self.player.set_time(value * 1000)
+        except Exception:
+            pass
+
+    def update_slider(self) -> None:
+        if not self.running or self.player is None:
+            return
+
+        try:
+            state = self.player.get_state()
+            current = max(0, int(self.player.get_time() // 1000))
+
+            self._apply_time_bounds()
+            length = max(0, int(self.player.get_length() // 1000))
+
+            if not self.seeking and length > 0:
+                self.slider.config(to=length)
+                self.slider.set(current)
+
+                mins = lambda x: str(x // 60).zfill(2)
+                secs = lambda x: str(x % 60).zfill(2)
+                self.time_label.config(
+                    text=f"{mins(current)}:{secs(current)} / {mins(length)}:{secs(length)}"
+                )
+
+            if self.stop_time is not None and current >= int(self.stop_time):
+                if self.segment_loop or self.repeat_mode:
+                    self._restart_from(self.start_time, pause_after=False)
+                else:
+                    try:
+                        self.player.set_pause(1)
+                    except Exception:
+                        pass
+
+            if vlc is not None and state == vlc.State.Ended:
+                if self.repeat_mode:
+                    self._restart_from(self.start_time, pause_after=False)
+                else:
+                    try:
+                        self.player.set_pause(1)
+                    except Exception:
+                        pass
+
+        except Exception as e:
+            print("⚠️ update_slider error:", e)
+
+        self.after(200, self.update_slider)
+
+    def toggle_repeat(self) -> None:
+        self.repeat_mode = not self.repeat_mode
+        self._sync_toggle_buttons()
+
+    def toggle_segment_loop(self) -> None:
+        self.segment_loop = not self.segment_loop
+        self._sync_toggle_buttons()
+
+    def toggle_autoplay(self) -> None:
+        self.autoplay = not self.autoplay
+        self._sync_toggle_buttons()
+
+    # ---------------------------
+    # Save segment back to caller
+    # ---------------------------
+    def save_segment(self) -> None:
+        self._apply_time_bounds()
+        if callable(self.on_save_segment):
+            try:
+                self.on_save_segment(self.start_time, self.stop_time)
+            except Exception as e:
+                print("⚠️ on_save_segment failed:", e)
+
+    # ---------------------------
+    # Close / cleanup
+    # ---------------------------
+    def _on_escape(self, _event=None):
+        try:
+            self.close()
+        except Exception as e:
+            print("⚠️ close() error on ESC:", e)
+        return "break"
+
+    def close(self) -> None:
+        if not self.running:
+            return
+
+        self.running = False
+        app = self.app
+
+        try:
+            self.unbind_all("<Escape>")
+        except Exception:
+            pass
+
+        try:
+            if self.player is not None:
+                try:
+                    self.player.audio_set_volume(0)
+                except Exception:
+                    pass
+
+                try:
+                    self.player.stop()
+                except Exception:
+                    pass
+
+                try:
+                    self.player.set_hwnd(0)
+                except Exception:
+                    pass
+
+                try:
+                    self.player.set_media(None)
+                except Exception:
+                    pass
+
+                self.after(80, self._safe_release)
+        except Exception as e:
+            print("⚠️ close stop/detach error:", e)
+
+        try:
+            if self.instance is not None:
+                self.instance.release()
+                self.instance = None
+        except Exception:
+            pass
+
+        try:
+            if app is not None and getattr(app, "video_overlay", None) is not None:
+                try:
+                    app.video_overlay.destroy()
+                except Exception:
+                    pass
+                app.video_overlay = None
+        except Exception as e:
+            print("⚠️ overlay destroy error:", e)
+
+        try:
+            if app is not None and hasattr(app, "canvas"):
+                app.canvas.draw_idle()
+        except Exception:
+            pass
+
+        try:
+            if app is not None:
+                app.popup_open = False
+        except Exception:
+            pass
+
+    def _safe_release(self) -> None:
+        try:
+            if self.player is not None:
+                self.player.release()
+                self.player = None
+        except Exception as e:
+            print("⚠️ player.release error:", e)
+
+
+# ------------------------------------------------------------
+# Public API used by shotlog
+# ------------------------------------------------------------
+def show_video_overlay(
+    app,
+    video_path: str,
+    start: float = 0.0,
+    stop: float | None = None,
+    *,
+    autoplay: bool = True,
+    on_save_segment=None,
+) -> None:
+    if vlc is None or _VLC_DIR is None or _PLUGINS_DIR is None:
+        details = _VLC_IMPORT_ERROR if _VLC_IMPORT_ERROR is not None else "Bundled VLC runtime not available."
+        messagebox.showerror(
+            "Playback Failed",
+            f"Could not play video:\n{details}"
+        )
+        return
+
+    app.popup_open = True
+
+    existing = getattr(app, "video_overlay", None)
+    if existing is not None:
+        try:
+            existing.destroy()
+        except Exception:
+            pass
+        app.video_overlay = None
+
+    try:
+        app.canvas_frame.update_idletasks()
+    except Exception:
+        pass
+
+    app.video_overlay = tk.Frame(app.canvas_frame, bg="#1e1e1e", bd=2, relief="ridge")
+    app.video_overlay.place(x=0, y=0, relwidth=1.0, relheight=1.0)
+    app.video_overlay.tkraise()
+
+    player = VLCOverlayWithControls(
+        app.video_overlay,
+        video_path=video_path,
+        start=start,
+        stop=stop,
+        autoplay=autoplay,
+        app=app,
+        on_save_segment=on_save_segment,
+    )
+    player.pack(fill="both", expand=True)
+
+    app._vlc_player = player
+
+
+================================================
+FILE: vlc/README.txt
+================================================
+README for the VLC media player
+===============================
+
+VLC is a popular libre and open source media player and multimedia engine,
+used by a large number of individuals, professionals, companies and
+institutions. Using open source technologies and libraries, VLC has been
+ported to most computing platforms, including GNU/Linux, Windows, Mac OS X,
+BSD, iOS and Android.
+VLC can play most multimedia files, discs, streams, allows playback from
+devices, and is able to convert to or stream in various formats.
+The VideoLAN project was started at the university École Centrale Paris who
+relicensed VLC under the GPLv2 license in February 2001. Since then, VLC has
+been downloaded close to one billion times.
+
+Links:
+======
+
+The VLC web site  . . . . . http://www.videolan.org/
+Support . . . . . . . . . . http://www.videolan.org/support/
+Forums  . . . . . . . . . . http://forum.videolan.org/
+Wiki  . . . . . . . . . . . http://wiki.videolan.org/
+The Developers site . . . . http://wiki.videolan.org/Developers_Corner
+VLC hacking guide . . . . . http://wiki.videolan.org/Hacker_Guide
+Bugtracker  . . . . . . . . http://trac.videolan.org/vlc/
+The VideoLAN web site . . . http://www.videolan.org/
+
+Source Code Content:
+===================
+ABOUT-NLS          - Notes on the Free Translation Project.
+AUTHORS            - VLC authors.
+COPYING            - The GPL license.
+COPYING.LIB        - The LGPL license.
+INSTALL            - Installation and building instructions.
+NEWS               - Important modifications between the releases.
+README             - This file.
+THANKS             - VLC contributors.
+
+bin/               - VLC binaries.
+bindings/          - libVLC bindings to other languages.
+compat/            - compatibility library for operating systems missing
+                     essential functionalities.
+contrib/           - Facilities for retrieving external libraries and building
+                     them for systems that don't have the right versions.
+doc/               - Miscellaneous documentation.
+extras/analyser    - Code analyser and editor specific files.
+extras/buildsystem - different buildsystems specific files.
+extras/misc        - Files that don't fit in the other extras/ categories.
+extras/package     - VLC packaging specific files such as spec files.
+extras/tools/      - Facilities for retrieving external building tools needed
+                     for systems that don't have the right versions.
+include/           - Header files.
+lib/               - libVLC source code.
+modules/           - VLC plugins and modules. Most of the code is here.
+po/                - VLC translations.
+share/             - Common Resources files.
+src/               - libvlccore source code.
+test/              - testing system.
+
+
+
+================================================
+FILE: vlc/AUTHORS.txt
+================================================
+[Binary file]
+
+
+================================================
+FILE: vlc/COPYING.txt
+================================================
+                    GNU GENERAL PUBLIC LICENSE
+                       Version 2, June 1991
+
+ Copyright (C) 1989, 1991 Free Software Foundation, Inc.,
+ 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ Everyone is permitted to copy and distribute verbatim copies
+ of this license document, but changing it is not allowed.
+
+                            Preamble
+
+  The licenses for most software are designed to take away your
+freedom to share and change it.  By contrast, the GNU General Public
+License is intended to guarantee your freedom to share and change free
+software--to make sure the software is free for all its users.  This
+General Public License applies to most of the Free Software
+Foundation's software and to any other program whose authors commit to
+using it.  (Some other Free Software Foundation software is covered by
+the GNU Lesser General Public License instead.)  You can apply it to
+your programs, too.
+
+  When we speak of free software, we are referring to freedom, not
+price.  Our General Public Licenses are designed to make sure that you
+have the freedom to distribute copies of free software (and charge for
+this service if you wish), that you receive source code or can get it
+if you want it, that you can change the software or use pieces of it
+in new free programs; and that you know you can do these things.
+
+  To protect your rights, we need to make restrictions that forbid
+anyone to deny you these rights or to ask you to surrender the rights.
+These restrictions translate to certain responsibilities for you if you
+distribute copies of the software, or if you modify it.
+
+  For example, if you distribute copies of such a program, whether
+gratis or for a fee, you must give the recipients all the rights that
+you have.  You must make sure that they, too, receive or can get the
+source code.  And you must show them these terms so they know their
+rights.
+
+  We protect your rights with two steps: (1) copyright the software, and
+(2) offer you this license which gives you legal permission to copy,
+distribute and/or modify the software.
+
+  Also, for each author's protection and ours, we want to make certain
+that everyone understands that there is no warranty for this free
+software.  If the software is modified by someone else and passed on, we
+want its recipients to know that what they have is not the original, so
+that any problems introduced by others will not reflect on the original
+authors' reputations.
+
+  Finally, any free program is threatened constantly by software
+patents.  We wish to avoid the danger that redistributors of a free
+program will individually obtain patent licenses, in effect making the
+program proprietary.  To prevent this, we have made it clear that any
+patent must be licensed for everyone's free use or not licensed at all.
+
+  The precise terms and conditions for copying, distribution and
+modification follow.
+
+                    GNU GENERAL PUBLIC LICENSE
+   TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+
+  0. This License applies to any program or other work which contains
+a notice placed by the copyright holder saying it may be distributed
+under the terms of this General Public License.  The "Program", below,
+refers to any such program or work, and a "work based on the Program"
+means either the Program or any derivative work under copyright law:
+that is to say, a work containing the Program or a portion of it,
+either verbatim or with modifications and/or translated into another
+language.  (Hereinafter, translation is included without limitation in
+the term "modification".)  Each licensee is addressed as "you".
+
+Activities other than copying, distribution and modification are not
+covered by this License; they are outside its scope.  The act of
+running the Program is not restricted, and the output from the Program
+is covered only if its contents constitute a work based on the
+Program (independent of having been made by running the Program).
+Whether that is true depends on what the Program does.
+
+  1. You may copy and distribute verbatim copies of the Program's
+source code as you receive it, in any medium, provided that you
+conspicuously and appropriately publish on each copy an appropriate
+copyright notice and disclaimer of warranty; keep intact all the
+notices that refer to this License and to the absence of any warranty;
+and give any other recipients of the Program a copy of this License
+along with the Program.
+
+You may charge a fee for the physical act of transferring a copy, and
+you may at your option offer warranty protection in exchange for a fee.
+
+  2. You may modify your copy or copies of the Program or any portion
+of it, thus forming a work based on the Program, and copy and
+distribute such modifications or work under the terms of Section 1
+above, provided that you also meet all of these conditions:
+
+    a) You must cause the modified files to carry prominent notices
+    stating that you changed the files and the date of any change.
+
+    b) You must cause any work that you distribute or publish, that in
+    whole or in part contains or is derived from the Program or any
+    part thereof, to be licensed as a whole at no charge to all third
+    parties under the terms of this License.
+
+    c) If the modified program normally reads commands interactively
+    when run, you must cause it, when started running for such
+    interactive use in the most ordinary way, to print or display an
+    announcement including an appropriate copyright notice and a
+    notice that there is no warranty (or else, saying that you provide
+    a warranty) and that users may redistribute the program under
+    these conditions, and telling the user how to view a copy of this
+    License.  (Exception: if the Program itself is interactive but
+    does not normally print such an announcement, your work based on
+    the Program is not required to print an announcement.)
+
+These requirements apply to the modified work as a whole.  If
+identifiable sections of that work are not derived from the Program,
+and can be reasonably considered independent and separate works in
+themselves, then this License, and its terms, do not apply to those
+sections when you distribute them as separate works.  But when you
+distribute the same sections as part of a whole which is a work based
+on the Program, the distribution of the whole must be on the terms of
+this License, whose permissions for other licensees extend to the
+entire whole, and thus to each and every part regardless of who wrote it.
+
+Thus, it is not the intent of this section to claim rights or contest
+your rights to work written entirely by you; rather, the intent is to
+exercise the right to control the distribution of derivative or
+collective works based on the Program.
+
+In addition, mere aggregation of another work not based on the Program
+with the Program (or with a work based on the Program) on a volume of
+a storage or distribution medium does not bring the other work under
+the scope of this License.
+
+  3. You may copy and distribute the Program (or a work based on it,
+under Section 2) in object code or executable form under the terms of
+Sections 1 and 2 above provided that you also do one of the following:
+
+    a) Accompany it with the complete corresponding machine-readable
+    source code, which must be distributed under the terms of Sections
+    1 and 2 above on a medium customarily used for software interchange; or,
+
+    b) Accompany it with a written offer, valid for at least three
+    years, to give any third party, for a charge no more than your
+    cost of physically performing source distribution, a complete
+    machine-readable copy of the corresponding source code, to be
+    distributed under the terms of Sections 1 and 2 above on a medium
+    customarily used for software interchange; or,
+
+    c) Accompany it with the information you received as to the offer
+    to distribute corresponding source code.  (This alternative is
+    allowed only for noncommercial distribution and only if you
+    received the program in object code or executable form with such
+    an offer, in accord with Subsection b above.)
+
+The source code for a work means the preferred form of the work for
+making modifications to it.  For an executable work, complete source
+code means all the source code for all modules it contains, plus any
+associated interface definition files, plus the scripts used to
+control compilation and installation of the executable.  However, as a
+special exception, the source code distributed need not include
+anything that is normally distributed (in either source or binary
+form) with the major components (compiler, kernel, and so on) of the
+operating system on which the executable runs, unless that component
+itself accompanies the executable.
+
+If distribution of executable or object code is made by offering
+access to copy from a designated place, then offering equivalent
+access to copy the source code from the same place counts as
+distribution of the source code, even though third parties are not
+compelled to copy the source along with the object code.
+
+  4. You may not copy, modify, sublicense, or distribute the Program
+except as expressly provided under this License.  Any attempt
+otherwise to copy, modify, sublicense or distribute the Program is
+void, and will automatically terminate your rights under this License.
+However, parties who have received copies, or rights, from you under
+this License will not have their licenses terminated so long as such
+parties remain in full compliance.
+
+  5. You are not required to accept this License, since you have not
+signed it.  However, nothing else grants you permission to modify or
+distribute the Program or its derivative works.  These actions are
+prohibited by law if you do not accept this License.  Therefore, by
+modifying or distributing the Program (or any work based on the
+Program), you indicate your acceptance of this License to do so, and
+all its terms and conditions for copying, distributing or modifying
+the Program or works based on it.
+
+  6. Each time you redistribute the Program (or any work based on the
+Program), the recipient automatically receives a license from the
+original licensor to copy, distribute or modify the Program subject to
+these terms and conditions.  You may not impose any further
+restrictions on the recipients' exercise of the rights granted herein.
+You are not responsible for enforcing compliance by third parties to
+this License.
+
+  7. If, as a consequence of a court judgment or allegation of patent
+infringement or for any other reason (not limited to patent issues),
+conditions are imposed on you (whether by court order, agreement or
+otherwise) that contradict the conditions of this License, they do not
+excuse you from the conditions of this License.  If you cannot
+distribute so as to satisfy simultaneously your obligations under this
+License and any other pertinent obligations, then as a consequence you
+may not distribute the Program at all.  For example, if a patent
+license would not permit royalty-free redistribution of the Program by
+all those who receive copies directly or indirectly through you, then
+the only way you could satisfy both it and this License would be to
+refrain entirely from distribution of the Program.
+
+If any portion of this section is held invalid or unenforceable under
+any particular circumstance, the balance of the section is intended to
+apply and the section as a whole is intended to apply in other
+circumstances.
+
+It is not the purpose of this section to induce you to infringe any
+patents or other property right claims or to contest validity of any
+such claims; this section has the sole purpose of protecting the
+integrity of the free software distribution system, which is
+implemented by public license practices.  Many people have made
+generous contributions to the wide range of software distributed
+through that system in reliance on consistent application of that
+system; it is up to the author/donor to decide if he or she is willing
+to distribute software through any other system and a licensee cannot
+impose that choice.
+
+This section is intended to make thoroughly clear what is believed to
+be a consequence of the rest of this License.
+
+  8. If the distribution and/or use of the Program is restricted in
+certain countries either by patents or by copyrighted interfaces, the
+original copyright holder who places the Program under this License
+may add an explicit geographical distribution limitation excluding
+those countries, so that distribution is permitted only in or among
+countries not thus excluded.  In such case, this License incorporates
+the limitation as if written in the body of this License.
+
+  9. The Free Software Foundation may publish revised and/or new versions
+of the General Public License from time to time.  Such new versions will
+be similar in spirit to the present version, but may differ in detail to
+address new problems or concerns.
+
+Each version is given a distinguishing version number.  If the Program
+specifies a version number of this License which applies to it and "any
+later version", you have the option of following the terms and conditions
+either of that version or of any later version published by the Free
+Software Foundation.  If the Program does not specify a version number of
+this License, you may choose any version ever published by the Free Software
+Foundation.
+
+  10. If you wish to incorporate parts of the Program into other free
+programs whose distribution conditions are different, write to the author
+to ask for permission.  For software which is copyrighted by the Free
+Software Foundation, write to the Free Software Foundation; we sometimes
+make exceptions for this.  Our decision will be guided by the two goals
+of preserving the free status of all derivatives of our free software and
+of promoting the sharing and reuse of software generally.
+
+                            NO WARRANTY
+
+  11. BECAUSE THE PROGRAM IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
+FOR THE PROGRAM, TO THE EXTENT PERMITTED BY APPLICABLE LAW.  EXCEPT WHEN
+OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES
+PROVIDE THE PROGRAM "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED
+OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.  THE ENTIRE RISK AS
+TO THE QUALITY AND PERFORMANCE OF THE PROGRAM IS WITH YOU.  SHOULD THE
+PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY SERVICING,
+REPAIR OR CORRECTION.
+
+  12. IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
+WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY MODIFY AND/OR
+REDISTRIBUTE THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES,
+INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING
+OUT OF THE USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED
+TO LOSS OF DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY
+YOU OR THIRD PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER
+PROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGES.
+
+                     END OF TERMS AND CONDITIONS
+
+            How to Apply These Terms to Your New Programs
+
+  If you develop a new program, and you want it to be of the greatest
+possible use to the public, the best way to achieve this is to make it
+free software which everyone can redistribute and change under these terms.
+
+  To do so, attach the following notices to the program.  It is safest
+to attach them to the start of each source file to most effectively
+convey the exclusion of warranty; and each file should have at least
+the "copyright" line and a pointer to where the full notice is found.
+
+    <one line to give the program's name and a brief idea of what it does.>
+    Copyright (C) <year>  <name of author>
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+Also add information on how to contact you by electronic and paper mail.
+
+If the program is interactive, make it output a short notice like this
