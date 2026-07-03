@@ -16,11 +16,17 @@ from gui.constants import (
 from gui.events import onclick, on_space_key_pressed
 from utils.tooltips import BetterToolTip
 
+HOTKEYS_TOOLTIP = (
+    "🎯 Hotkeys:\n\n"
+    "👡 Left Click  = Add Shot\n"
+    "👡 Right Click = Add Goal\n"
+    "⎵ Space       = Remove Nearest Dot\n"
+    "👡 Double Click (Shot Log) = Delete Entry\n"
+    "👡 Right Click (Shot Log) = Link / Play Video"
+)
 
-def create_center_plot(parent, app):
-    frame = tb.Frame(parent)
-    frame.pack(side="left", fill="both", expand=True)
 
+def _create_plot_figure() -> Figure:
     figure = Figure(figsize=(FIGURE_WIDTH, FIGURE_HEIGHT))
     figure.subplots_adjust(
         left=FIGURE_SUBPLOT_LEFT,
@@ -28,14 +34,12 @@ def create_center_plot(parent, app):
         top=FIGURE_SUBPLOT_TOP,
         bottom=FIGURE_SUBPLOT_BOTTOM,
     )
+    return figure
 
-    ax = figure.add_subplot(111)
-    canvas = FigureCanvasTkAgg(figure, master=frame)
-    canvas_widget = canvas.get_tk_widget()
-    canvas_widget.pack(fill="both", expand=True)
 
+def _store_plot_widgets(app, frame: tb.Frame, figure: Figure, canvas: FigureCanvasTkAgg) -> None:
     app.figure = figure
-    app.ax = ax
+    app.ax = figure.axes[0]
     app.canvas = canvas
 
     # Keep compatibility with older code that expects canvas_frame to exist
@@ -45,32 +49,41 @@ def create_center_plot(parent, app):
     app.selector_dot, = app.ax.plot([], [], "o", markersize=15, alpha=0.5)
     app.highlight_artist = None
 
-    # Focus / key binding
+
+def _bind_plot_events(app, canvas_widget) -> None:
     canvas_widget.focus_set()
     canvas_widget.bind("<space>", lambda e: on_space_key_pressed(app, e))
-
-    # Click binding for adding shots / goals
     app.canvas.mpl_connect("button_press_event", lambda e: onclick(app, e))
 
-    # Small info label, same idea as before
-    app.instructions_label = tk.Label(
-        canvas_widget,
+
+def _create_hotkeys_label(parent) -> tk.Label:
+    label = tk.Label(
+        parent,
         text="ⓘ Hotkeys Info",
         bg="lightyellow",
         font=("Arial", 9, "bold"),
         relief="ridge",
         borderwidth=1,
     )
-    app.instructions_label.place(x=5, y=5)
+    label.place(x=5, y=5)
+    BetterToolTip(label, HOTKEYS_TOOLTIP)
+    return label
 
-    BetterToolTip(
-        app.instructions_label,
-        "🎯 Hotkeys:\n\n"
-        "👡 Left Click  = Add Shot\n"
-        "👡 Right Click = Add Goal\n"
-        "⎵ Space       = Remove Nearest Dot\n"
-        "👡 Double Click (Shot Log) = Delete Entry\n"
-        "👡 Right Click (Shot Log) = Link / Play Video",
-    )
+
+def create_center_plot(parent, app):
+    frame = tb.Frame(parent)
+    frame.pack(side="left", fill="both", expand=True)
+
+    figure = _create_plot_figure()
+    figure.add_subplot(111)
+
+    canvas = FigureCanvasTkAgg(figure, master=frame)
+    canvas_widget = canvas.get_tk_widget()
+    canvas_widget.pack(fill="both", expand=True)
+
+    _store_plot_widgets(app, frame, figure, canvas)
+    _bind_plot_events(app, canvas_widget)
+
+    app.instructions_label = _create_hotkeys_label(canvas_widget)
 
     return frame
