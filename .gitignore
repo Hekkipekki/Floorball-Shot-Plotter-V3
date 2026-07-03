@@ -60,6 +60,15 @@ _dev_tools/
 *.tmp
 
 # -------------------------
+# Testing / quality tools
+# -------------------------
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# -------------------------
 # Matplotlib cache (sometimes created)
 # -------------------------
 .matplotlib/
