@@ -1,7 +1,5 @@
 import ttkbootstrap as tb
-from PIL import Image, ImageTk
 
-from assets import get_icon_path
 from core.entry_helpers import (
     get_number,
     get_phase,
@@ -29,8 +27,6 @@ from gui.constants import (
     SHOTLOG_COL_WIDTH_XG,
     SHOTLOG_FONT_FAMILY,
     SHOTLOG_FONT_SIZE,
-    SHOTLOG_VIDEO_ICON_BG,
-    SHOTLOG_VIDEO_ICON_SIZE,
 )
 from gui.shotlog_video import video_display_symbol, open_video_menu
 from gui.shotlog_interactions import (
