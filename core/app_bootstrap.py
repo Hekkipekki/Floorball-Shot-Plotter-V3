@@ -6,7 +6,8 @@ from PIL import Image, ImageTk
 
 from app_paths import MATCHES_DIR, PROJECT_ROOT
 from assets import get_icon_path
-from gui.plot_interactions import connect_hover_events, remove_nearest_point
+from gui.plot_interactions import connect_hover_events
+from gui.point_removal import remove_nearest_point
 
 APP_ICON_FILENAME = "Icon.ico"
 TRASH_ICON_FILENAME = "trash.png"
