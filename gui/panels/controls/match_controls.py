@@ -4,14 +4,19 @@ from gui.constants import PAD_X, PAD_Y, SECTION_PAD_X, BOTTOM_SECTION_PAD_Y, STA
 from utils.tooltips import BetterToolTip
 
 
-def _create_full_width_button(parent: tb.Frame, text: str, command, pady) -> tb.Button:
-    button = tb.Button(
-        parent,
-        text=text,
-        command=command,
-        bootstyle="primary",
-        width=STANDARD_BUTTON_WIDTH,
-    )
+def _create_full_width_button(parent: tb.Frame, text: str, command, pady, image=None) -> tb.Button:
+    button_options = {
+        "text": text,
+        "command": command,
+        "bootstyle": "primary",
+        "width": STANDARD_BUTTON_WIDTH,
+    }
+
+    if image is not None:
+        button_options["image"] = image
+        button_options["compound"] = "left"
+
+    button = tb.Button(parent, **button_options)
     button.pack(fill="x", padx=PAD_X, pady=pady)
     return button
 
@@ -39,6 +44,7 @@ def setup_match_management(app, parent: tb.Frame) -> None:
         text="Delete This Match",
         command=app.delete_current_match,
         pady=(0, 3),
+        image=getattr(app, "trash_icon", None),
     )
 
     save_btn = _create_full_width_button(
