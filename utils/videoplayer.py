@@ -19,6 +19,17 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import messagebox
 
+from utils.video_player_style import (
+    CONTROL_ACTIVE_BG,
+    CONTROL_BORDER,
+    MUTED,
+    PANEL_BG,
+    PANEL_BG_SOFT,
+    TEXT,
+    TIMELINE_TROUGH,
+    VIDEO_BG,
+    create_control_button,
+)
 from utils.video_runtime import (
     VLC_IMPORT_ERROR,
     format_time,
@@ -31,11 +42,11 @@ from utils.video_runtime import (
 # Player
 # ------------------------------------------------------------
 class VLCOverlayWithControls(tk.Frame):
-    BG = "#0b0f14"
-    PANEL_BG = "#111820"
-    PANEL_BG_SOFT = "#17212b"
-    TEXT = "#f4f7fa"
-    MUTED = "#aab4bf"
+    BG = VIDEO_BG
+    PANEL_BG = PANEL_BG
+    PANEL_BG_SOFT = PANEL_BG_SOFT
+    TEXT = TEXT
+    MUTED = MUTED
 
     def __init__(
         self,
@@ -91,9 +102,9 @@ class VLCOverlayWithControls(tk.Frame):
             self,
             text="×",
             command=self.close,
-            bg="#111820",
+            bg=self.PANEL_BG,
             fg=self.TEXT,
-            activebackground="#263646",
+            activebackground=CONTROL_ACTIVE_BG,
             activeforeground=self.TEXT,
             bd=0,
             font=("Segoe UI", 16, "bold"),
@@ -105,7 +116,7 @@ class VLCOverlayWithControls(tk.Frame):
             self,
             bg=self.PANEL_BG,
             highlightthickness=1,
-            highlightbackground="#253445",
+            highlightbackground=CONTROL_BORDER,
         )
         self.controls.place(
             relx=0.5,
@@ -137,7 +148,7 @@ class VLCOverlayWithControls(tk.Frame):
             resolution=0.1,
             bg=self.PANEL_BG,
             fg=self.TEXT,
-            troughcolor="#2a3542",
+            troughcolor=TIMELINE_TROUGH,
             highlightthickness=0,
             bd=0,
             command=self._on_timeline_drag,
@@ -196,41 +207,25 @@ class VLCOverlayWithControls(tk.Frame):
         self.stop_entry.insert(0, "" if self.stop_time is None else f"{self.stop_time:g}")
         self.stop_entry.grid(row=1, column=3, padx=(0, 12), pady=(6, 8), sticky="w")
 
-        self.play_btn = self._control_button("▶ / ⏸", self.toggle_play)
+        self.play_btn = create_control_button(self.controls, "▶ / ⏸", self.toggle_play)
         self.play_btn.grid(row=1, column=4, padx=3, pady=(6, 8), sticky="ew")
 
-        self.stop_btn = self._control_button("■", self.stop)
+        self.stop_btn = create_control_button(self.controls, "■", self.stop)
         self.stop_btn.grid(row=1, column=5, padx=3, pady=(6, 8), sticky="ew")
 
-        self.loop_btn = self._control_button("Loop: ON", self.toggle_loop)
+        self.loop_btn = create_control_button(self.controls, "Loop: ON", self.toggle_loop)
         self.loop_btn.grid(row=1, column=6, padx=3, pady=(6, 8), sticky="ew")
 
-        self.save_btn = self._control_button("💾 Save", self.save_segment)
+        self.save_btn = create_control_button(self.controls, "💾 Save", self.save_segment)
         self.save_btn.grid(row=1, column=7, padx=3, pady=(6, 8), sticky="ew")
 
-        self.close_small_btn = self._control_button("Close", self.close)
+        self.close_small_btn = create_control_button(self.controls, "Close", self.close)
         self.close_small_btn.grid(row=1, column=8, padx=(3, 10), pady=(6, 8), sticky="ew")
 
         self.start_entry.bind("<Return>", lambda _e: self.apply_segment_fields())
         self.stop_entry.bind("<Return>", lambda _e: self.apply_segment_fields())
         self.start_entry.bind("<FocusOut>", lambda _e: self.apply_segment_fields())
         self.stop_entry.bind("<FocusOut>", lambda _e: self.apply_segment_fields())
-
-    def _control_button(self, text: str, command) -> tk.Button:
-        return tk.Button(
-            self.controls,
-            text=text,
-            command=command,
-            bg=self.PANEL_BG_SOFT,
-            fg=self.TEXT,
-            activebackground="#263646",
-            activeforeground=self.TEXT,
-            bd=0,
-            padx=10,
-            pady=4,
-            font=("Segoe UI", 9, "bold"),
-            cursor="hand2",
-        )
 
     # --------------------------------------------------------
     # VLC
