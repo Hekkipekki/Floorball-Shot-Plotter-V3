@@ -74,6 +74,7 @@ class VLCOverlayWithControls(tk.Frame):
         self.running = True
         self.duration_seconds = 0.0
         self._was_playing_before_drag = False
+        self._segment_end_paused = False
 
         self.instance = None
         self.player = None
@@ -259,6 +260,7 @@ class VLCOverlayWithControls(tk.Frame):
             return
 
         self.apply_segment_fields()
+        self._segment_end_paused = False
 
         try:
             self.player.play()
@@ -282,6 +284,7 @@ class VLCOverlayWithControls(tk.Frame):
                 self.player.pause()
                 return
 
+            self._segment_end_paused = False
             self.apply_segment_fields()
             self.player.play()
 
@@ -300,6 +303,7 @@ class VLCOverlayWithControls(tk.Frame):
                 self.player.pause()
 
             self.apply_segment_fields()
+            self._segment_end_paused = False
             self.seek_to(self.start_time)
             self.timeline.set(self.start_time)
 
@@ -316,6 +320,7 @@ class VLCOverlayWithControls(tk.Frame):
             print("⚠️ seek failed:", e)
 
     def toggle_loop(self) -> None:
+        self._segment_end_paused = False
         self.loop_segment.set(not self.loop_segment.get())
         self.loop_btn.config(text=f"Loop: {'ON' if self.loop_segment.get() else 'OFF'}")
 
@@ -357,6 +362,7 @@ class VLCOverlayWithControls(tk.Frame):
 
         try:
             self.apply_segment_fields()
+            self._segment_end_paused = False
 
             width = max(1, self.timeline.winfo_width())
             fraction = min(max(event.x / width, 0.0), 1.0)
@@ -416,6 +422,7 @@ class VLCOverlayWithControls(tk.Frame):
         if self.player is None:
             return
 
+        self._segment_end_paused = False
         self.seek_to(self.start_time)
         self.timeline.set(self.start_time)
 
@@ -425,8 +432,10 @@ class VLCOverlayWithControls(tk.Frame):
             print("⚠️ loop restart failed:", e)
 
     def _pause_at_segment_end(self, loop_end: float) -> None:
-        if self.player is None:
+        if self.player is None or self._segment_end_paused:
             return
+
+        self._segment_end_paused = True
 
         try:
             self.player.pause()
@@ -461,6 +470,9 @@ class VLCOverlayWithControls(tk.Frame):
                 loop_end = self.stop_time if self.stop_time is not None else self.duration_seconds
                 near_loop_end = bool(loop_end and current >= loop_end - 0.25)
                 at_video_end = bool(duration and current >= duration - 0.25)
+
+                if loop_end and current < loop_end - 0.5:
+                    self._segment_end_paused = False
 
                 if self.loop_segment.get():
                     if near_loop_end or at_video_end:
