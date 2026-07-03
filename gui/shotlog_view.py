@@ -39,6 +39,52 @@ from gui.shotlog_interactions import (
     on_row_double_click,
 )
 
+SHOTLOG_COLUMNS = ("#", "S/G", "Phase", "Situation", "Type", "Passer", "Shooter", "P", "xG", "Video")
+SHOTLOG_COLUMN_WIDTHS = {
+    "#": SHOTLOG_COL_WIDTH_NUMBER,
+    "S/G": SHOTLOG_COL_WIDTH_RESULT,
+    "Phase": SHOTLOG_COL_WIDTH_PHASE,
+    "Situation": SHOTLOG_COL_WIDTH_SITUATION,
+    "Type": SHOTLOG_COL_WIDTH_TYPE,
+    "Passer": SHOTLOG_COL_WIDTH_PASSER,
+    "Shooter": SHOTLOG_COL_WIDTH_SHOOTER,
+    "P": SHOTLOG_COL_WIDTH_PERIOD,
+    "xG": SHOTLOG_COL_WIDTH_XG,
+    "Video": SHOTLOG_COL_WIDTH_VIDEO,
+}
+
+
+def _shotlog_heading_text(column: str) -> str:
+    return "🎬" if column == "Video" else column
+
+
+def _configure_shotlog_columns(tree: tb.Treeview) -> None:
+    for column in SHOTLOG_COLUMNS:
+        tree.heading(column, text=_shotlog_heading_text(column))
+        tree.column(column, anchor="center", width=SHOTLOG_COLUMN_WIDTHS.get(column, 60), stretch=False)
+
+
+def _bind_shotlog_events(tree: tb.Treeview, app) -> None:
+    tree.bind("<Motion>", lambda e: on_hover_shot(e, tree, app))
+    tree.bind("<Leave>", lambda e: on_leave_shotlog(e, tree, app))
+    tree.bind("<Double-1>", lambda e: on_row_double_click(e, tree, app))
+    tree.bind("<Button-3>", lambda e: open_video_menu(e, tree, app))
+
+
+def _entry_values(entry) -> list:
+    return [
+        get_number(entry),
+        get_result(entry),
+        get_phase(entry),
+        get_situation(entry),
+        get_type(entry),
+        get_passer(entry),
+        get_shooter(entry),
+        get_period(entry),
+        f"{get_xg(entry):.2f}",
+        video_display_symbol(get_video(entry)),
+    ]
+
 
 def setup_shotlog_frame(app, parent):
     style = tb.Style()
@@ -49,28 +95,8 @@ def setup_shotlog_frame(app, parent):
     frame.rowconfigure(0, weight=1)
     frame.columnconfigure(0, weight=1)
 
-    columns = ("#", "S/G", "Phase", "Situation", "Type", "Passer", "Shooter", "P", "xG", "Video")
-    col_widths = {
-        "#": SHOTLOG_COL_WIDTH_NUMBER,
-        "S/G": SHOTLOG_COL_WIDTH_RESULT,
-        "Phase": SHOTLOG_COL_WIDTH_PHASE,
-        "Situation": SHOTLOG_COL_WIDTH_SITUATION,
-        "Type": SHOTLOG_COL_WIDTH_TYPE,
-        "Passer": SHOTLOG_COL_WIDTH_PASSER,
-        "Shooter": SHOTLOG_COL_WIDTH_SHOOTER,
-        "P": SHOTLOG_COL_WIDTH_PERIOD,
-        "xG": SHOTLOG_COL_WIDTH_XG,
-        "Video": SHOTLOG_COL_WIDTH_VIDEO,
-    }
-
-    tree = tb.Treeview(frame, columns=columns, show="headings", bootstyle="primary")
-
-    for col in columns:
-        if col == "Video":
-            tree.heading(col, text="🎬")
-        else:
-            tree.heading(col, text=col)
-        tree.column(col, anchor="center", width=col_widths.get(col, 60), stretch=False)
+    tree = tb.Treeview(frame, columns=SHOTLOG_COLUMNS, show="headings", bootstyle="primary")
+    _configure_shotlog_columns(tree)
 
     tree.grid(row=0, column=0, sticky="nsew")
 
@@ -85,31 +111,14 @@ def setup_shotlog_frame(app, parent):
         xscrollcommand=h_scrollbar.set,
     )
 
-    tree.bind("<Motion>", lambda e: on_hover_shot(e, tree, app))
-    tree.bind("<Leave>", lambda e: on_leave_shotlog(e, tree, app))
-    tree.bind("<Double-1>", lambda e: on_row_double_click(e, tree, app))
-    tree.bind("<Button-3>", lambda e: open_video_menu(e, tree, app))
+    _bind_shotlog_events(tree, app)
 
     tree._last_hovered_row_id = None
     app.shotlog_tree = tree
+
 
 def update_treeview(tree, entries):
     tree.delete(*tree.get_children())
 
     for i, entry in enumerate(entries):
-        video_symbol = video_display_symbol(get_video(entry))
-
-        values = [
-            get_number(entry),
-            get_result(entry),
-            get_phase(entry),
-            get_situation(entry),
-            get_type(entry),
-            get_passer(entry),
-            get_shooter(entry),
-            get_period(entry),
-            f"{get_xg(entry):.2f}",
-            video_symbol,
-        ]
-
-        tree.insert("", "end", iid=str(i), values=values)
+        tree.insert("", "end", iid=str(i), values=_entry_values(entry))
