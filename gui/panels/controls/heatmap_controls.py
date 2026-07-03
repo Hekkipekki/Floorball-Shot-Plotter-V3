@@ -9,27 +9,41 @@ from gui.constants import (
     SECTION_PAD_X,
 )
 
+HEATMAP_COLOR_OPTIONS = ["inferno", "plasma", "magma", "hot", "jet"]
+HEATMAP_PRESET_OPTIONS = [
+    "Match Analysis",
+    "Multi-Match",
+    "Season Review",
+    "Season Review (Goal only)",
+]
+
+
+def _add_section_label(parent: tb.Frame, text: str) -> None:
+    tb.Label(parent, text=text, font=("Segoe UI", 10)).pack(
+        padx=PAD_X, pady=(1, 1), anchor="w"
+    )
+
+
+def _bind_update_plot(combobox: ttk.Combobox, app) -> None:
+    combobox.bind("<<ComboboxSelected>>", lambda e: app.update_plot())
+
 
 def setup_heatmap_settings_group(app, parent: tb.Frame) -> None:
     frame = tb.Labelframe(parent, text="Heatmap Settings", bootstyle="primary")
     frame.pack(fill="x", pady=(3, 0), padx=SECTION_PAD_X)
 
-    tb.Label(frame, text="Select heatmap color:", font=("Segoe UI", 10)).pack(
-        padx=PAD_X, pady=(2, 1), anchor="w"
-    )
+    _add_section_label(frame, "Select heatmap color:")
     app.colormap_combobox = ttk.Combobox(
         frame,
-        values=["inferno", "plasma", "magma", "hot", "jet"],
+        values=HEATMAP_COLOR_OPTIONS,
         textvariable=app.cmap,
         state="readonly",
         bootstyle="primary",
     )
     app.colormap_combobox.pack(fill="x", padx=PAD_X, pady=(0, 2))
-    app.colormap_combobox.bind("<<ComboboxSelected>>", lambda e: app.update_plot())
+    _bind_update_plot(app.colormap_combobox, app)
 
-    tb.Label(frame, text="Heatmap Quality:", font=("Segoe UI", 10)).pack(
-        padx=PAD_X, pady=(1, 1), anchor="w"
-    )
+    _add_section_label(frame, "Heatmap Quality:")
     app.resolution_combobox = ttk.Combobox(
         frame,
         values=list(app.resolution_options.keys()),
@@ -38,20 +52,13 @@ def setup_heatmap_settings_group(app, parent: tb.Frame) -> None:
         bootstyle="primary",
     )
     app.resolution_combobox.pack(fill="x", padx=PAD_X, pady=(0, 2))
-    app.resolution_combobox.bind("<<ComboboxSelected>>", lambda e: app.update_plot())
+    _bind_update_plot(app.resolution_combobox, app)
 
-    tb.Label(frame, text="Preset:", font=("Segoe UI", 10)).pack(
-        padx=PAD_X, pady=(1, 1), anchor="w"
-    )
+    _add_section_label(frame, "Preset:")
     app.heatmap_preset = tk.StringVar(value="Match Analysis")
     app.heatmap_preset_dropdown = ttk.Combobox(
         frame,
-        values=[
-            "Match Analysis",
-            "Multi-Match",
-            "Season Review",
-            "Season Review (Goal only)",
-        ],
+        values=HEATMAP_PRESET_OPTIONS,
         textvariable=app.heatmap_preset,
         state="readonly",
         bootstyle="primary",
@@ -68,9 +75,7 @@ def setup_heatmap_settings_group(app, parent: tb.Frame) -> None:
     )
     app.preset_description.pack(padx=PAD_X, pady=(0, PAD_X), anchor="w")
 
-    tb.Label(frame, text="Sensitivity:", font=("Segoe UI", 10)).pack(
-        padx=PAD_X, pady=(1, 1), anchor="w"
-    )
+    _add_section_label(frame, "Sensitivity:")
     app.sens_slider = tb.Scale(
         frame,
         from_=0.01,
@@ -87,9 +92,7 @@ def setup_heatmap_settings_group(app, parent: tb.Frame) -> None:
     app.sens_entry.pack(padx=PAD_X, pady=(0, 2), anchor="e")
     app.sens_entry.bind("<Return>", lambda e: app.apply_sensitivity(from_slider=False))
 
-    tb.Label(frame, text="KDE Bandwidth:", font=("Segoe UI", 10)).pack(
-        padx=PAD_X, pady=(1, 1), anchor="w"
-    )
+    _add_section_label(frame, "KDE Bandwidth:")
     app.kde_slider = tb.Scale(
         frame,
         from_=0.01,
