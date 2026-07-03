@@ -8,6 +8,13 @@ from gui.panels.center_plot import create_center_plot
 from gui.panels.right_shotlog import create_right_panel
 from gui.theme import apply_theme
 
+FILE_MENU_COMMANDS = [
+    ("Save CSV", "save_csv"),
+    ("Load CSV", "load_csv"),
+    None,
+    ("Export Image", "export_plot"),
+]
+
 
 def setup_ui(app):
     apply_theme(app)
@@ -28,14 +35,24 @@ def setup_ui(app):
     app.update_stats_filtered()
 
 
+def _create_file_menu(app, menubar: tk.Menu) -> tk.Menu:
+    file_menu = tk.Menu(menubar, tearoff=0)
+
+    for command in FILE_MENU_COMMANDS:
+        if command is None:
+            file_menu.add_separator()
+            continue
+
+        label, callback_name = command
+        file_menu.add_command(label=label, command=getattr(app, callback_name))
+
+    return file_menu
+
+
 def create_menu_bar(app):
     menubar = tk.Menu(app.root)
 
-    file_menu = tk.Menu(menubar, tearoff=0)
-    file_menu.add_command(label="Save CSV", command=app.save_csv)
-    file_menu.add_command(label="Load CSV", command=app.load_csv)
-    file_menu.add_separator()
-    file_menu.add_command(label="Export Image", command=app.export_plot)
+    file_menu = _create_file_menu(app, menubar)
     menubar.add_cascade(label="File", menu=file_menu)
 
     app.background_menu = tk.Menu(menubar, tearoff=0)
