@@ -412,6 +412,18 @@ class VLCOverlayWithControls(tk.Frame):
         except Exception as e:
             print("⚠️ timeline release failed:", e)
 
+    def _restart_loop(self) -> None:
+        if self.player is None:
+            return
+
+        self.seek_to(self.start_time)
+        self.timeline.set(self.start_time)
+
+        try:
+            self.player.play()
+        except Exception as e:
+            print("⚠️ loop restart failed:", e)
+
     def _update_loop(self) -> None:
         if not self.running:
             return
@@ -434,11 +446,13 @@ class VLCOverlayWithControls(tk.Frame):
                 end_label = self.stop_time if self.stop_time is not None else self.duration_seconds
                 self.time_label.config(text=f"{format_time(current)} / {format_time(end_label)}")
 
-                if self.loop_segment.get() and self.player.is_playing():
+                if self.loop_segment.get():
                     loop_end = self.stop_time if self.stop_time is not None else self.duration_seconds
+                    near_loop_end = bool(loop_end and current >= loop_end - 0.25)
+                    at_video_end = bool(duration and current >= duration - 0.25)
 
-                    if loop_end and current >= loop_end - 0.08:
-                        self.seek_to(self.start_time)
+                    if near_loop_end or at_video_end:
+                        self._restart_loop()
 
         except Exception as e:
             print("⚠️ video update loop error:", e)
