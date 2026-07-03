@@ -13,7 +13,8 @@ from gui.constants import (
     FIGURE_SUBPLOT_TOP,
     FIGURE_WIDTH,
 )
-from gui.events import onclick, on_space_key_pressed
+from gui.events import onclick
+from gui.point_removal import remove_nearest_point
 from utils.tooltips import BetterToolTip
 
 HOTKEYS_TOOLTIP = (
@@ -52,7 +53,7 @@ def _store_plot_widgets(app, frame: tb.Frame, figure: Figure, canvas: FigureCanv
 
 def _bind_plot_events(app, canvas_widget) -> None:
     canvas_widget.focus_set()
-    canvas_widget.bind("<space>", lambda e: on_space_key_pressed(app, e))
+    canvas_widget.bind("<space>", lambda e: remove_nearest_point(app, e))
     app.canvas.mpl_connect("button_press_event", lambda e: onclick(app, e))
 
 
