@@ -17,14 +17,11 @@
           A desktop analysis tool for plotting shots, goals, pass origins, heatmaps, video links, and xG-ready event data.
         </p>
         <div class="actions">
-          <a id="downloadButton" class="button primary" href="https://github.com/Hekkipekki/Floorball-Shot-Plotter-V3/releases/latest">
-            Download latest beta
-          </a>
-          <a class="button secondary" href="https://github.com/Hekkipekki/Floorball-Shot-Plotter-V3/releases/latest">
-            View releases
+          <a id="downloadButton" class="button primary is-disabled" href="#" aria-disabled="true">
+            Checking latest beta...
           </a>
         </div>
-        <p id="releaseStatus" class="release-status">Checking latest beta release...</p>
+        <p id="releaseStatus" class="release-status">Looking for the newest Windows download...</p>
       </div>
       <div class="hero-card">
         <h2>What testers can try</h2>
@@ -44,18 +41,30 @@
         <h2>How to install</h2>
         <ol>
           <li>Click <strong>Download latest beta</strong>.</li>
-          <li>Download the Windows <strong>.exe</strong> or <strong>.zip</strong> from the latest release.</li>
+          <li>Unzip the downloaded Windows package.</li>
+          <li>Open the folder and run <strong>Floorball-Shot-Plotter.exe</strong>.</li>
           <li>If Windows SmartScreen warns you, choose <strong>More info</strong> and then <strong>Run anyway</strong> only if you trust the source.</li>
-          <li>Open the app and test with demo shots or your own match data.</li>
+          <li>Test with demo shots or your own match data.</li>
         </ol>
       </article>
 
       <article class="panel">
         <h2>Beta feedback</h2>
         <p>
-          When reporting feedback, include what you clicked, what you expected, what happened, and screenshots if possible.
+          Found a bug or confusing workflow? Send a quick report below. Include what you clicked, what you expected, and what happened.
         </p>
-        <a class="text-link" href="https://github.com/Hekkipekki/Floorball-Shot-Plotter-V3/issues">Open GitHub Issues</a>
+        <form name="beta-feedback" method="POST" data-netlify="true" class="feedback-form">
+          <input type="hidden" name="form-name" value="beta-feedback">
+          <label>
+            Your name
+            <input name="name" type="text" autocomplete="name">
+          </label>
+          <label>
+            Feedback
+            <textarea name="feedback" rows="5" required placeholder="What happened?"></textarea>
+          </label>
+          <button class="button primary form-button" type="submit">Send feedback</button>
+        </form>
       </article>
     </section>
 
@@ -65,7 +74,7 @@
         <h2 id="releaseTitle">Latest beta release</h2>
       </div>
       <div id="releaseNotes" class="release-notes">
-        Release notes will appear here when a GitHub Release is available.
+        Release notes will appear here when the Windows beta build is available.
       </div>
     </section>
 
@@ -80,7 +89,7 @@
       </article>
       <article class="feature-card">
         <h3>Desktop-first</h3>
-        <p>The beta website distributes the Windows app. The app itself runs locally on the tester's computer.</p>
+        <p>This website gives testers a direct Windows download. The app itself runs locally on their computer.</p>
       </article>
     </section>
   </main>
