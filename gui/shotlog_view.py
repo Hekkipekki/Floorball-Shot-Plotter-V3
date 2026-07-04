@@ -1,3 +1,4 @@
+import tkinter as tk
 import ttkbootstrap as tb
 
 from core.entry_helpers import (
@@ -10,6 +11,10 @@ from core.entry_helpers import (
     get_shooter,
     get_period,
     get_xg,
+    get_xy,
+    get_distance,
+    get_angle,
+    get_zone,
     get_video,
 )
 from gui.constants import (
@@ -35,7 +40,24 @@ from gui.shotlog_interactions import (
     on_row_double_click,
 )
 
-SHOTLOG_COLUMNS = ("#", "S/G", "Phase", "Situation", "Type", "Passer", "Shooter", "P", "xG", "Video")
+SHOTLOG_COLUMNS = (
+    "#",
+    "S/G",
+    "Phase",
+    "Situation",
+    "Type",
+    "Passer",
+    "Shooter",
+    "P",
+    "xG",
+    "X",
+    "Y",
+    "Distance",
+    "Angle",
+    "Zone",
+    "Video",
+)
+DEFAULT_VISIBLE_COLUMNS = ("#", "S/G", "Phase", "Situation", "Type", "Passer", "Shooter", "P", "xG", "Video")
 SHOTLOG_COLUMN_WIDTHS = {
     "#": SHOTLOG_COL_WIDTH_NUMBER,
     "S/G": SHOTLOG_COL_WIDTH_RESULT,
@@ -46,12 +68,18 @@ SHOTLOG_COLUMN_WIDTHS = {
     "Shooter": SHOTLOG_COL_WIDTH_SHOOTER,
     "P": SHOTLOG_COL_WIDTH_PERIOD,
     "xG": SHOTLOG_COL_WIDTH_XG,
+    "X": 70,
+    "Y": 70,
+    "Distance": 90,
+    "Angle": 75,
+    "Zone": 100,
     "Video": SHOTLOG_COL_WIDTH_VIDEO,
 }
 SHOTLOG_DEFAULT_COLUMN_WIDTH = 60
 TREEVIEW_STYLE_NAME = "Treeview"
 VIDEO_COLUMN = "Video"
 VIDEO_COLUMN_HEADING = "🎬"
+COLUMN_MENU_TEXT = "Columns ▾"
 
 
 def _shotlog_heading_text(column: str) -> str:
@@ -80,7 +108,14 @@ def _bind_shotlog_events(tree: tb.Treeview, app) -> None:
         tree.bind(event_name, callback)
 
 
+def _format_optional_float(value) -> str:
+    if value in (None, ""):
+        return ""
+    return f"{float(value):.2f}"
+
+
 def _entry_values(entry) -> list:
+    x, y = get_xy(entry)
     return [
         get_number(entry),
         get_result(entry),
@@ -91,28 +126,65 @@ def _entry_values(entry) -> list:
         get_shooter(entry),
         get_period(entry),
         f"{get_xg(entry):.2f}",
+        _format_optional_float(x),
+        _format_optional_float(y),
+        _format_optional_float(get_distance(entry)),
+        _format_optional_float(get_angle(entry)),
+        get_zone(entry),
         video_display_symbol(get_video(entry)),
     ]
 
 
+def _visible_columns(app):
+    column_vars = getattr(app, "shotlog_column_vars", {})
+    selected = [column for column in SHOTLOG_COLUMNS if column_vars.get(column, tk.BooleanVar(value=True)).get()]
+    return selected or ["#"]
+
+
+def _apply_visible_columns(app) -> None:
+    if hasattr(app, "shotlog_tree"):
+        app.shotlog_tree.configure(displaycolumns=_visible_columns(app))
+
+
+def _create_column_menu(app, parent) -> tb.Menubutton:
+    app.shotlog_column_vars = {
+        column: tk.BooleanVar(value=column in DEFAULT_VISIBLE_COLUMNS)
+        for column in SHOTLOG_COLUMNS
+    }
+
+    button = tb.Menubutton(parent, text=COLUMN_MENU_TEXT, bootstyle="secondary")
+    menu = tk.Menu(button, tearoff=0)
+
+    for column in SHOTLOG_COLUMNS:
+        menu.add_checkbutton(
+            label=_shotlog_heading_text(column),
+            variable=app.shotlog_column_vars[column],
+            command=lambda: _apply_visible_columns(app),
+        )
+
+    button["menu"] = menu
+    button.pack(anchor="w", padx=PAD_X, pady=(PAD_Y, 0))
+    return button
+
+
 def _configure_shotlog_frame(frame) -> None:
-    frame.rowconfigure(0, weight=1)
+    frame.rowconfigure(1, weight=1)
     frame.columnconfigure(0, weight=1)
 
 
 def _create_shotlog_tree(frame):
     tree = tb.Treeview(frame, columns=SHOTLOG_COLUMNS, show="headings", bootstyle="primary")
     _configure_shotlog_columns(tree)
-    tree.grid(row=0, column=0, sticky="nsew")
+    tree.grid(row=1, column=0, sticky="nsew")
     return tree
 
 
 def _add_scrollbars(frame, tree) -> None:
     v_scrollbar = tb.Scrollbar(frame, orient="vertical", command=tree.yview)
-    v_scrollbar.grid(row=0, column=1, sticky="ns")
+    v_scrollbar.grid(row=1, column=1, sticky="ns")
 
     h_scrollbar = tb.Scrollbar(frame, orient="horizontal", command=tree.xview)
-    h_scrollbar.grid(row=1, column=0, sticky="ew")
+    h_scrollbar.grid(row=2, column=0, sticky="ew")
 
     tree.configure(
         yscrollcommand=v_scrollbar.set,
@@ -127,6 +199,7 @@ def setup_shotlog_frame(app, parent):
     frame = tb.Labelframe(parent, text="Shot Log", bootstyle="primary")
     frame.pack(fill="both", expand=True, padx=PAD_X, pady=PAD_Y)
     _configure_shotlog_frame(frame)
+    _create_column_menu(app, frame)
 
     tree = _create_shotlog_tree(frame)
     _add_scrollbars(frame, tree)
@@ -134,6 +207,7 @@ def setup_shotlog_frame(app, parent):
 
     tree._last_hovered_row_id = None
     app.shotlog_tree = tree
+    _apply_visible_columns(app)
 
 
 def update_treeview(tree, entries):
