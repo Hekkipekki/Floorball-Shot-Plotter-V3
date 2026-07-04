@@ -160,13 +160,18 @@ Possible future service candidates:
 
 ## Future Feature: Trained / Custom xG Model
 
-Status: planned, not started.
+Status: planned, low priority, parked until Daniel explicitly asks for it.
 
 Goal:
 
 - Build a better xG model from saved Shot Plotter games instead of relying only on the current rule-based zone model in `core/xg.py`.
 - Use historical saved shots and goals as training data.
 - Keep the current rule-based xG model as a safe fallback.
+
+Priority note:
+
+- Do not start xG model scaffolding, dependency changes, UI changes, or event-creation changes unless Daniel explicitly asks to resume xG work.
+- Keep this section as a future reference item only.
 
 Important model change:
 
@@ -240,5 +245,5 @@ Suggested first next action:
 
 1. Create a fresh backup branch from current `main`.
 2. Continue Phase 5 only if there are still clear cleanup wins.
-3. Otherwise discuss whether to start the trained xG model feature.
-4. For xG work, begin with data extraction and model-design scaffolding before changing event creation.
+3. Do not start trained/custom xG model work unless Daniel explicitly asks to resume it.
+4. If xG work is resumed later, begin with data extraction and model-design scaffolding before changing event creation.
