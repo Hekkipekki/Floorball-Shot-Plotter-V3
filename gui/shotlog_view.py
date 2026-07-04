@@ -79,9 +79,11 @@ SHOTLOG_DEFAULT_COLUMN_WIDTH = 60
 TREEVIEW_STYLE_NAME = "Treeview"
 VIDEO_COLUMN = "Video"
 VIDEO_COLUMN_HEADING = "🎬"
-COLUMN_CHECKBOX_COLUMNS = 3
-COLUMN_CHECKBOX_PAD_X = 4
-COLUMN_CHECKBOX_PAD_Y = 1
+COLUMN_BUTTON_TEXT = "Columns ▾"
+COLUMN_POPUP_TITLE = "Shot Log Columns"
+COLUMN_POPUP_COLUMNS = 2
+COLUMN_POPUP_PAD_X = 10
+COLUMN_POPUP_PAD_Y = 4
 
 
 def _shotlog_heading_text(column: str) -> str:
@@ -155,32 +157,87 @@ def _init_column_vars(app) -> None:
     }
 
 
-def _create_column_checkbox(app, parent, column: str, index: int) -> None:
-    row = index // COLUMN_CHECKBOX_COLUMNS
-    col = index % COLUMN_CHECKBOX_COLUMNS
+def _close_column_popup(app) -> None:
+    popup = getattr(app, "shotlog_column_popup", None)
+    if popup is not None:
+        try:
+            popup.destroy()
+        except Exception:
+            pass
+    app.shotlog_column_popup = None
+
+
+def _column_popup_position(button) -> tuple[int, int]:
+    button.update_idletasks()
+    x = button.winfo_rootx()
+    y = button.winfo_rooty() + button.winfo_height()
+    return x, y
+
+
+def _create_popup_checkbox(app, parent, column: str, index: int) -> None:
+    row = index // COLUMN_POPUP_COLUMNS
+    col = index % COLUMN_POPUP_COLUMNS
     checkbox = tb.Checkbutton(
         parent,
         text=_shotlog_heading_text(column),
         variable=app.shotlog_column_vars[column],
         command=lambda: _apply_visible_columns(app),
-        bootstyle="round-toggle",
+        bootstyle="primary",
     )
     checkbox.grid(
         row=row,
         column=col,
         sticky="w",
-        padx=COLUMN_CHECKBOX_PAD_X,
-        pady=COLUMN_CHECKBOX_PAD_Y,
+        padx=COLUMN_POPUP_PAD_X,
+        pady=COLUMN_POPUP_PAD_Y,
     )
 
 
+def _open_column_popup(app, button) -> None:
+    existing = getattr(app, "shotlog_column_popup", None)
+    if existing is not None and existing.winfo_exists():
+        _close_column_popup(app)
+        return
+
+    popup = tk.Toplevel(button)
+    popup.title(COLUMN_POPUP_TITLE)
+    popup.transient(app.root)
+    popup.resizable(False, False)
+    popup.bind("<Escape>", lambda _e: _close_column_popup(app))
+    popup.protocol("WM_DELETE_WINDOW", lambda: _close_column_popup(app))
+    app.shotlog_column_popup = popup
+
+    frame = tb.Frame(popup, padding=8)
+    frame.pack(fill="both", expand=True)
+
+    for index, column in enumerate(SHOTLOG_COLUMNS):
+        _create_popup_checkbox(app, frame, column, index)
+
+    close_btn = tb.Button(
+        frame,
+        text="Close",
+        command=lambda: _close_column_popup(app),
+        bootstyle="secondary",
+    )
+    close_btn.grid(row=(len(SHOTLOG_COLUMNS) + COLUMN_POPUP_COLUMNS - 1) // COLUMN_POPUP_COLUMNS, column=0, columnspan=COLUMN_POPUP_COLUMNS, sticky="ew", padx=COLUMN_POPUP_PAD_X, pady=(8, 2))
+
+    x, y = _column_popup_position(button)
+    popup.geometry(f"+{x}+{y}")
+    popup.lift()
+
+
 def _create_column_toolbar(app, frame) -> None:
-    toolbar = tb.Labelframe(frame, text="Shot Log Columns", bootstyle="secondary")
+    toolbar = tb.Frame(frame)
     toolbar.grid(row=0, column=0, columnspan=2, sticky="ew", padx=PAD_X, pady=(0, PAD_Y))
     _init_column_vars(app)
 
-    for index, column in enumerate(SHOTLOG_COLUMNS):
-        _create_column_checkbox(app, toolbar, column, index)
+    button = tb.Button(
+        toolbar,
+        text=COLUMN_BUTTON_TEXT,
+        command=lambda: _open_column_popup(app, button),
+        bootstyle="secondary",
+    )
+    button.pack(anchor="w")
 
 
 def _configure_shotlog_frame(frame) -> None:
