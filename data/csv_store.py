@@ -17,33 +17,66 @@ from core.schema import (
     ENTRY_LENGTH,
 )
 
+CSV_HEADERS = [
+    "#", "S/G", "Phase", "Situation", "Shot Type", "Passer", "Shooter",
+    "Period", "xG", "X", "Y", "Pass X", "Pass Y",
+]
+MIN_CSV_COLUMNS = 11
+
+
+def _padded_entry(entry):
+    return list(entry) + [None] * (ENTRY_LENGTH - len(entry))
+
+
+def _rounded_or_blank(value):
+    return round(value, 2) if value is not None else ""
+
+
+def _entry_to_csv_row(entry):
+    row = _padded_entry(entry)
+    return [
+        row[IDX_NUMBER],
+        row[IDX_RESULT],
+        row[IDX_PHASE],
+        row[IDX_SITUATION],
+        row[IDX_TYPE],
+        row[IDX_PASSER],
+        row[IDX_SHOOTER],
+        row[IDX_PERIOD],
+        row[IDX_XG],
+        round(row[IDX_X], 2),
+        round(row[IDX_Y], 2),
+        _rounded_or_blank(row[IDX_PASS_X]),
+        _rounded_or_blank(row[IDX_PASS_Y]),
+    ]
+
+
+def _csv_row_to_entry(row):
+    entry = [None] * ENTRY_LENGTH
+    entry[IDX_NUMBER] = int(row[0])
+    entry[IDX_RESULT] = row[1]
+    entry[IDX_PHASE] = row[2]
+    entry[IDX_SITUATION] = row[3]
+    entry[IDX_TYPE] = row[4]
+    entry[IDX_PASSER] = row[5]
+    entry[IDX_SHOOTER] = row[6]
+    entry[IDX_PERIOD] = row[7]
+    entry[IDX_XG] = float(row[8])
+    entry[IDX_X] = float(row[9])
+    entry[IDX_Y] = float(row[10])
+    entry[IDX_PASS_X] = float(row[11]) if len(row) > 11 and row[11] else None
+    entry[IDX_PASS_Y] = float(row[12]) if len(row) > 12 and row[12] else None
+    entry[IDX_VIDEO] = None
+    return tuple(entry)
+
 
 def save_csv(path, entries):
     with open(path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow([
-            "#", "S/G", "Phase", "Situation", "Shot Type", "Passer", "Shooter",
-            "Period", "xG", "X", "Y", "Pass X", "Pass Y"
-        ])
+        writer.writerow(CSV_HEADERS)
 
-        for e in entries:
-            row = list(e) + [None] * (ENTRY_LENGTH - len(e))
-
-            writer.writerow([
-                row[IDX_NUMBER],
-                row[IDX_RESULT],
-                row[IDX_PHASE],
-                row[IDX_SITUATION],
-                row[IDX_TYPE],
-                row[IDX_PASSER],
-                row[IDX_SHOOTER],
-                row[IDX_PERIOD],
-                row[IDX_XG],
-                round(row[IDX_X], 2),
-                round(row[IDX_Y], 2),
-                round(row[IDX_PASS_X], 2) if row[IDX_PASS_X] is not None else "",
-                round(row[IDX_PASS_Y], 2) if row[IDX_PASS_Y] is not None else "",
-            ])
+        for entry in entries:
+            writer.writerow(_entry_to_csv_row(entry))
 
 
 def load_csv(path):
@@ -54,23 +87,7 @@ def load_csv(path):
         next(reader, None)
 
         for row in reader:
-            if len(row) >= 11:
-                entry = [None] * ENTRY_LENGTH
-                entry[IDX_NUMBER] = int(row[0])
-                entry[IDX_RESULT] = row[1]
-                entry[IDX_PHASE] = row[2]
-                entry[IDX_SITUATION] = row[3]
-                entry[IDX_TYPE] = row[4]
-                entry[IDX_PASSER] = row[5]
-                entry[IDX_SHOOTER] = row[6]
-                entry[IDX_PERIOD] = row[7]
-                entry[IDX_XG] = float(row[8])
-                entry[IDX_X] = float(row[9])
-                entry[IDX_Y] = float(row[10])
-                entry[IDX_PASS_X] = float(row[11]) if len(row) > 11 and row[11] else None
-                entry[IDX_PASS_Y] = float(row[12]) if len(row) > 12 and row[12] else None
-                entry[IDX_VIDEO] = None
-
-                entries.append(tuple(entry))
+            if len(row) >= MIN_CSV_COLUMNS:
+                entries.append(_csv_row_to_entry(row))
 
     return entries
