@@ -3,7 +3,7 @@ from __future__ import annotations
 # ---------------------------------------------------------
 # Theme
 # ---------------------------------------------------------
-DEFAULT_THEME = "darkly"
+DEFAULT_THEME = "superhero"
 APP_FONT_FAMILY = "Segoe UI"
 APP_FONT_SIZE = 10
 APP_FONT_SIZE_SMALL = 9
@@ -13,7 +13,7 @@ APP_FONT_SIZE_TITLE = 12
 # ---------------------------------------------------------
 # Layout sizing
 # ---------------------------------------------------------
-LEFT_PANEL_WIDTH = 310
+LEFT_PANEL_WIDTH = 300
 RIGHT_PANEL_WIDTH = 460
 
 # ---------------------------------------------------------
