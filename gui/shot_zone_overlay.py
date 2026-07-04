@@ -5,16 +5,19 @@ from tkinter import messagebox
 
 from PIL import Image
 
-from app_paths import PROJECT_ROOT
+from app_paths import ASSETS_DIR
 
-SHOT_ZONE_DIR = Path(PROJECT_ROOT) / "resources" / "xG"
+SHOT_ZONE_DIR = Path(ASSETS_DIR) / "resources" / "xG"
 SHOT_ZONE_IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp")
 SHOT_ZONE_DEFAULT_ALPHA = 0.35
-SHOT_ZONE_MENU_LABEL_ON = "Hide Shot Zone Overlay"
-SHOT_ZONE_MENU_LABEL_OFF = "Show Shot Zone Overlay"
+SHOT_ZONE_PREFERRED_FILENAME = "xG Bild.png"
 
 
 def _find_shot_zone_image() -> Path | None:
+    preferred = SHOT_ZONE_DIR / SHOT_ZONE_PREFERRED_FILENAME
+    if preferred.exists():
+        return preferred
+
     if not SHOT_ZONE_DIR.exists():
         return None
 
