@@ -3,22 +3,18 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import messagebox
 
+from utils.video_calibration import (
+    CALIBRATION_DONE_TEXT,
+    GOPRO_CALIBRATION_POINTS,
+    apply_homography,
+    compute_homography,
+)
 from utils.video_player_style import PANEL_BG, TEXT, create_control_button
 
 SHOT_EVENT_TYPE = "shot"
 GOAL_EVENT_TYPE = "goal"
 VIDEO_PLOT_HELP = "Video Plot: right-click the video, then choose Shot or Goal."
 VIDEO_PASS_HELP = "Video Plot: right-click the pass-origin location."
-CALIBRATION_DONE_TEXT = "Calibration clicks captured. Transform calculation comes next."
-
-CALIBRATION_POINTS = (
-    ("Goal area lower-left corner", (562, 825), "Click the lower-left corner of the large white area."),
-    ("Goal area lower-right corner", (938, 825), "Click the lower-right corner of the large white area."),
-    ("Goal area upper-right corner", (938, 625), "Click the upper-right corner of the large white area."),
-    ("Goal area upper-left corner", (562, 625), "Click the upper-left corner of the large white area."),
-    ("Goal area top middle", (750, 625), "Click the middle of the top/front line of the large white area."),
-    ("High slot centre", (750, 500), "Click the high-slot centre reference above the white area."),
-)
 
 
 def install_video_plot_adapter(player) -> None:
@@ -26,6 +22,7 @@ def install_video_plot_adapter(player) -> None:
     player.video_calibration_mode = tk.BooleanVar(value=False)
     player.video_calibration_clicks = []
     player.video_calibration_step = 0
+    player.video_homography = None
     player.video_area.bind("<Button-3>", lambda event: _on_video_right_click(player, event), add="+")
     player.video_area.bind("<Button-1>", lambda event: _on_video_left_click(player, event), add="+")
     _let_tk_receive_video_mouse_events(player)
@@ -51,50 +48,25 @@ def _add_video_plot_controls(player) -> None:
     except Exception:
         pass
 
-    player.video_plot_btn = create_control_button(
-        player.controls,
-        "Plot: OFF",
-        lambda: _toggle_video_plot_mode(player),
-    )
+    player.video_plot_btn = create_control_button(player.controls, "Plot: OFF", lambda: _toggle_video_plot_mode(player))
     player.video_plot_btn.grid(row=1, column=7, padx=3, pady=(6, 8), sticky="ew")
 
-    player.video_calibration_btn = create_control_button(
-        player.controls,
-        "Calibrate",
-        lambda: _toggle_video_calibration_mode(player),
-    )
+    player.video_calibration_btn = create_control_button(player.controls, "Calibrate", lambda: _toggle_video_calibration_mode(player))
     player.video_calibration_btn.grid(row=1, column=8, padx=3, pady=(6, 8), sticky="ew")
 
 
 def _add_video_plot_hint(player) -> None:
-    player.video_plot_hint = tk.Label(
-        player,
-        text=VIDEO_PLOT_HELP,
-        bg=PANEL_BG,
-        fg=TEXT,
-        font=("Segoe UI", 9, "bold"),
-        padx=10,
-        pady=5,
-    )
+    player.video_plot_hint = tk.Label(player, text=VIDEO_PLOT_HELP, bg=PANEL_BG, fg=TEXT, font=("Segoe UI", 9, "bold"), padx=10, pady=5)
 
 
 def _add_video_calibration_hint(player) -> None:
-    player.video_calibration_hint = tk.Label(
-        player,
-        text="",
-        bg=PANEL_BG,
-        fg=TEXT,
-        font=("Segoe UI", 9, "bold"),
-        padx=10,
-        pady=5,
-    )
+    player.video_calibration_hint = tk.Label(player, text="", bg=PANEL_BG, fg=TEXT, font=("Segoe UI", 9, "bold"), padx=10, pady=5)
 
 
 def _toggle_video_plot_mode(player) -> None:
     player.video_plot_mode.set(not player.video_plot_mode.get())
     enabled = player.video_plot_mode.get()
     player.video_plot_btn.config(text=f"Plot: {'ON' if enabled else 'OFF'}")
-
     if enabled:
         if player.video_calibration_mode.get():
             _toggle_video_calibration_mode(player)
@@ -107,7 +79,6 @@ def _toggle_video_calibration_mode(player) -> None:
     player.video_calibration_mode.set(not player.video_calibration_mode.get())
     enabled = player.video_calibration_mode.get()
     player.video_calibration_btn.config(text=f"Cal: {'ON' if enabled else 'OFF'}")
-
     if enabled:
         if player.video_plot_mode.get():
             _toggle_video_plot_mode(player)
@@ -119,9 +90,12 @@ def _toggle_video_calibration_mode(player) -> None:
 def _show_plot_hint(player) -> None:
     app = player.app
     if app is not None and getattr(app, "expecting_pass_click", False):
-        player.video_plot_hint.config(text=VIDEO_PASS_HELP)
+        text = VIDEO_PASS_HELP
+    elif getattr(player, "video_homography", None) is not None:
+        text = "Video Plot calibrated: right-click the video, then choose Shot or Goal."
     else:
-        player.video_plot_hint.config(text=VIDEO_PLOT_HELP)
+        text = VIDEO_PLOT_HELP
+    player.video_plot_hint.config(text=text)
     player.video_plot_hint.place(relx=0.5, y=12, anchor="n")
     player.video_plot_hint.lift()
 
@@ -129,35 +103,34 @@ def _show_plot_hint(player) -> None:
 def _start_calibration_sequence(player) -> None:
     player.video_calibration_clicks = []
     player.video_calibration_step = 0
+    player.video_homography = None
     _show_next_calibration_instruction(player)
-    messagebox.showinfo(
-        "Video Calibration",
-        "Calibration started. Left-click each requested rink landmark in the video.",
-    )
+    messagebox.showinfo("Video Calibration", "Calibration started. Left-click each requested rink landmark in the video.")
 
 
 def _show_next_calibration_instruction(player) -> None:
     step = player.video_calibration_step
-    if step >= len(CALIBRATION_POINTS):
+    if step >= len(GOPRO_CALIBRATION_POINTS):
         player.video_calibration_hint.config(text=CALIBRATION_DONE_TEXT)
     else:
-        _name, _target, instruction = CALIBRATION_POINTS[step]
-        player.video_calibration_hint.config(text=f"Calibration {step + 1}/{len(CALIBRATION_POINTS)}: {instruction}")
+        _name, _target, instruction = GOPRO_CALIBRATION_POINTS[step]
+        player.video_calibration_hint.config(text=f"Calibration {step + 1}/{len(GOPRO_CALIBRATION_POINTS)}: {instruction}")
     player.video_calibration_hint.place(relx=0.5, y=12, anchor="n")
     player.video_calibration_hint.lift()
 
 
 def _finish_calibration_sequence(player) -> None:
+    homography = compute_homography(player.video_calibration_clicks)
+    player.video_homography = homography
     app = player.app
     if app is not None:
         app.video_calibration_points = list(player.video_calibration_clicks)
+        app.video_homography = homography
     player.video_calibration_mode.set(False)
     player.video_calibration_btn.config(text="Calibrate")
     player.video_calibration_hint.config(text=CALIBRATION_DONE_TEXT)
-    messagebox.showinfo(
-        "Calibration Points Captured",
-        f"Captured {len(player.video_calibration_clicks)} calibration points.",
-    )
+    status = "Calibration is active for video plotting." if homography is not None else "Could not compute calibration transform. Fallback plotting remains active."
+    messagebox.showinfo("Calibration Complete", f"Captured {len(player.video_calibration_clicks)} calibration points.\n\n{status}")
 
 
 def _video_content_rect(player) -> tuple[float, float, float, float]:
@@ -182,10 +155,7 @@ def _video_content_rect(player) -> tuple[float, float, float, float]:
     return left, top, draw_w, draw_h
 
 
-def _video_event_to_plot_coordinates(player, event) -> tuple[int, int] | None:
-    app = player.app
-    if app is None or not hasattr(app, "ax"):
-        return None
+def _video_event_to_normalized_coordinates(player, event) -> tuple[float, float] | None:
     left, top, draw_w, draw_h = _video_content_rect(player)
     if draw_w <= 0 or draw_h <= 0:
         return None
@@ -193,6 +163,14 @@ def _video_event_to_plot_coordinates(player, event) -> tuple[int, int] | None:
     rel_y = (event.y - top) / draw_h
     if not (0.0 <= rel_x <= 1.0 and 0.0 <= rel_y <= 1.0):
         return None
+    return rel_x, rel_y
+
+
+def _fallback_normalized_to_plot(player, source_norm: tuple[float, float]) -> tuple[int, int] | None:
+    app = player.app
+    if app is None or not hasattr(app, "ax"):
+        return None
+    rel_x, rel_y = source_norm
     xlim = app.ax.get_xlim()
     ylim = app.ax.get_ylim()
     plot_x = xlim[0] + rel_x * (xlim[1] - xlim[0])
@@ -200,15 +178,14 @@ def _video_event_to_plot_coordinates(player, event) -> tuple[int, int] | None:
     return int(round(plot_x)), int(round(plot_y))
 
 
-def _video_event_to_video_coordinates(player, event) -> tuple[int, int] | None:
-    left, top, draw_w, draw_h = _video_content_rect(player)
-    if draw_w <= 0 or draw_h <= 0:
+def _video_event_to_plot_coordinates(player, event) -> tuple[int, int] | None:
+    source_norm = _video_event_to_normalized_coordinates(player, event)
+    if source_norm is None:
         return None
-    video_x = event.x - left
-    video_y = event.y - top
-    if not (0.0 <= video_x <= draw_w and 0.0 <= video_y <= draw_h):
-        return None
-    return int(round(video_x)), int(round(video_y))
+    calibrated = apply_homography(getattr(player, "video_homography", None), source_norm)
+    if calibrated is not None:
+        return calibrated
+    return _fallback_normalized_to_plot(player, source_norm)
 
 
 def _plot_video_point(player, x: int, y: int, shot_or_goal: str) -> None:
@@ -251,17 +228,17 @@ def _add_pending_pass_origin_from_video(player, x: int, y: int) -> None:
 def _on_video_left_click(player, event) -> str | None:
     if not getattr(player, "video_calibration_mode", tk.BooleanVar(value=False)).get():
         return None
-    video_coords = _video_event_to_video_coordinates(player, event)
-    plot_coords = _video_event_to_plot_coordinates(player, event)
-    if video_coords is None or plot_coords is None:
+    source_norm = _video_event_to_normalized_coordinates(player, event)
+    fallback_plot = _fallback_normalized_to_plot(player, source_norm) if source_norm is not None else None
+    if source_norm is None or fallback_plot is None:
         return "break"
     step = player.video_calibration_step
-    if step >= len(CALIBRATION_POINTS):
+    if step >= len(GOPRO_CALIBRATION_POINTS):
         return "break"
-    name, target_plot, _instruction = CALIBRATION_POINTS[step]
-    player.video_calibration_clicks.append({"name": name, "video": video_coords, "fallback_plot": plot_coords, "target_plot": target_plot})
+    name, target_plot, _instruction = GOPRO_CALIBRATION_POINTS[step]
+    player.video_calibration_clicks.append({"name": name, "source_norm": source_norm, "fallback_plot": fallback_plot, "target_plot": target_plot})
     player.video_calibration_step += 1
-    if player.video_calibration_step >= len(CALIBRATION_POINTS):
+    if player.video_calibration_step >= len(GOPRO_CALIBRATION_POINTS):
         _finish_calibration_sequence(player)
     else:
         _show_next_calibration_instruction(player)
