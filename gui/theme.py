@@ -17,6 +17,14 @@ from gui.constants import (
     SHOTLOG_ROW_HEIGHT,
 )
 
+SHOTLOG_BG = "#f2f5f8"
+SHOTLOG_FG = "#111827"
+SHOTLOG_FIELD_BG = "#ffffff"
+SHOTLOG_HEADING_BG = "#dbeafe"
+SHOTLOG_HEADING_FG = "#0f172a"
+SHOTLOG_SELECTED_BG = "#2563eb"
+SHOTLOG_SELECTED_FG = "#ffffff"
+
 
 def _create_style() -> tb.Style:
     return tb.Style()
@@ -42,8 +50,6 @@ def _configure_tk_fonts(root) -> None:
 
 
 def _configure_ttk_styles(style: tb.Style) -> None:
-    colors = style.colors
-
     style.configure("TButton", font=(APP_FONT_FAMILY, APP_FONT_SIZE, "bold"), padding=(8, 5))
     style.configure("TLabel", font=(APP_FONT_FAMILY, APP_FONT_SIZE))
     style.configure("TLabelframe", borderwidth=1, relief="solid")
@@ -56,16 +62,21 @@ def _configure_ttk_styles(style: tb.Style) -> None:
         font=(SHOTLOG_FONT_FAMILY, SHOTLOG_FONT_SIZE),
         rowheight=SHOTLOG_ROW_HEIGHT,
         borderwidth=0,
+        background=SHOTLOG_BG,
+        foreground=SHOTLOG_FG,
+        fieldbackground=SHOTLOG_FIELD_BG,
     )
     style.configure(
         "Treeview.Heading",
         font=(APP_FONT_FAMILY, SHOTLOG_HEADING_FONT_SIZE, "bold"),
         padding=(4, 6),
+        background=SHOTLOG_HEADING_BG,
+        foreground=SHOTLOG_HEADING_FG,
     )
     style.map(
         "Treeview",
-        background=[("selected", colors.primary)],
-        foreground=[("selected", colors.light)],
+        background=[("selected", SHOTLOG_SELECTED_BG)],
+        foreground=[("selected", SHOTLOG_SELECTED_FG)],
     )
 
 
