@@ -23,11 +23,30 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install VLC runtime
+        shell: pwsh
+        run: |
+          choco install vlc -y --no-progress
+
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
+
+      - name: Verify bundled project assets
+        shell: pwsh
+        run: |
+          if (!(Test-Path assets)) {
+            throw "Missing assets folder. The packaged app needs assets next to the executable."
+          }
+          if (!(Test-Path assets/backgrounds)) {
+            throw "Missing assets/backgrounds folder. The packaged app needs at least one rink background."
+          }
+          $backgrounds = Get-ChildItem assets/backgrounds -File -Include *.png,*.jpg,*.jpeg,*.webp -Recurse
+          if ($backgrounds.Count -eq 0) {
+            throw "No background images found in assets/backgrounds. Add the rink image to the repo before releasing."
+          }
 
       - name: Build app with PyInstaller
         run: |
@@ -40,7 +59,21 @@ jobs:
             --collect-data matplotlib `
             --hidden-import PIL._tkinter_finder `
             --add-data "assets;assets" `
+            --add-data "data;data" `
             main.py
+
+      - name: Bundle VLC runtime
+        shell: pwsh
+        run: |
+          $source = "C:\Program Files\VideoLAN\VLC"
+          $target = "dist\Floorball-Shot-Plotter\vlc"
+          if (!(Test-Path $source)) {
+            throw "VLC install folder not found at $source"
+          }
+          New-Item -ItemType Directory -Force -Path $target | Out-Null
+          Copy-Item "$source\libvlc.dll" $target -Force
+          Copy-Item "$source\libvlccore.dll" $target -Force
+          Copy-Item "$source\plugins" "$target\plugins" -Recurse -Force
 
       - name: Copy README and deployment notes
         shell: pwsh
