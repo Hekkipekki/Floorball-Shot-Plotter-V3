@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from gui.shotlog_view import update_treeview
 
+SELECTED_PERIOD_STYLE = "primary"
+UNSELECTED_PERIOD_STYLE = "secondary"
+
 
 def _refresh_visible_entries(app):
     entries = app.logic.get_filtered_entries()
@@ -35,11 +38,14 @@ def update_shot_log_treeview(app):
     update_treeview(app.shotlog_tree, app.log_entries)
 
 
+def _period_button_style(selected, period):
+    return SELECTED_PERIOD_STYLE if selected == period else UNSELECTED_PERIOD_STYLE
+
+
 def update_period_button_styles(app):
     selected = app.period_selected.get()
     for period, btn in app.period_buttons.items():
-        style = "primary" if selected == period else "secondary"
-        btn.config(bootstyle=style)
+        btn.config(bootstyle=_period_button_style(selected, period))
 
 
 def set_period_filter(app, period):
