@@ -8,6 +8,7 @@ EXPORT_FILETYPES = [("PNG Image", "*.png")]
 EXPORT_DPI = 300
 EXPORT_BBOX = "tight"
 EXPORT_DIALOG_TITLE = "Export Plot As Image"
+EXPORT_SUCCESS_TITLE = "Image Saved"
 
 
 def _ask_export_path():
@@ -18,10 +19,14 @@ def _ask_export_path():
     )
 
 
+def _export_filename(file_path: str) -> str:
+    return os.path.basename(file_path)
+
+
 def _show_export_success(file_path: str) -> None:
     messagebox.showinfo(
-        "Image Saved",
-        f"Exported plot to:\n{os.path.basename(file_path)}",
+        EXPORT_SUCCESS_TITLE,
+        f"Exported plot to:\n{_export_filename(file_path)}",
     )
 
 
