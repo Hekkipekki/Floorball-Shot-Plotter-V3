@@ -7,13 +7,39 @@ from PIL import Image
 
 from assets import get_background_path
 
+DEFAULT_CANVAS_SIZE = (1500, 1000)
+DEFAULT_IMAGE_EXTENT = [0, 1500, 1000, 0]
+DEFAULT_XLIM = (0, 1500)
+DEFAULT_YLIM = (1000, 0)
+IMAGE_SCALE = 1.0
+
 
 def set_default_canvas_dimensions(app):
     app.img = None
-    app.img_size = (1500, 1000)
-    app.img_extent = [0, 1500, 1000, 0]
-    app.original_xlim = (0, 1500)
-    app.original_ylim = (1000, 0)
+    app.img_size = DEFAULT_CANVAS_SIZE
+    app.img_extent = DEFAULT_IMAGE_EXTENT.copy()
+    app.original_xlim = DEFAULT_XLIM
+    app.original_ylim = DEFAULT_YLIM
+
+
+def _selected_background(app) -> str:
+    if not hasattr(app, "selected_background"):
+        return ""
+    return app.selected_background.get().strip()
+
+
+def _resize_background(image: Image.Image):
+    width, height = image.size
+    size = (int(width * IMAGE_SCALE), int(height * IMAGE_SCALE))
+    return image.resize(size, Image.Resampling.LANCZOS), size
+
+
+def _apply_background_image(app, image: Image.Image, size) -> None:
+    app.img = np.array(image)
+    app.img_size = size
+    app.img_extent = [0, size[0], size[1], 0]
+    app.original_xlim = (0, size[0])
+    app.original_ylim = (size[1], 0)
 
 
 def load_image(app):
@@ -23,9 +49,9 @@ def load_image(app):
     This function only loads state.
     It does NOT redraw the plot.
     """
-    selected = app.selected_background.get().strip() if hasattr(app, "selected_background") else ""
+    selected = _selected_background(app)
     if not selected:
-        print("⚠️ No background selected.")
+        print("No background selected.")
         set_default_canvas_dimensions(app)
         return
 
@@ -33,25 +59,16 @@ def load_image(app):
 
     try:
         if not os.path.exists(path):
-            print(f"⚠️ Background not found: {path}")
+            print(f"Background not found: {path}")
             set_default_canvas_dimensions(app)
             return
 
-        original = Image.open(path).convert("RGB")
-        width, height = original.size
-
-        scale = 1.0
-        new_size = (int(width * scale), int(height * scale))
-        original = original.resize(new_size, Image.Resampling.LANCZOS)
-
-        app.img = np.array(original)
-        app.img_size = new_size
-        app.img_extent = [0, new_size[0], new_size[1], 0]
-        app.original_xlim = (0, new_size[0])
-        app.original_ylim = (new_size[1], 0)
+        image = Image.open(path).convert("RGB")
+        image, size = _resize_background(image)
+        _apply_background_image(app, image, size)
 
     except Exception as e:
-        print(f"⚠️ Failed to load background: {e}")
+        print(f"Failed to load background: {e}")
         set_default_canvas_dimensions(app)
 
 
