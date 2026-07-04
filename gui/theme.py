@@ -42,14 +42,31 @@ def _configure_tk_fonts(root) -> None:
 
 
 def _configure_ttk_styles(style: tb.Style) -> None:
+    colors = style.colors
+
     style.configure("TButton", font=(APP_FONT_FAMILY, APP_FONT_SIZE, "bold"), padding=(8, 5))
     style.configure("TLabel", font=(APP_FONT_FAMILY, APP_FONT_SIZE))
+    style.configure("TLabelframe", borderwidth=1, relief="solid")
     style.configure("TLabelframe.Label", font=(APP_FONT_FAMILY, APP_FONT_SIZE_TITLE, "bold"))
     style.configure("TCheckbutton", font=(APP_FONT_FAMILY, APP_FONT_SIZE))
     style.configure("TMenubutton", font=(APP_FONT_FAMILY, APP_FONT_SIZE, "bold"), padding=(8, 5))
     style.configure("TCombobox", font=(APP_FONT_FAMILY, APP_FONT_SIZE), padding=(4, 3))
-    style.configure("Treeview", font=(SHOTLOG_FONT_FAMILY, SHOTLOG_FONT_SIZE), rowheight=SHOTLOG_ROW_HEIGHT)
-    style.configure("Treeview.Heading", font=(APP_FONT_FAMILY, SHOTLOG_HEADING_FONT_SIZE, "bold"))
+    style.configure(
+        "Treeview",
+        font=(SHOTLOG_FONT_FAMILY, SHOTLOG_FONT_SIZE),
+        rowheight=SHOTLOG_ROW_HEIGHT,
+        borderwidth=0,
+    )
+    style.configure(
+        "Treeview.Heading",
+        font=(APP_FONT_FAMILY, SHOTLOG_HEADING_FONT_SIZE, "bold"),
+        padding=(4, 6),
+    )
+    style.map(
+        "Treeview",
+        background=[("selected", colors.primary)],
+        foreground=[("selected", colors.light)],
+    )
 
 
 def apply_theme(app, theme_name: str = DEFAULT_THEME):
