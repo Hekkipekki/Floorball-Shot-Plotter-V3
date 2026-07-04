@@ -14,6 +14,11 @@ CONTROL_ACTIVE_BG = "#263646"
 CONTROL_BORDER = "#253445"
 TIMELINE_TROUGH = "#2a3542"
 
+CONTROL_BUTTON_PAD_X = 10
+CONTROL_BUTTON_PAD_Y = 4
+CONTROL_BUTTON_FONT = ("Segoe UI", 9, "bold")
+CONTROL_BUTTON_CURSOR = "hand2"
+
 
 def create_control_button(parent: tk.Misc, text: str, command: Callable[[], None]) -> tk.Button:
     """Create a standard video-player control button."""
@@ -26,8 +31,8 @@ def create_control_button(parent: tk.Misc, text: str, command: Callable[[], None
         activebackground=CONTROL_ACTIVE_BG,
         activeforeground=TEXT,
         bd=0,
-        padx=10,
-        pady=4,
-        font=("Segoe UI", 9, "bold"),
-        cursor="hand2",
+        padx=CONTROL_BUTTON_PAD_X,
+        pady=CONTROL_BUTTON_PAD_Y,
+        font=CONTROL_BUTTON_FONT,
+        cursor=CONTROL_BUTTON_CURSOR,
     )
