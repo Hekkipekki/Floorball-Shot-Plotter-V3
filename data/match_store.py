@@ -6,10 +6,50 @@ from app_paths import MATCHES_DIR
 from data.csv_store import load_csv, save_csv
 from data.entry_serialization import deserialize_entry, serialize_entry
 
+READ_ONLY_MATCHES = ("All", "Season")
+DEFAULT_MATCH_NAME = "New Match"
+SEASON_MATCH_NAME = "Season"
+JSON_FILETYPES = [("JSON Match Files", "*.json")]
+CSV_FILETYPES = [("CSV files", "*.csv")]
+
+
+def _match_name_from_path(file_path):
+    return os.path.splitext(os.path.basename(file_path))[0].replace("_", " ")
+
+
+def _safe_match_filename(name):
+    return name.replace(" ", "_")
+
+
+def _ensure_matches_dir(path=MATCHES_DIR):
+    os.makedirs(path, exist_ok=True)
+
+
+def _serialize_entries(entries):
+    return [serialize_entry(e) for e in entries]
+
+
+def _deserialize_entries(entries):
+    return [deserialize_entry(e) for e in entries]
+
+
+def _write_json_entries(file_path, entries):
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(_serialize_entries(entries), f, indent=2, ensure_ascii=False)
+
+
+def _read_json_entries(file_path):
+    with open(file_path, "r", encoding="utf-8") as f:
+        raw_data = json.load(f)
+    return _deserialize_entries(raw_data)
+
+
+def _is_editable_match(name):
+    return name not in READ_ONLY_MATCHES
+
 
 def get_match_file(app, name):
-    safe_name = name.replace(" ", "_")
-    return os.path.join(MATCHES_DIR, f"{safe_name}.json")
+    return os.path.join(MATCHES_DIR, f"{_safe_match_filename(name)}.json")
 
 
 # ---------------------------------------------------------
@@ -21,26 +61,23 @@ def prompt_save_match(app):
         messagebox.showinfo("No Data", "There is no match data to save.")
         return
 
-    os.makedirs(MATCHES_DIR, exist_ok=True)
+    _ensure_matches_dir()
 
     file_path = filedialog.asksaveasfilename(
         defaultextension=".json",
-        filetypes=[("JSON files", "*.json")],
+        filetypes=JSON_FILETYPES,
         initialdir=MATCHES_DIR,
         title="Save Match As...",
-        initialfile="New Match",
+        initialfile=DEFAULT_MATCH_NAME,
     )
     if not file_path:
         return
 
     try:
-        serializable_entries = [serialize_entry(e) for e in entries]
+        _write_json_entries(file_path, entries)
 
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(serializable_entries, f, indent=2, ensure_ascii=False)
-
-        name = os.path.splitext(os.path.basename(file_path))[0].replace("_", " ")
-        app.match_logs[name] = [deserialize_entry(e) for e in serializable_entries]
+        name = _match_name_from_path(file_path)
+        app.match_logs[name] = list(entries)
         app.current_match.set(name)
         app.update_match_dropdown()
 
@@ -50,24 +87,19 @@ def prompt_save_match(app):
 
 
 def load_match_from_file(app):
-    os.makedirs(MATCHES_DIR, exist_ok=True)
+    _ensure_matches_dir()
 
     file_path = filedialog.askopenfilename(
         title="Select Match File",
-        filetypes=[("JSON Match Files", "*.json")],
+        filetypes=JSON_FILETYPES,
         initialdir=MATCHES_DIR,
     )
     if not file_path:
         return
 
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            raw_data = json.load(f)
-
-        data = [deserialize_entry(e) for e in raw_data]
-        name = os.path.splitext(os.path.basename(file_path))[0].replace("_", " ")
-
-        app.match_logs[name] = data
+        name = _match_name_from_path(file_path)
+        app.match_logs[name] = _read_json_entries(file_path)
         app.current_match.set(name)
         app.update_match_dropdown()
     except Exception as e:
@@ -83,17 +115,17 @@ def load_selected_match(app):
 
     if hasattr(app, "delete_match_btn"):
         app.delete_match_btn.config(
-            state="normal" if name not in ["All", "Season"] else "disabled"
+            state="normal" if _is_editable_match(name) else "disabled"
         )
 
 
 def load_all_matches(app, folder=None):
     initial_dir = folder or MATCHES_DIR
-    os.makedirs(initial_dir, exist_ok=True)
+    _ensure_matches_dir(initial_dir)
 
     file_paths = filedialog.askopenfilenames(
         title="Load Multiple Matches",
-        filetypes=[("JSON Match Files", "*.json")],
+        filetypes=JSON_FILETYPES,
         initialdir=initial_dir,
     )
     if not file_paths:
@@ -104,11 +136,8 @@ def load_all_matches(app, folder=None):
 
     for path in file_paths:
         try:
-            with open(path, "r", encoding="utf-8") as f:
-                raw_data = json.load(f)
-
-            entries = [deserialize_entry(e) for e in raw_data]
-            name = os.path.splitext(os.path.basename(path))[0].replace("_", " ")
+            entries = _read_json_entries(path)
+            name = _match_name_from_path(path)
 
             combined[name] = entries
             all_entries.extend(entries)
@@ -119,26 +148,23 @@ def load_all_matches(app, folder=None):
         app.match_logs.update(combined)
 
     if all_entries:
-        app.match_logs["Season"] = all_entries
-        app.current_match.set("Season")
+        app.match_logs[SEASON_MATCH_NAME] = all_entries
+        app.current_match.set(SEASON_MATCH_NAME)
 
 
 def auto_update_current_match(app):
     name = app.current_match.get()
-    if name not in ["All", "Season"]:
-        file_path = get_match_file(app, name)
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    if not _is_editable_match(name):
+        return
 
-        entries = app.log_entries
-        serializable_entries = [serialize_entry(e) for e in entries]
-
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(serializable_entries, f, indent=2, ensure_ascii=False)
+    file_path = get_match_file(app, name)
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    _write_json_entries(file_path, app.log_entries)
 
 
 def delete_current_match(app):
     name = app.current_match.get()
-    if name in ["All", "Season"] or name not in app.match_logs:
+    if not _is_editable_match(name) or name not in app.match_logs:
         return
 
     if not messagebox.askyesno("Delete Match", f"Delete match '{name}'?"):
@@ -150,7 +176,9 @@ def delete_current_match(app):
     if os.path.exists(file_path):
         os.remove(file_path)
 
-    app.current_match.set(next(iter(app.match_logs)) if app.match_logs else "New Match")
+    app.current_match.set(
+        next(iter(app.match_logs)) if app.match_logs else DEFAULT_MATCH_NAME
+    )
     app.update_match_dropdown()
 
 
@@ -162,7 +190,7 @@ def save_csv_dialog(app):
 
     file_path = filedialog.asksaveasfilename(
         defaultextension=".csv",
-        filetypes=[("CSV files", "*.csv")],
+        filetypes=CSV_FILETYPES,
         initialfile=f"{name}_shots.csv",
     )
 
@@ -175,14 +203,14 @@ def save_csv_dialog(app):
 
 
 def load_csv_dialog(app):
-    file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
+    file_path = filedialog.askopenfilename(filetypes=CSV_FILETYPES)
     if not file_path:
         return
 
     try:
         entries = load_csv(file_path)
-        app.match_logs["New Match"] = entries
-        app.current_match.set("New Match")
+        app.match_logs[DEFAULT_MATCH_NAME] = entries
+        app.current_match.set(DEFAULT_MATCH_NAME)
         app.update_match_dropdown()
         messagebox.showinfo("CSV Loaded", "CSV data loaded into New Match.")
     except Exception as e:
