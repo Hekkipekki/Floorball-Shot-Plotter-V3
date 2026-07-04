@@ -23,32 +23,41 @@ MIN_ZOOM = 1.0
 MAX_ZOOM = 5.0
 
 
+def _init_gui_vars(app) -> None:
+    app.log_entries = []
+    app.view_mode = tk.StringVar(value=DEFAULT_VIEW_MODE)
+    app.sensitivity = tk.DoubleVar(value=DEFAULT_SENSITIVITY)
+    app.kde_bandwidth = tk.DoubleVar(value=DEFAULT_KDE_BANDWIDTH)
+    app.cmap = tk.StringVar(value=DEFAULT_COLORMAP)
+    app.period_selected = tk.StringVar(value=DEFAULT_PERIOD)
+    app.stats_period = tk.StringVar(value=DEFAULT_PERIOD)
+    app.current_match = tk.StringVar(value=DEFAULT_PERIOD)
+    app.selected_background = tk.StringVar(value=DEFAULT_BACKGROUND)
+    app.bg_choice = tk.StringVar()
+    app.resolution_preset = tk.StringVar(value=DEFAULT_RESOLUTION_PRESET)
+    app.resolution_options = RESOLUTION_OPTIONS.copy()
+
+
+def _init_plot_state(app) -> None:
+    app.original_xlim = DEFAULT_XLIM
+    app.original_ylim = DEFAULT_YLIM
+    app.zoom_level = DEFAULT_ZOOM_LEVEL
+    app.min_zoom = MIN_ZOOM
+    app.max_zoom = MAX_ZOOM
+
+
+def _init_match_state(app) -> None:
+    app.match_logs = {DEFAULT_MATCH: []}
+    app.current_match.set(DEFAULT_MATCH)
+
+
+def _init_internal_state(app) -> None:
+    app.highlight_artist = None
+    app.bg_files = []
+
+
 def init_variables(self) -> None:
-    # === GUI state ===
-    self.log_entries = []
-    self.view_mode = tk.StringVar(value=DEFAULT_VIEW_MODE)
-    self.sensitivity = tk.DoubleVar(value=DEFAULT_SENSITIVITY)
-    self.kde_bandwidth = tk.DoubleVar(value=DEFAULT_KDE_BANDWIDTH)
-    self.cmap = tk.StringVar(value=DEFAULT_COLORMAP)
-    self.period_selected = tk.StringVar(value=DEFAULT_PERIOD)
-    self.stats_period = tk.StringVar(value=DEFAULT_PERIOD)
-    self.current_match = tk.StringVar(value=DEFAULT_PERIOD)
-    self.selected_background = tk.StringVar(value=DEFAULT_BACKGROUND)
-    self.bg_choice = tk.StringVar()
-    self.resolution_preset = tk.StringVar(value=DEFAULT_RESOLUTION_PRESET)
-    self.resolution_options = RESOLUTION_OPTIONS.copy()
-
-    # === Plot / Zoom settings ===
-    self.original_xlim = DEFAULT_XLIM
-    self.original_ylim = DEFAULT_YLIM
-    self.zoom_level = DEFAULT_ZOOM_LEVEL
-    self.min_zoom = MIN_ZOOM
-    self.max_zoom = MAX_ZOOM
-
-    # === Match data ===
-    self.match_logs = {DEFAULT_MATCH: []}
-    self.current_match.set(DEFAULT_MATCH)
-
-    # === Internal UI/plot state ===
-    self.highlight_artist = None
-    self.bg_files = []
+    _init_gui_vars(self)
+    _init_plot_state(self)
+    _init_match_state(self)
+    _init_internal_state(self)
