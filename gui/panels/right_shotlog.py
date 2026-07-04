@@ -13,14 +13,16 @@ SHOTLOG_RESIZE_HANDLE_WIDTH = 6
 SHOTLOG_MIN_WIDTH = 300
 SHOTLOG_MAX_WIDTH = 760
 SHOTLOG_FLAP_RAIL_WIDTH = 18
-SHOTLOG_FLAP_BUTTON_WIDTH = 16
+SHOTLOG_FLAP_BUTTON_WIDTH = 18
 SHOTLOG_FLAP_HEIGHT = 28
 SHOTLOG_FLAP_TOP_OFFSET = 10
 SHOTLOG_FLAP_EXPANDED_TEXT = ">"
 SHOTLOG_FLAP_COLLAPSED_TEXT = "<"
 SHOTLOG_RESIZE_CURSOR = "sb_h_double_arrow"
-SHOTLOG_BUTTON_STYLE = "primary"
-SHOTLOG_FLAP_FONT = ("Segoe UI", 9, "bold")
+SHOTLOG_FLAP_BG = "#3f8edc"
+SHOTLOG_FLAP_ACTIVE_BG = "#2f7ec8"
+SHOTLOG_FLAP_FG = "#ffffff"
+SHOTLOG_FLAP_FONT = ("Arial", 9, "bold")
 
 
 def _clamp_width(width: int) -> int:
@@ -34,41 +36,44 @@ def _create_panel_container(parent, width: int) -> tb.Frame:
     return frame
 
 
+def _create_flap_button(parent, app, text: str) -> tk.Button:
+    return tk.Button(
+        parent,
+        text=text,
+        command=lambda: _toggle_shotlog_panel(app),
+        bg=SHOTLOG_FLAP_BG,
+        activebackground=SHOTLOG_FLAP_ACTIVE_BG,
+        fg=SHOTLOG_FLAP_FG,
+        activeforeground=SHOTLOG_FLAP_FG,
+        font=SHOTLOG_FLAP_FONT,
+        relief="flat",
+        borderwidth=0,
+        highlightthickness=0,
+        padx=0,
+        pady=0,
+        takefocus=False,
+    )
+
+
 def _create_expanded_flap(parent, app) -> tb.Frame:
     rail = tb.Frame(parent, width=SHOTLOG_FLAP_RAIL_WIDTH)
     rail.pack(side="left", fill="y")
     rail.pack_propagate(False)
 
-    button = tb.Button(
-        rail,
-        text=SHOTLOG_FLAP_EXPANDED_TEXT,
-        width=1,
-        bootstyle=SHOTLOG_BUTTON_STYLE,
-        command=lambda: _toggle_shotlog_panel(app),
-    )
-    button.configure(takefocus=False)
-    button.pack(
-        side="top",
-        anchor="n",
-        pady=(SHOTLOG_FLAP_TOP_OFFSET, 0),
-        ipadx=0,
-        ipady=0,
+    button = _create_flap_button(rail, app, SHOTLOG_FLAP_EXPANDED_TEXT)
+    button.place(
+        x=0,
+        y=SHOTLOG_FLAP_TOP_OFFSET,
+        width=SHOTLOG_FLAP_BUTTON_WIDTH,
+        height=SHOTLOG_FLAP_HEIGHT,
     )
     app.shotlog_flap_button = button
 
     return rail
 
 
-def _create_collapsed_flap(parent, app) -> tb.Button:
-    button = tb.Button(
-        parent,
-        text=SHOTLOG_FLAP_COLLAPSED_TEXT,
-        width=1,
-        bootstyle=SHOTLOG_BUTTON_STYLE,
-        command=lambda: _toggle_shotlog_panel(app),
-    )
-    button.configure(takefocus=False)
-    return button
+def _create_collapsed_flap(parent, app) -> tk.Button:
+    return _create_flap_button(parent, app, SHOTLOG_FLAP_COLLAPSED_TEXT)
 
 
 def _show_collapsed_flap(app) -> None:
