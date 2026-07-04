@@ -15,8 +15,11 @@ IDX_Y = 10
 IDX_PASS_X = 11
 IDX_PASS_Y = 12
 IDX_VIDEO = 13
+IDX_DISTANCE = 14
+IDX_ANGLE = 15
+IDX_ZONE = 16
 
-ENTRY_LENGTH = 14
+ENTRY_LENGTH = 17
 
 ENTRY_FIELD_NAMES = (
     "number",
@@ -33,4 +36,7 @@ ENTRY_FIELD_NAMES = (
     "pass_x",
     "pass_y",
     "video",
+    "distance",
+    "angle",
+    "zone",
 )
