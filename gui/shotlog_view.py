@@ -243,7 +243,7 @@ def _create_column_toolbar(app, frame) -> None:
         toolbar,
         text=COLUMN_BUTTON_TEXT,
         command=lambda: _open_column_popup(app, button),
-        bootstyle="secondary-outline",
+        bootstyle="secondary",
     )
     button.pack(anchor="w")
 
