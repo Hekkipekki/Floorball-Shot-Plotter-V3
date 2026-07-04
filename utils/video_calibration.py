@@ -30,6 +30,8 @@ GOPRO_CALIBRATION_POINTS = (
     ("Defensive zone centre", (734, 500), "Click the centre of the defensive zone."),
     ("Left middle board", (21, 500), "Click the left board at about the middle of the defensive zone."),
     ("Right middle board", (1434, 500), "Click the right board at about the middle of the defensive zone."),
+    ("Defensive zone lower-left", (21, 1000), "Click the lower-left defensive-zone corner near the end board."),
+    ("Defensive zone lower-right", (1434, 1000), "Click the lower-right defensive-zone corner near the end board."),
     ("Goal-line centre", (737, 1000), "Click the centre of the goal line / goal mouth."),
 )
 
