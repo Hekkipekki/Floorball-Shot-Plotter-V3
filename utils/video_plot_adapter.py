@@ -10,6 +10,7 @@ from utils.video_calibration import (
     build_calibration_model,
     load_video_calibration,
     save_video_calibration,
+    validate_calibration_clicks,
 )
 from utils.video_player_style import PANEL_BG, TEXT, create_control_button
 
@@ -142,7 +143,19 @@ def _show_next_calibration_instruction(player) -> None:
     player.video_calibration_hint.lift()
 
 
+def _finish_message(player, skipped_count: int, warnings: list[str]) -> str:
+    message = (
+        f"Captured and saved {len(player.video_calibration_clicks)} calibration points.\n"
+        f"Skipped {skipped_count} out-of-frame points.\n\n"
+        "Calibration will be restored when this video is reopened."
+    )
+    if warnings:
+        message += "\n\nCalibration warnings:\n- " + "\n- ".join(warnings)
+    return message
+
+
 def _finish_calibration_sequence(player) -> None:
+    warnings = validate_calibration_clicks(player.video_calibration_clicks)
     player.video_calibration_model = build_calibration_model(player.video_calibration_clicks)
     save_video_calibration(player.video_path, player.video_calibration_clicks)
     app = player.app
@@ -154,12 +167,7 @@ def _finish_calibration_sequence(player) -> None:
     player.video_skip_calibration_btn.config(state="disabled", text=SKIP_BUTTON_DISABLED_TEXT)
     player.video_calibration_hint.config(text=CALIBRATION_DONE_TEXT)
     skipped_count = len(getattr(player, "video_calibration_skipped", []))
-    messagebox.showinfo(
-        "Calibration Complete",
-        f"Captured and saved {len(player.video_calibration_clicks)} calibration points.\n"
-        f"Skipped {skipped_count} out-of-frame points.\n\n"
-        "Calibration will be restored when this video is reopened.",
-    )
+    messagebox.showinfo("Calibration Complete", _finish_message(player, skipped_count, warnings))
 
 
 def _skip_calibration_point(player) -> None:
