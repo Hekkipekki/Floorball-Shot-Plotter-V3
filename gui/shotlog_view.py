@@ -48,23 +48,36 @@ SHOTLOG_COLUMN_WIDTHS = {
     "xG": SHOTLOG_COL_WIDTH_XG,
     "Video": SHOTLOG_COL_WIDTH_VIDEO,
 }
+SHOTLOG_DEFAULT_COLUMN_WIDTH = 60
+TREEVIEW_STYLE_NAME = "Treeview"
+VIDEO_COLUMN = "Video"
+VIDEO_COLUMN_HEADING = "🎬"
 
 
 def _shotlog_heading_text(column: str) -> str:
-    return "🎬" if column == "Video" else column
+    return VIDEO_COLUMN_HEADING if column == VIDEO_COLUMN else column
 
 
 def _configure_shotlog_columns(tree: tb.Treeview) -> None:
     for column in SHOTLOG_COLUMNS:
         tree.heading(column, text=_shotlog_heading_text(column))
-        tree.column(column, anchor="center", width=SHOTLOG_COLUMN_WIDTHS.get(column, 60), stretch=False)
+        tree.column(
+            column,
+            anchor="center",
+            width=SHOTLOG_COLUMN_WIDTHS.get(column, SHOTLOG_DEFAULT_COLUMN_WIDTH),
+            stretch=False,
+        )
 
 
 def _bind_shotlog_events(tree: tb.Treeview, app) -> None:
-    tree.bind("<Motion>", lambda e: on_hover_shot(e, tree, app))
-    tree.bind("<Leave>", lambda e: on_leave_shotlog(e, tree, app))
-    tree.bind("<Double-1>", lambda e: on_row_double_click(e, tree, app))
-    tree.bind("<Button-3>", lambda e: open_video_menu(e, tree, app))
+    event_bindings = (
+        ("<Motion>", lambda e: on_hover_shot(e, tree, app)),
+        ("<Leave>", lambda e: on_leave_shotlog(e, tree, app)),
+        ("<Double-1>", lambda e: on_row_double_click(e, tree, app)),
+        ("<Button-3>", lambda e: open_video_menu(e, tree, app)),
+    )
+    for event_name, callback in event_bindings:
+        tree.bind(event_name, callback)
 
 
 def _entry_values(entry) -> list:
@@ -82,20 +95,19 @@ def _entry_values(entry) -> list:
     ]
 
 
-def setup_shotlog_frame(app, parent):
-    style = tb.Style()
-    style.configure("Treeview", font=(SHOTLOG_FONT_FAMILY, SHOTLOG_FONT_SIZE))
-
-    frame = tb.Labelframe(parent, text="Shot Log", bootstyle="primary")
-    frame.pack(fill="both", expand=True, padx=PAD_X, pady=PAD_Y)
+def _configure_shotlog_frame(frame) -> None:
     frame.rowconfigure(0, weight=1)
     frame.columnconfigure(0, weight=1)
 
+
+def _create_shotlog_tree(frame):
     tree = tb.Treeview(frame, columns=SHOTLOG_COLUMNS, show="headings", bootstyle="primary")
     _configure_shotlog_columns(tree)
-
     tree.grid(row=0, column=0, sticky="nsew")
+    return tree
 
+
+def _add_scrollbars(frame, tree) -> None:
     v_scrollbar = tb.Scrollbar(frame, orient="vertical", command=tree.yview)
     v_scrollbar.grid(row=0, column=1, sticky="ns")
 
@@ -107,6 +119,17 @@ def setup_shotlog_frame(app, parent):
         xscrollcommand=h_scrollbar.set,
     )
 
+
+def setup_shotlog_frame(app, parent):
+    style = tb.Style()
+    style.configure(TREEVIEW_STYLE_NAME, font=(SHOTLOG_FONT_FAMILY, SHOTLOG_FONT_SIZE))
+
+    frame = tb.Labelframe(parent, text="Shot Log", bootstyle="primary")
+    frame.pack(fill="both", expand=True, padx=PAD_X, pady=PAD_Y)
+    _configure_shotlog_frame(frame)
+
+    tree = _create_shotlog_tree(frame)
+    _add_scrollbars(frame, tree)
     _bind_shotlog_events(tree, app)
 
     tree._last_hovered_row_id = None
