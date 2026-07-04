@@ -62,6 +62,13 @@ jobs:
             --add-data "data;data" `
             main.py
 
+      - name: Place runtime folders beside executable
+        shell: pwsh
+        run: |
+          $appDir = "dist\Floorball-Shot-Plotter"
+          Copy-Item assets "$appDir\assets" -Recurse -Force
+          Copy-Item data "$appDir\data" -Recurse -Force
+
       - name: Bundle VLC runtime
         shell: pwsh
         run: |
@@ -74,6 +81,21 @@ jobs:
           Copy-Item "$source\libvlc.dll" $target -Force
           Copy-Item "$source\libvlccore.dll" $target -Force
           Copy-Item "$source\plugins" "$target\plugins" -Recurse -Force
+
+      - name: Verify release package contents
+        shell: pwsh
+        run: |
+          $appDir = "dist\Floorball-Shot-Plotter"
+          if (!(Test-Path "$appDir\assets\backgrounds")) {
+            throw "Release package missing assets/backgrounds next to executable."
+          }
+          $backgrounds = Get-ChildItem "$appDir\assets\backgrounds" -File -Include *.png,*.jpg,*.jpeg,*.webp -Recurse
+          if ($backgrounds.Count -eq 0) {
+            throw "Release package has no background images next to executable."
+          }
+          if (!(Test-Path "$appDir\vlc\libvlc.dll")) {
+            throw "Release package missing bundled VLC runtime."
+          }
 
       - name: Copy README and deployment notes
         shell: pwsh
