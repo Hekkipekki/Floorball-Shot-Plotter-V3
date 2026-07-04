@@ -6,6 +6,8 @@ from core.entry_helpers import get_xy
 from gui.constants import PLOT_DEFAULT_XLIM, PLOT_DEFAULT_YLIM
 from gui.plotting import plot_points, plot_heatmap
 
+HEATMAP_VIEW_MODES = ("Heatmap", "Goal Heatmap", "Save Heatmap")
+
 
 def get_visible_entries(app):
     """
@@ -35,6 +37,29 @@ def redraw_background(app):
         )
 
 
+def _apply_default_axes(app) -> None:
+    app.ax.set_xlim(getattr(app, "original_xlim", PLOT_DEFAULT_XLIM))
+    app.ax.set_ylim(getattr(app, "original_ylim", PLOT_DEFAULT_YLIM))
+    app.ax.axis("off")
+
+
+def _draw_current_view(app, entries, view: str) -> None:
+    if view in HEATMAP_VIEW_MODES:
+        plot_heatmap(app, entries, view)
+    else:
+        plot_points(app, entries)
+
+    app.ax.axis("off")
+
+
+def _refresh_canvas(app) -> None:
+    app.canvas.draw_idle()
+    try:
+        app.canvas.get_tk_widget().update_idletasks()
+    except Exception:
+        pass
+
+
 def update_plot(app):
     try:
         view = app.view_mode.get() if hasattr(app, "view_mode") else "Plot"
@@ -44,41 +69,28 @@ def update_plot(app):
         app.ax = app.figure.add_subplot(111)
 
         redraw_background(app)
-
-        if view in ("Heatmap", "Goal Heatmap", "Save Heatmap"):
-            plot_heatmap(app, entries, view)
-            app.ax.axis("off")
-        elif view == "Plot":
-            plot_points(app, entries)
-            app.ax.axis("off")
-        else:
-            plot_points(app, entries)
-            app.ax.axis("off")
-
-        app.ax.set_xlim(getattr(app, "original_xlim", PLOT_DEFAULT_XLIM))
-        app.ax.set_ylim(getattr(app, "original_ylim", PLOT_DEFAULT_YLIM))
-        app.ax.axis("off")
-
-        app.canvas.draw_idle()
-        try:
-            app.canvas.get_tk_widget().update_idletasks()
-        except Exception:
-            pass
+        _draw_current_view(app, entries, view)
+        _apply_default_axes(app)
+        _refresh_canvas(app)
 
     except Exception as e:
         print("❌ update_plot error:", e)
 
 
+def _apply_slider_entry_value(app, variable, entry, from_slider: bool) -> None:
+    if from_slider:
+        val = float(variable.get())
+        entry.delete(0, tk.END)
+        entry.insert(0, f"{val:.2f}")
+    else:
+        val = float(entry.get())
+        if 0 < val <= 1.0:
+            variable.set(val)
+
+
 def apply_sensitivity(app, from_slider=False):
     try:
-        if from_slider:
-            val = float(app.sensitivity.get())
-            app.sens_entry.delete(0, tk.END)
-            app.sens_entry.insert(0, f"{val:.2f}")
-        else:
-            val = float(app.sens_entry.get())
-            if 0 < val <= 1.0:
-                app.sensitivity.set(val)
+        _apply_slider_entry_value(app, app.sensitivity, app.sens_entry, from_slider)
         update_plot(app)
     except Exception:
         print("⛔ Invalid sensitivity input")
@@ -86,14 +98,7 @@ def apply_sensitivity(app, from_slider=False):
 
 def apply_kde(app, from_slider=False):
     try:
-        if from_slider:
-            val = float(app.kde_bandwidth.get())
-            app.kde_entry.delete(0, tk.END)
-            app.kde_entry.insert(0, f"{val:.2f}")
-        else:
-            val = float(app.kde_entry.get())
-            if 0 < val <= 1.0:
-                app.kde_bandwidth.set(val)
+        _apply_slider_entry_value(app, app.kde_bandwidth, app.kde_entry, from_slider)
         update_plot(app)
     except Exception:
         print("⛔ Invalid KDE bandwidth input")
