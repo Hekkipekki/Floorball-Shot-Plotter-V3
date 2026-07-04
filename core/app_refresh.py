@@ -3,22 +3,27 @@ from __future__ import annotations
 from gui.shotlog_view import update_treeview
 
 
-def refresh_all(app):
-    """
-    Single unified refresh pipeline.
-    Controller owns visible refresh behavior.
-    """
+def _refresh_visible_entries(app):
     entries = app.logic.get_filtered_entries()
     app.log_entries = entries
-
     update_treeview(app.shotlog_tree, app.log_entries)
 
+
+def _refresh_stats(app):
     stats_entries = app.logic.get_filtered_entries_by_period(
         app.stats_period.get()
     )
     app.logic.update_stats(stats_entries)
     app.logic.update_expected_goals()
 
+
+def refresh_all(app):
+    """
+    Single unified refresh pipeline.
+    Controller owns visible refresh behavior.
+    """
+    _refresh_visible_entries(app)
+    _refresh_stats(app)
     app.update_plot()
 
 
