@@ -163,8 +163,14 @@ def _create_column_menu(app, parent) -> tb.Menubutton:
         )
 
     button["menu"] = menu
-    button.pack(anchor="w", padx=PAD_X, pady=(PAD_Y, 0))
+    button.pack(anchor="w", padx=PAD_X, pady=(0, PAD_Y))
     return button
+
+
+def _create_column_toolbar(app, frame) -> None:
+    toolbar = tb.Frame(frame)
+    toolbar.grid(row=0, column=0, columnspan=2, sticky="ew")
+    _create_column_menu(app, toolbar)
 
 
 def _configure_shotlog_frame(frame) -> None:
@@ -199,7 +205,7 @@ def setup_shotlog_frame(app, parent):
     frame = tb.Labelframe(parent, text="Shot Log", bootstyle="primary")
     frame.pack(fill="both", expand=True, padx=PAD_X, pady=PAD_Y)
     _configure_shotlog_frame(frame)
-    _create_column_menu(app, frame)
+    _create_column_toolbar(app, frame)
 
     tree = _create_shotlog_tree(frame)
     _add_scrollbars(frame, tree)
