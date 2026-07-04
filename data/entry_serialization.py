@@ -1,10 +1,7 @@
+from core.entry_helpers import normalize_entry
 from core.schema import IDX_VIDEO, ENTRY_LENGTH
 
 DEFAULT_VIDEO_START = 0.0
-
-
-def _padded_entry(entry):
-    return list(entry) + [None] * (ENTRY_LENGTH - len(entry))
 
 
 def _normalized_video_dict(video):
@@ -55,7 +52,7 @@ def serialize_entry(entry):
     Returns a JSON-safe list length ENTRY_LENGTH.
     IDX_VIDEO is stored as dict or None.
     """
-    entry = _padded_entry(entry)
+    entry = normalize_entry(entry)
     entry[IDX_VIDEO] = normalize_video(entry[IDX_VIDEO])
     return entry[:ENTRY_LENGTH]
 
@@ -65,6 +62,6 @@ def deserialize_entry(entry):
     Returns a tuple length ENTRY_LENGTH.
     Upgrades legacy formats so IDX_VIDEO becomes dict/None.
     """
-    entry = _padded_entry(entry)
+    entry = normalize_entry(entry)
     entry[IDX_VIDEO] = normalize_video(entry[IDX_VIDEO])
     return tuple(entry[:ENTRY_LENGTH])
