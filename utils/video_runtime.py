@@ -8,28 +8,46 @@ from pathlib import Path
 
 from paths import get_project_root
 
+VLC_DIR_NAME = "vlc"
+VLC_PLUGIN_DIR_NAME = "plugins"
+LIBVLC_FILENAME = "libvlc.dll"
+LIBVLCCORE_FILENAME = "libvlccore.dll"
+MISSING_RUNTIME_MESSAGE = "⚠️ Bundled VLC runtime not found or incomplete."
+INVALID_TIME_TEXT = "--:--"
+
+
+def _vlc_runtime_paths() -> tuple[Path, Path, Path, Path]:
+    base = Path(get_project_root())
+    vlc_dir = base / VLC_DIR_NAME
+    plugins_dir = vlc_dir / VLC_PLUGIN_DIR_NAME
+    libvlc_path = vlc_dir / LIBVLC_FILENAME
+    libvlccore_path = vlc_dir / LIBVLCCORE_FILENAME
+    return vlc_dir, plugins_dir, libvlc_path, libvlccore_path
+
+
+def _has_complete_vlc_runtime(plugins_dir: Path, libvlc_path: Path, libvlccore_path: Path) -> bool:
+    return libvlc_path.exists() and libvlccore_path.exists() and plugins_dir.exists()
+
+
+def _configure_vlc_environment(vlc_dir: Path, plugins_dir: Path) -> None:
+    if hasattr(os, "add_dll_directory"):
+        os.add_dll_directory(str(vlc_dir))
+
+    os.environ["PATH"] = f"{vlc_dir};{os.environ.get('PATH', '')}"
+    os.environ["VLC_PLUGIN_PATH"] = str(plugins_dir.resolve())
+
 
 def configure_vlc_runtime() -> tuple[Path | None, Path | None]:
-    base = Path(get_project_root())
-    vlc_dir = base / "vlc"
-    plugins_dir = vlc_dir / "plugins"
-    libvlc_path = vlc_dir / "libvlc.dll"
-    libvlccore_path = vlc_dir / "libvlccore.dll"
+    vlc_dir, plugins_dir, libvlc_path, libvlccore_path = _vlc_runtime_paths()
 
-    if not libvlc_path.exists() or not libvlccore_path.exists() or not plugins_dir.exists():
-        print("⚠️ Bundled VLC runtime not found or incomplete.")
+    if not _has_complete_vlc_runtime(plugins_dir, libvlc_path, libvlccore_path):
+        print(MISSING_RUNTIME_MESSAGE)
         return None, None
 
     try:
-        if hasattr(os, "add_dll_directory"):
-            os.add_dll_directory(str(vlc_dir))
-
-        os.environ["PATH"] = f"{vlc_dir};{os.environ.get('PATH', '')}"
-        os.environ["VLC_PLUGIN_PATH"] = str(plugins_dir.resolve())
-
+        _configure_vlc_environment(vlc_dir, plugins_dir)
         ctypes.CDLL(str(libvlccore_path.resolve()))
         ctypes.CDLL(str(libvlc_path.resolve()))
-
         return vlc_dir, plugins_dir
 
     except Exception as e:
@@ -39,12 +57,12 @@ def configure_vlc_runtime() -> tuple[Path | None, Path | None]:
 
 def format_time(seconds: float | int | None) -> str:
     if seconds is None:
-        return "--:--"
+        return INVALID_TIME_TEXT
 
     try:
         seconds = max(0, int(float(seconds)))
     except Exception:
-        return "--:--"
+        return INVALID_TIME_TEXT
 
     minutes = seconds // 60
     secs = seconds % 60
