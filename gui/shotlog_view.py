@@ -79,7 +79,9 @@ SHOTLOG_DEFAULT_COLUMN_WIDTH = 60
 TREEVIEW_STYLE_NAME = "Treeview"
 VIDEO_COLUMN = "Video"
 VIDEO_COLUMN_HEADING = "🎬"
-COLUMN_MENU_TEXT = "Columns ▾"
+COLUMN_CHECKBOX_COLUMNS = 3
+COLUMN_CHECKBOX_PAD_X = 4
+COLUMN_CHECKBOX_PAD_Y = 1
 
 
 def _shotlog_heading_text(column: str) -> str:
@@ -146,31 +148,39 @@ def _apply_visible_columns(app) -> None:
         app.shotlog_tree.configure(displaycolumns=_visible_columns(app))
 
 
-def _create_column_menu(app, parent) -> tb.Menubutton:
+def _init_column_vars(app) -> None:
     app.shotlog_column_vars = {
         column: tk.BooleanVar(value=column in DEFAULT_VISIBLE_COLUMNS)
         for column in SHOTLOG_COLUMNS
     }
 
-    button = tb.Menubutton(parent, text=COLUMN_MENU_TEXT, bootstyle="secondary")
-    menu = tk.Menu(button, tearoff=0)
 
-    for column in SHOTLOG_COLUMNS:
-        menu.add_checkbutton(
-            label=_shotlog_heading_text(column),
-            variable=app.shotlog_column_vars[column],
-            command=lambda: _apply_visible_columns(app),
-        )
-
-    button["menu"] = menu
-    button.pack(anchor="w", padx=PAD_X, pady=(0, PAD_Y))
-    return button
+def _create_column_checkbox(app, parent, column: str, index: int) -> None:
+    row = index // COLUMN_CHECKBOX_COLUMNS
+    col = index % COLUMN_CHECKBOX_COLUMNS
+    checkbox = tb.Checkbutton(
+        parent,
+        text=_shotlog_heading_text(column),
+        variable=app.shotlog_column_vars[column],
+        command=lambda: _apply_visible_columns(app),
+        bootstyle="round-toggle",
+    )
+    checkbox.grid(
+        row=row,
+        column=col,
+        sticky="w",
+        padx=COLUMN_CHECKBOX_PAD_X,
+        pady=COLUMN_CHECKBOX_PAD_Y,
+    )
 
 
 def _create_column_toolbar(app, frame) -> None:
-    toolbar = tb.Frame(frame)
-    toolbar.grid(row=0, column=0, columnspan=2, sticky="ew")
-    _create_column_menu(app, toolbar)
+    toolbar = tb.Labelframe(frame, text="Shot Log Columns", bootstyle="secondary")
+    toolbar.grid(row=0, column=0, columnspan=2, sticky="ew", padx=PAD_X, pady=(0, PAD_Y))
+    _init_column_vars(app)
+
+    for index, column in enumerate(SHOTLOG_COLUMNS):
+        _create_column_checkbox(app, toolbar, column, index)
 
 
 def _configure_shotlog_frame(frame) -> None:
