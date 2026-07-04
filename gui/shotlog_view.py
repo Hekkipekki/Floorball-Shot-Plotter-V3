@@ -57,7 +57,8 @@ SHOTLOG_COLUMNS = (
     "Zone",
     "Video",
 )
-DEFAULT_VISIBLE_COLUMNS = ("#", "S/G", "Phase", "Situation", "Type", "Passer", "Shooter", "P", "xG", "Video")
+# The shot log has horizontal scrolling, so all available fields can be shown by default.
+DEFAULT_VISIBLE_COLUMNS = SHOTLOG_COLUMNS
 SHOTLOG_COLUMN_WIDTHS = {
     "#": SHOTLOG_COL_WIDTH_NUMBER,
     "S/G": SHOTLOG_COL_WIDTH_RESULT,
@@ -81,7 +82,7 @@ VIDEO_COLUMN = "Video"
 VIDEO_COLUMN_HEADING = "🎬"
 COLUMN_BUTTON_TEXT = "Columns ▾"
 COLUMN_POPUP_TITLE = "Shot Log Columns"
-COLUMN_POPUP_COLUMNS = 2
+COLUMN_POPUP_COLUMNS = 3
 COLUMN_POPUP_PAD_X = 12
 COLUMN_POPUP_PAD_Y = 5
 COLUMN_POPUP_PADDING = 10
