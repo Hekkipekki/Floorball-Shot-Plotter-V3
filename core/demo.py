@@ -22,6 +22,11 @@ DEMO_SHOT_COUNT = 30
 DEMO_PASS_POINT_CHANCE = 0.3
 DEMO_GOAL_MIN = 4
 DEMO_GOAL_MAX = 6
+DEMO_EDGE_MARGIN = 50
+DEMO_PASS_OFFSET_MIN = 20
+DEMO_PASS_OFFSET_MAX = 100
+DEMO_RESULT_GOAL = "goal"
+DEMO_RESULT_SHOT = "shot"
 
 
 def _can_generate_demo_shots(app) -> bool:
@@ -37,14 +42,19 @@ def _random_pass_point(x, y):
     if random.random() >= DEMO_PASS_POINT_CHANCE:
         return None, None
 
-    pass_x = x - random.randint(20, 100)
-    pass_y = y - random.randint(20, 100)
+    pass_x = x - random.randint(DEMO_PASS_OFFSET_MIN, DEMO_PASS_OFFSET_MAX)
+    pass_y = y - random.randint(DEMO_PASS_OFFSET_MIN, DEMO_PASS_OFFSET_MAX)
     return pass_x, pass_y
 
 
+def _random_point():
+    x = random.randint(DEMO_EDGE_MARGIN, DEMO_FIELD_WIDTH - DEMO_EDGE_MARGIN)
+    y = random.randint(DEMO_EDGE_MARGIN, DEMO_FIELD_HEIGHT - DEMO_EDGE_MARGIN)
+    return x, y
+
+
 def _random_demo_event():
-    x = random.randint(50, DEMO_FIELD_WIDTH - 50)
-    y = random.randint(50, DEMO_FIELD_HEIGHT - 50)
+    x, y = _random_point()
     pass_x, pass_y = _random_pass_point(x, y)
 
     return {
@@ -63,13 +73,13 @@ def _random_demo_event():
 
 def _demo_results():
     num_goals = random.randint(DEMO_GOAL_MIN, DEMO_GOAL_MAX)
-    results = ["goal"] * num_goals + ["shot"] * (DEMO_SHOT_COUNT - num_goals)
+    results = [DEMO_RESULT_GOAL] * num_goals + [DEMO_RESULT_SHOT] * (DEMO_SHOT_COUNT - num_goals)
     random.shuffle(results)
     return results
 
 
 def _add_demo_event(app, result: str, event: dict) -> None:
-    add_event = app.add_goal_event if result == "goal" else app.add_shot_event
+    add_event = app.add_goal_event if result == DEMO_RESULT_GOAL else app.add_shot_event
     add_event(
         event["x"],
         event["y"],
