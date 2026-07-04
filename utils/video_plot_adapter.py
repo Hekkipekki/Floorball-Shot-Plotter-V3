@@ -16,16 +16,24 @@ from utils.video_player_style import PANEL_BG, TEXT, create_control_button
 SHOT_EVENT_TYPE = "shot"
 GOAL_EVENT_TYPE = "goal"
 VIDEO_PLOT_HELP = "Video Plot: right-click the video, then choose Shot or Goal."
+VIDEO_CALIBRATION_HELP = (
+    "Calibration mode placeholder:\n\n"
+    "Next step is the GoPro Behind Goal preset. It will ask you to click known rink landmarks "
+    "in the video, then use those points to improve video-to-rink plotting accuracy."
+)
 
 
 def install_video_plot_adapter(player) -> None:
     """Attach video-assisted plotting controls to a VLCOverlayWithControls instance."""
     player.video_plot_mode = tk.BooleanVar(value=False)
+    player.video_calibration_mode = tk.BooleanVar(value=False)
     player.video_area.bind("<Button-3>", lambda event: _on_video_right_click(player, event), add="+")
+    player.video_area.bind("<Button-1>", lambda event: _on_video_left_click(player, event), add="+")
 
     _let_tk_receive_video_mouse_events(player)
     _add_video_plot_controls(player)
     _add_video_plot_hint(player)
+    _add_video_calibration_hint(player)
 
 
 def _let_tk_receive_video_mouse_events(player) -> None:
@@ -39,9 +47,9 @@ def _let_tk_receive_video_mouse_events(player) -> None:
 
 def _add_video_plot_controls(player) -> None:
     try:
-        player.timeline.grid_configure(columnspan=9)
-        player.save_btn.grid_configure(column=8)
-        player.close_small_btn.grid_configure(column=9)
+        player.timeline.grid_configure(columnspan=10)
+        player.save_btn.grid_configure(column=9)
+        player.close_small_btn.grid_configure(column=10)
     except Exception:
         pass
 
@@ -51,6 +59,13 @@ def _add_video_plot_controls(player) -> None:
         lambda: _toggle_video_plot_mode(player),
     )
     player.video_plot_btn.grid(row=1, column=7, padx=3, pady=(6, 8), sticky="ew")
+
+    player.video_calibration_btn = create_control_button(
+        player.controls,
+        "Calibrate",
+        lambda: _toggle_video_calibration_mode(player),
+    )
+    player.video_calibration_btn.grid(row=1, column=8, padx=3, pady=(6, 8), sticky="ew")
 
 
 def _add_video_plot_hint(player) -> None:
@@ -65,16 +80,45 @@ def _add_video_plot_hint(player) -> None:
     )
 
 
+def _add_video_calibration_hint(player) -> None:
+    player.video_calibration_hint = tk.Label(
+        player,
+        text="Calibration: click visible rink landmarks in the video. Prototype only.",
+        bg=PANEL_BG,
+        fg=TEXT,
+        font=("Segoe UI", 9, "bold"),
+        padx=10,
+        pady=5,
+    )
+
+
 def _toggle_video_plot_mode(player) -> None:
     player.video_plot_mode.set(not player.video_plot_mode.get())
     enabled = player.video_plot_mode.get()
     player.video_plot_btn.config(text=f"Plot: {'ON' if enabled else 'OFF'}")
 
     if enabled:
+        if player.video_calibration_mode.get():
+            _toggle_video_calibration_mode(player)
         player.video_plot_hint.place(relx=0.5, y=12, anchor="n")
         player.video_plot_hint.lift()
     else:
         player.video_plot_hint.place_forget()
+
+
+def _toggle_video_calibration_mode(player) -> None:
+    player.video_calibration_mode.set(not player.video_calibration_mode.get())
+    enabled = player.video_calibration_mode.get()
+    player.video_calibration_btn.config(text=f"Cal: {'ON' if enabled else 'OFF'}")
+
+    if enabled:
+        if player.video_plot_mode.get():
+            _toggle_video_plot_mode(player)
+        player.video_calibration_hint.place(relx=0.5, y=12, anchor="n")
+        player.video_calibration_hint.lift()
+        messagebox.showinfo("Video Calibration", VIDEO_CALIBRATION_HELP)
+    else:
+        player.video_calibration_hint.place_forget()
 
 
 def _video_content_rect(player) -> tuple[float, float, float, float]:
@@ -143,6 +187,23 @@ def _plot_video_point(player, x: int, y: int, shot_or_goal: str) -> None:
         show_phase_dialog(app, x, y, shot_or_goal=shot_or_goal)
     except Exception as exc:
         messagebox.showerror("Video Plot Failed", f"Could not open shot dialog:\n{exc}")
+
+
+def _on_video_left_click(player, event) -> str | None:
+    if not getattr(player, "video_calibration_mode", tk.BooleanVar(value=False)).get():
+        return None
+
+    coords = _video_event_to_plot_coordinates(player, event)
+    if coords is None:
+        return "break"
+
+    x, y = coords
+    messagebox.showinfo(
+        "Calibration Point Captured",
+        f"Captured prototype calibration click at current fallback rink coordinate:\n\nX={x}, Y={y}\n\n"
+        "The full GoPro preset will map this click to a named rink landmark.",
+    )
+    return "break"
 
 
 def _on_video_right_click(player, event) -> str | None:
