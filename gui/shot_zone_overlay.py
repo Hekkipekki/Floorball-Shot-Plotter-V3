@@ -3,114 +3,30 @@ from __future__ import annotations
 from pathlib import Path
 from tkinter import messagebox
 
-from PIL import Image, ImageDraw, ImageFilter
+import numpy as np
+from PIL import Image, ImageFilter
 
 from app_paths import ASSETS_DIR
 
 SHOT_ZONE_DIR = Path(ASSETS_DIR) / "resources" / "xG"
 SHOT_ZONE_IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp")
-SHOT_ZONE_DEFAULT_ALPHA = 0.42
-SHOT_ZONE_PREFERRED_FILENAME = "xG Bild Polished.png"
-SHOT_ZONE_FALLBACK_FILENAME = "xG Bild.png"
-SHOT_ZONE_USE_GENERATED_POLISHED = True
+SHOT_ZONE_DEFAULT_ALPHA = 1.0
+SHOT_ZONE_PREFERRED_FILENAME = "xG Bild.png"
 
-BASE_WIDTH = 1500
-BASE_HEIGHT = 1000
-ZONE_Y_OFFSET = -70
-
-
-def _offset_rect(rect):
-    x1, y1, x2, y2 = rect
-    return x1, y1 + ZONE_Y_OFFSET, x2, y2 + ZONE_Y_OFFSET
-
-
-def _scaled_rect(rect, size):
-    width, height = size
-    x1, y1, x2, y2 = rect
-    return (
-        int(round(x1 / BASE_WIDTH * width)),
-        int(round(y1 / BASE_HEIGHT * height)),
-        int(round(x2 / BASE_WIDTH * width)),
-        int(round(y2 / BASE_HEIGHT * height)),
-    )
-
-
-def _draw_zone(draw: ImageDraw.ImageDraw, rect, size, color, radius: int = 0, *, offset: bool = True) -> None:
-    source_rect = _offset_rect(rect) if offset else rect
-    scaled = _scaled_rect(source_rect, size)
-    if radius:
-        draw.rounded_rectangle(scaled, radius=radius, fill=color)
-    else:
-        draw.rectangle(scaled, fill=color)
-
-
-def _generate_polished_overlay(size) -> Image.Image:
-    width, height = size
-    overlay = Image.new("RGBA", size, (0, 0, 0, 0))
-    soft = Image.new("RGBA", size, (0, 0, 0, 0))
-    draw = ImageDraw.Draw(soft)
-
-    # Low-danger upper/deep zone.
-    _draw_zone(draw, (20, 250, 1480, 380), size, (104, 221, 53, 210))
-
-    # Lower outside areas and side lanes.
-    _draw_zone(draw, (20, 380, 250, 760), size, (155, 217, 107, 190))
-    _draw_zone(draw, (1250, 380, 1480, 760), size, (155, 217, 107, 190))
-    _draw_zone(draw, (250, 380, 380, 760), size, (73, 161, 34, 205))
-    _draw_zone(draw, (1120, 380, 1250, 760), size, (73, 161, 34, 205))
-
-    # Medium/high-danger side channels.
-    _draw_zone(draw, (380, 380, 560, 760), size, (165, 61, 61, 205))
-    _draw_zone(draw, (940, 380, 1120, 760), size, (165, 61, 61, 205))
-
-    # Central high-danger lane.
-    _draw_zone(draw, (560, 380, 940, 690), size, (238, 22, 22, 220))
-
-    # Goal-front / royal-road danger block.
-    _draw_zone(draw, (560, 690, 940, 840), size, (115, 13, 13, 230))
-
-    # Behind-goal low-danger band.
-    _draw_zone(draw, (20, 760, 1480, 980), size, (184, 226, 162, 160))
-
-    # Soften hard boundaries slightly.
-    soft = soft.filter(ImageFilter.GaussianBlur(radius=max(1, int(width * 0.004))))
-    overlay.alpha_composite(soft)
-
-    line = ImageDraw.Draw(overlay)
-    # Subtle separators/edges to keep zones readable.
-    separator = (255, 255, 255, 85)
-    for rect in (
-        (20, 250, 1480, 380),
-        (250, 380, 380, 760),
-        (380, 380, 560, 760),
-        (560, 380, 940, 690),
-        (940, 380, 1120, 760),
-        (1120, 380, 1250, 760),
-        (560, 690, 940, 840),
-        (20, 760, 1480, 980),
-    ):
-        line.rectangle(_scaled_rect(_offset_rect(rect), size), outline=separator, width=max(1, int(width * 0.002)))
-
-    # Add a light centre highlight so the overlay looks less flat.
-    glow = Image.new("RGBA", size, (0, 0, 0, 0))
-    glow_draw = ImageDraw.Draw(glow)
-    glow_draw.ellipse(
-        _scaled_rect(_offset_rect((430, 260, 1070, 860)), size),
-        fill=(255, 255, 255, 34),
-    )
-    overlay.alpha_composite(glow.filter(ImageFilter.GaussianBlur(radius=max(6, int(width * 0.035)))))
-
-    return overlay
+# Use the real 918x612 source image as the geometry reference, then clean it into
+# a transparent overlay. This preserves alignment with the current background image.
+ZONE_ALPHA_GREEN = 95
+ZONE_ALPHA_GREEN_STRONG = 115
+ZONE_ALPHA_RED = 120
+ZONE_ALPHA_RED_STRONG = 150
+SATURATION_THRESHOLD = 25
+CHANNEL_DOMINANCE = 1.05
 
 
 def _find_shot_zone_image() -> Path | None:
     preferred = SHOT_ZONE_DIR / SHOT_ZONE_PREFERRED_FILENAME
     if preferred.exists():
         return preferred
-
-    fallback = SHOT_ZONE_DIR / SHOT_ZONE_FALLBACK_FILENAME
-    if fallback.exists():
-        return fallback
 
     if not SHOT_ZONE_DIR.exists():
         return None
@@ -122,26 +38,82 @@ def _find_shot_zone_image() -> Path | None:
     return None
 
 
-def _target_size(app) -> tuple[int, int]:
-    return getattr(app, "img_size", None) or (BASE_WIDTH, BASE_HEIGHT)
+def _target_size(app) -> tuple[int, int] | None:
+    return getattr(app, "img_size", None)
+
+
+def _zone_masks(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    red = rgb[:, :, 0]
+    green = rgb[:, :, 1]
+    blue = rgb[:, :, 2]
+    saturation = rgb.max(axis=2) - rgb.min(axis=2)
+
+    red_mask = (
+        (red > green * CHANNEL_DOMINANCE)
+        & (red > blue * CHANNEL_DOMINANCE)
+        & (red > 70)
+        & (saturation > SATURATION_THRESHOLD)
+    )
+    strong_red_mask = red_mask & (red > 150) & (green < 90)
+
+    green_mask = (
+        (green > red * CHANNEL_DOMINANCE)
+        & (green > blue * CHANNEL_DOMINANCE)
+        & (green > 80)
+        & (saturation > SATURATION_THRESHOLD)
+    )
+    strong_green_mask = green_mask & ((green - red) > 70)
+    return red_mask, strong_red_mask, green_mask, strong_green_mask
+
+
+def _polish_source_overlay(image: Image.Image) -> Image.Image:
+    source = image.convert("RGBA")
+    arr = np.asarray(source).astype(np.float32)
+    rgb = arr[:, :, :3]
+
+    red_mask, strong_red_mask, green_mask, strong_green_mask = _zone_masks(rgb)
+    out = np.zeros_like(arr, dtype=np.uint8)
+
+    # Soft greens for lower-danger zones.
+    out[green_mask, 0] = 135
+    out[green_mask, 1] = 205
+    out[green_mask, 2] = 105
+    out[green_mask, 3] = ZONE_ALPHA_GREEN
+
+    out[strong_green_mask, 0] = 78
+    out[strong_green_mask, 1] = 170
+    out[strong_green_mask, 2] = 56
+    out[strong_green_mask, 3] = ZONE_ALPHA_GREEN_STRONG
+
+    # Softer reds for danger zones.
+    out[red_mask, 0] = 205
+    out[red_mask, 1] = 74
+    out[red_mask, 2] = 74
+    out[red_mask, 3] = ZONE_ALPHA_RED
+
+    out[strong_red_mask, 0] = 225
+    out[strong_red_mask, 1] = 36
+    out[strong_red_mask, 2] = 36
+    out[strong_red_mask, 3] = ZONE_ALPHA_RED_STRONG
+
+    polished = Image.fromarray(out, "RGBA")
+    # Tiny blur removes harsh jagged source edges without changing the underlying geometry.
+    return polished.filter(ImageFilter.GaussianBlur(radius=0.7))
 
 
 def load_shot_zone_overlay(app):
+    path = _find_shot_zone_image()
+    if path is None:
+        app.shot_zone_overlay_img = None
+        return None
+
     try:
-        if SHOT_ZONE_USE_GENERATED_POLISHED:
-            image = _generate_polished_overlay(_target_size(app))
-            app.shot_zone_overlay_img = image
-            app.shot_zone_overlay_path = "generated-polished"
-            return image
-
-        path = _find_shot_zone_image()
-        if path is None:
-            app.shot_zone_overlay_img = None
-            return None
-
         image = Image.open(path).convert("RGBA")
-        if getattr(app, "img_size", None):
-            image = image.resize(app.img_size, Image.Resampling.LANCZOS)
+        target_size = _target_size(app)
+        if target_size:
+            image = image.resize(target_size, Image.Resampling.LANCZOS)
+
+        image = _polish_source_overlay(image)
         app.shot_zone_overlay_img = image
         app.shot_zone_overlay_path = path
         return image
