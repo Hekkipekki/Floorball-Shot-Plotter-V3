@@ -1,14 +1,14 @@
 # Floorball Shot Plotter V3 Roadmap
 
-This document tracks the ongoing refactor work and the agreed direction for future cleanup.
+This document tracks the completed refactor work and the agreed direction for future feature development.
 
 ## Workflow
 
-- Work directly on `main`.
-- Before larger refactors, create a flat backup branch, for example `backup-main-before-controls-split`.
-- Keep changes small, focused, and behavior-preserving unless a functionality change is discussed first.
-- After each code change, pull and test locally before continuing.
-- Prefer simple helper extraction and clearer module boundaries over broad architectural rewrites.
+- Work directly on `main` for normal cleanup and small feature changes.
+- Before larger refactors or behavior changes, create a flat backup branch, for example `backup-main-before-feature-name`.
+- Prefer broad but themed batches: inspect a wider file group first, then make a safe grouped change, then pull/test once at the end.
+- Keep refactor changes behavior-preserving unless a functionality change is discussed first.
+- Avoid broad rewrites of sensitive working modules unless there is a bug or clear feature need.
 
 ## Completed Phases
 
@@ -40,7 +40,8 @@ Status: complete.
 Completed work:
 
 - Video player styling extracted into `utils/video_player_style.py`.
-- Video player responsibilities reduced.
+- VLC runtime helpers extracted into `utils/video_runtime.py`.
+- Overlay creation extracted into `utils/video_overlay.py`.
 
 ### Phase 4 - Split `gui/controls.py`
 
@@ -50,33 +51,27 @@ Completed work:
 
 - `gui/controls.py` now acts as a small orchestrator.
 - Control panel sections are split into `gui/panels/controls/` modules.
+- Left, center, and right panels have clearer module boundaries.
 
-### Phase 5 - GUI/module cleanup
+### Phase 5 - Major GUI/core/data cleanup
 
-Status: in progress.
+Status: complete / stabilized.
 
-Completed so far:
+Completed work:
 
-- Cleaned `gui/panels/controls/heatmap_controls.py`.
-- Cleaned `gui/panels/controls/match_controls.py`.
-- Cleaned `gui/panels/controls/stats_controls.py`.
-- Cleaned `gui/panels/controls/period_controls.py`.
-- Cleaned `gui/shotlog_view.py`.
-- Cleaned `gui/panels/center_plot.py`.
-- Cleaned `gui/layout.py`.
-- Cleaned `core/app_bootstrap.py`.
-- Cleaned `gui/plot_rendering.py`.
-- Cleaned `gui/shotlog_interactions.py`.
-- Cleaned `core/app_refresh.py`.
-- Cleaned `core/init_state.py`.
-- Cleaned `core/demo.py`.
-- Cleaned `core/filtering.py`.
-- Cleaned `core/event_logic.py`.
-- Cleaned `core/core_stats.py`.
-- Cleaned `data/match_store.py`.
-- Cleaned `data/entry_serialization.py`.
-- Cleaned `data/csv_store.py`.
-- Cleaned `core/xg.py`.
+- Cleaned and split control-panel setup modules.
+- Cleaned layout and panel setup helpers.
+- Cleaned Shot Log view and Shot Log interaction helpers.
+- Cleaned plot rendering refresh helpers.
+- Cleaned app refresh helpers.
+- Cleaned app startup/initial-state helpers.
+- Cleaned core stats calculations.
+- Cleaned demo generation helpers.
+- Cleaned match-store save/load dialog helpers.
+- Cleaned entry schema/helpers and serialization helpers.
+- Cleaned assets/path/export/video-runtime helpers.
+- Cleaned video overlay and video button style helpers.
+- Cleaned plot-click, event-finalize, popup-positioning, and pass-origin helpers.
 
 Regression fixes completed during Phase 5:
 
@@ -87,17 +82,9 @@ Regression fixes completed during Phase 5:
 - Fixed assisted goals so they can ask for and store pass origin points like shots.
 - Added event-aware pass-origin and plot-click helpers.
 
-Current backup branches for this cleanup work:
+Confirmed working after the major refactor:
 
-- `backup-main-before-heatmap-controls-cleanup`
-- `backup-main-before-event-dialogs-cleanup`
-
-## Current Stable Point
-
-The app has been tested locally after the Phase 5 cleanup and regression fixes.
-
-Confirmed working:
-
+- App startup.
 - Controls panel sections.
 - Heatmap settings.
 - Match manager buttons.
@@ -110,46 +97,75 @@ Confirmed working:
 - Menu and startup behavior.
 - Shot and goal creation.
 - Goal pass-origin flow.
+- Video overlay open/close behavior.
 - Save/load match behavior.
 - CSV import/export.
+- Demo shot generation.
+- Stats and expected-goals panels.
+
+## Current Stable Point
+
+The app is now considered stable after the major refactor. Feature development can resume.
+
+Stable branch to preserve this point:
+
+```text
+stable-after-major-refactor
+```
+
+Use this stable branch as a known-good rollback point before larger future feature work.
+
+## Sensitive Files To Avoid Unless Needed
+
+The following files are working and should not be broadly rewritten unless there is a bug or a clear feature need:
+
+- `gui/point_removal.py`
+- `gui/events/event_dialogs.py`
+- `utils/videoplayer.py`
+- `core/event_logic.py`
+- `core/app_match_actions.py`
+
+Reason:
+
+- These files control deletion, dialog flow, event creation, video playback, or match state.
+- Some broad rewrites were blocked by the connector payload filter.
+- The cleanup benefit is now smaller than the regression risk.
 
 ## Recommended Next Steps
 
-### 1. Pause and preserve current stable state
+### 1. Start feature development
 
-Before continuing with more cleanup, optionally create a fresh flat backup branch from the current `main`, for example:
+Good feature candidates:
+
+- UI improvements.
+- Better match/season workflow.
+- Shot filtering improvements.
+- Export/report features.
+- Video workflow improvements.
+- Quality-of-life fixes discovered during testing.
+
+### 2. Use backup branches for bigger changes
+
+Before any bigger feature branch or behavior change, create a flat backup branch from the current working `main`, for example:
 
 ```bash
 git checkout main
 git pull
-git branch backup-main-after-phase5-core-data-cleanup
+git branch backup-main-before-feature-name
 ```
 
-Or create the branch remotely before starting the next larger cleanup batch.
+Or create the backup branch remotely before starting the next larger work batch.
 
-### 2. Continue Phase 5 with remaining GUI modules
-
-Potential next targets:
-
-- `gui/events/event_dialogs.py`
-  - Large dialog/options module.
-  - Candidate for splitting option data, popup helpers, and dialog flow.
-  - This should be done carefully because it affects shot/goal creation.
-  - Note: direct option-data extraction has been blocked by the GitHub connector payload filter, so prefer smaller helper modules or local/manual refactor later.
-
-- `gui/plot_interactions.py`
-  - Hover/highlight/pass-arrow/remove behavior is sensitive.
-  - Avoid broad rewrites unless needed.
-
-### 3. Consider Phase 6 only after Phase 5 settles
+### 3. Consider Phase 6 only if it becomes useful
 
 Phase 6 would evaluate whether a cleaner service layer is worthwhile.
 
-Do not start this unless there is a clear benefit, such as:
+Do not start this automatically. Only consider it if there is a clear benefit, such as:
 
 - reducing coupling between GUI and match data,
 - making save/load easier to test,
-- isolating business logic from Tkinter callbacks.
+- isolating business logic from Tkinter callbacks,
+- supporting a bigger new feature safely.
 
 Possible future service candidates:
 
@@ -239,11 +255,11 @@ Acceptance criteria:
 
 ## Notes for Next Session
 
-Start by confirming the latest `main` still works locally.
+Start from the stable post-refactor state and switch to feature development unless Daniel asks for more cleanup.
 
 Suggested first next action:
 
-1. Create a fresh backup branch from current `main`.
-2. Continue Phase 5 only if there are still clear cleanup wins.
-3. Do not start trained/custom xG model work unless Daniel explicitly asks to resume it.
-4. If xG work is resumed later, begin with data extraction and model-design scaffolding before changing event creation.
+1. Confirm latest `main` still works locally.
+2. Pick the next feature or behavior improvement.
+3. Create a backup branch before larger feature work.
+4. Do not start trained/custom xG model work unless Daniel explicitly asks to resume it.
