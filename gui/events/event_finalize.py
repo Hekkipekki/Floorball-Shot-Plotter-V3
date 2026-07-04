@@ -18,7 +18,7 @@ def finalize_event(app, x, y, phase, situation, shot_type, passer, shooter, shot
             app.add_shot_event(x, y, phase, situation, shot_type, passer, shooter)
         return
 
-    from gui.events.event_dialogs import show_pass_origin_dialog
+    from gui.events.pass_origin_dialog import show_pass_origin_dialog
 
     show_pass_origin_dialog(
         app,
