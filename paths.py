@@ -1,19 +1,33 @@
 from pathlib import Path
 import sys
 
+PROJECT_MARKER_FILE = "main.py"
+DATA_SUBDIRS = ("matches", "exports", "videos")
+
+
+def _is_frozen_app() -> bool:
+    return bool(getattr(sys, "frozen", False))
+
+
+def _frozen_project_root() -> Path:
+    return Path(sys.executable).resolve().parent
+
+
+def _source_project_root() -> Path:
+    path = Path(__file__).resolve().parent
+    while True:
+        if (path / PROJECT_MARKER_FILE).exists():
+            return path
+        if path.parent == path:
+            raise FileNotFoundError(f"Could not find project root containing {PROJECT_MARKER_FILE}")
+        path = path.parent
+
 
 def get_project_root() -> Path:
     """Return the project root folder."""
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).resolve().parent
-
-    path = Path(__file__).resolve().parent
-    while True:
-        if (path / "main.py").exists():
-            return path
-        if path.parent == path:
-            raise FileNotFoundError("Could not find project root containing main.py")
-        path = path.parent
+    if _is_frozen_app():
+        return _frozen_project_root()
+    return _source_project_root()
 
 
 PROJECT_ROOT = get_project_root()
@@ -37,5 +51,6 @@ BACKGROUNDS_DIR = ASSETS_DIR / "backgrounds"
 
 def ensure_data_dirs() -> None:
     """Create runtime data folders if they do not exist."""
-    for folder in (DATA_DIR, MATCHES_DIR, EXPORTS_DIR, VIDEOS_DIR):
-        folder.mkdir(parents=True, exist_ok=True)
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    for folder_name in DATA_SUBDIRS:
+        (DATA_DIR / folder_name).mkdir(parents=True, exist_ok=True)
