@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-import os
+from paths import (
+    ASSETS_DIR as PATH_ASSETS_DIR,
+    DATA_DIR as PATH_DATA_DIR,
+    MATCHES_DIR as PATH_MATCHES_DIR,
+    PROJECT_ROOT as PATH_PROJECT_ROOT,
+)
 
-from paths import get_project_root
-
-
-PROJECT_ROOT = get_project_root()
-
-ASSETS_DIR = os.path.join(PROJECT_ROOT, "assets")
-DATA_DIR = os.path.join(PROJECT_ROOT, "data")
-MATCHES_DIR = os.path.join(DATA_DIR, "matches")
-CSV_DATA_DIR = os.path.join(PROJECT_ROOT, "csv_data")
+PROJECT_ROOT = str(PATH_PROJECT_ROOT)
+ASSETS_DIR = str(PATH_ASSETS_DIR)
+DATA_DIR = str(PATH_DATA_DIR)
+MATCHES_DIR = str(PATH_MATCHES_DIR)
+CSV_DATA_DIR = str(PATH_PROJECT_ROOT / "csv_data")
