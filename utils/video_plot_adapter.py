@@ -1,11 +1,3 @@
-"""Helpers for plotting shot locations from the embedded video overlay.
-
-This is intentionally a lightweight beta adapter. It maps the clicked position inside the
-currently displayed video area to the existing rink plot coordinate system using normalized
-screen position. That gives a practical first step for video-assisted plotting without adding
-full camera calibration or xG work.
-"""
-
 from __future__ import annotations
 
 import tkinter as tk
@@ -16,20 +8,26 @@ from utils.video_player_style import PANEL_BG, TEXT, create_control_button
 SHOT_EVENT_TYPE = "shot"
 GOAL_EVENT_TYPE = "goal"
 VIDEO_PLOT_HELP = "Video Plot: right-click the video, then choose Shot or Goal."
-VIDEO_CALIBRATION_HELP = (
-    "Calibration mode placeholder:\n\n"
-    "Next step is the GoPro Behind Goal preset. It will ask you to click known rink landmarks "
-    "in the video, then use those points to improve video-to-rink plotting accuracy."
+VIDEO_PASS_HELP = "Video Plot: right-click the pass-origin location."
+CALIBRATION_DONE_TEXT = "Calibration clicks captured. Transform calculation comes next."
+
+CALIBRATION_POINTS = (
+    ("Goal area lower-left corner", (562, 825), "Click the lower-left corner of the large white area."),
+    ("Goal area lower-right corner", (938, 825), "Click the lower-right corner of the large white area."),
+    ("Goal area upper-right corner", (938, 625), "Click the upper-right corner of the large white area."),
+    ("Goal area upper-left corner", (562, 625), "Click the upper-left corner of the large white area."),
+    ("Goal area top middle", (750, 625), "Click the middle of the top/front line of the large white area."),
+    ("High slot centre", (750, 500), "Click the high-slot centre reference above the white area."),
 )
 
 
 def install_video_plot_adapter(player) -> None:
-    """Attach video-assisted plotting controls to a VLCOverlayWithControls instance."""
     player.video_plot_mode = tk.BooleanVar(value=False)
     player.video_calibration_mode = tk.BooleanVar(value=False)
+    player.video_calibration_clicks = []
+    player.video_calibration_step = 0
     player.video_area.bind("<Button-3>", lambda event: _on_video_right_click(player, event), add="+")
     player.video_area.bind("<Button-1>", lambda event: _on_video_left_click(player, event), add="+")
-
     _let_tk_receive_video_mouse_events(player)
     _add_video_plot_controls(player)
     _add_video_plot_hint(player)
@@ -83,7 +81,7 @@ def _add_video_plot_hint(player) -> None:
 def _add_video_calibration_hint(player) -> None:
     player.video_calibration_hint = tk.Label(
         player,
-        text="Calibration: click visible rink landmarks in the video. Prototype only.",
+        text="",
         bg=PANEL_BG,
         fg=TEXT,
         font=("Segoe UI", 9, "bold"),
@@ -100,8 +98,7 @@ def _toggle_video_plot_mode(player) -> None:
     if enabled:
         if player.video_calibration_mode.get():
             _toggle_video_calibration_mode(player)
-        player.video_plot_hint.place(relx=0.5, y=12, anchor="n")
-        player.video_plot_hint.lift()
+        _show_plot_hint(player)
     else:
         player.video_plot_hint.place_forget()
 
@@ -114,17 +111,58 @@ def _toggle_video_calibration_mode(player) -> None:
     if enabled:
         if player.video_plot_mode.get():
             _toggle_video_plot_mode(player)
-        player.video_calibration_hint.place(relx=0.5, y=12, anchor="n")
-        player.video_calibration_hint.lift()
-        messagebox.showinfo("Video Calibration", VIDEO_CALIBRATION_HELP)
+        _start_calibration_sequence(player)
     else:
         player.video_calibration_hint.place_forget()
+
+
+def _show_plot_hint(player) -> None:
+    app = player.app
+    if app is not None and getattr(app, "expecting_pass_click", False):
+        player.video_plot_hint.config(text=VIDEO_PASS_HELP)
+    else:
+        player.video_plot_hint.config(text=VIDEO_PLOT_HELP)
+    player.video_plot_hint.place(relx=0.5, y=12, anchor="n")
+    player.video_plot_hint.lift()
+
+
+def _start_calibration_sequence(player) -> None:
+    player.video_calibration_clicks = []
+    player.video_calibration_step = 0
+    _show_next_calibration_instruction(player)
+    messagebox.showinfo(
+        "Video Calibration",
+        "Calibration started. Left-click each requested rink landmark in the video.",
+    )
+
+
+def _show_next_calibration_instruction(player) -> None:
+    step = player.video_calibration_step
+    if step >= len(CALIBRATION_POINTS):
+        player.video_calibration_hint.config(text=CALIBRATION_DONE_TEXT)
+    else:
+        _name, _target, instruction = CALIBRATION_POINTS[step]
+        player.video_calibration_hint.config(text=f"Calibration {step + 1}/{len(CALIBRATION_POINTS)}: {instruction}")
+    player.video_calibration_hint.place(relx=0.5, y=12, anchor="n")
+    player.video_calibration_hint.lift()
+
+
+def _finish_calibration_sequence(player) -> None:
+    app = player.app
+    if app is not None:
+        app.video_calibration_points = list(player.video_calibration_clicks)
+    player.video_calibration_mode.set(False)
+    player.video_calibration_btn.config(text="Calibrate")
+    player.video_calibration_hint.config(text=CALIBRATION_DONE_TEXT)
+    messagebox.showinfo(
+        "Calibration Points Captured",
+        f"Captured {len(player.video_calibration_clicks)} calibration points.",
+    )
 
 
 def _video_content_rect(player) -> tuple[float, float, float, float]:
     area_w = max(1, player.video_area.winfo_width())
     area_h = max(1, player.video_area.winfo_height())
-
     video_w = 0
     video_h = 0
     try:
@@ -134,10 +172,8 @@ def _video_content_rect(player) -> tuple[float, float, float, float]:
                 video_w, video_h = int(size[0]), int(size[1])
     except Exception:
         pass
-
     if video_w <= 0 or video_h <= 0:
         return 0.0, 0.0, float(area_w), float(area_h)
-
     scale = min(area_w / video_w, area_h / video_h)
     draw_w = video_w * scale
     draw_h = video_h * scale
@@ -150,16 +186,13 @@ def _video_event_to_plot_coordinates(player, event) -> tuple[int, int] | None:
     app = player.app
     if app is None or not hasattr(app, "ax"):
         return None
-
     left, top, draw_w, draw_h = _video_content_rect(player)
     if draw_w <= 0 or draw_h <= 0:
         return None
-
     rel_x = (event.x - left) / draw_w
     rel_y = (event.y - top) / draw_h
     if not (0.0 <= rel_x <= 1.0 and 0.0 <= rel_y <= 1.0):
         return None
-
     xlim = app.ax.get_xlim()
     ylim = app.ax.get_ylim()
     plot_x = xlim[0] + rel_x * (xlim[1] - xlim[0])
@@ -167,62 +200,87 @@ def _video_event_to_plot_coordinates(player, event) -> tuple[int, int] | None:
     return int(round(plot_x)), int(round(plot_y))
 
 
+def _video_event_to_video_coordinates(player, event) -> tuple[int, int] | None:
+    left, top, draw_w, draw_h = _video_content_rect(player)
+    if draw_w <= 0 or draw_h <= 0:
+        return None
+    video_x = event.x - left
+    video_y = event.y - top
+    if not (0.0 <= video_x <= draw_w and 0.0 <= video_y <= draw_h):
+        return None
+    return int(round(video_x)), int(round(video_y))
+
+
 def _plot_video_point(player, x: int, y: int, shot_or_goal: str) -> None:
     app = player.app
     if app is None:
         return
-
     try:
         if player.player is not None and player.player.is_playing():
             player.player.pause()
     except Exception:
         pass
-
     try:
         from gui.events.event_dialogs import show_phase_dialog
-
-        # The video overlay marks popup_open while active. Temporarily allow the normal
-        # shot dialog chain to open from this video-assisted workflow.
         app.popup_open = False
         show_phase_dialog(app, x, y, shot_or_goal=shot_or_goal)
     except Exception as exc:
         messagebox.showerror("Video Plot Failed", f"Could not open shot dialog:\n{exc}")
 
 
+def _clear_pending_pass_data(app) -> None:
+    if hasattr(app, "pending_pass_data"):
+        del app.pending_pass_data
+    app.expecting_pass_click = False
+
+
+def _add_pending_pass_origin_from_video(player, x: int, y: int) -> None:
+    app = player.app
+    if app is None:
+        return
+    data = getattr(app, "pending_pass_data", None)
+    if data is None:
+        return
+    main_x, main_y, phase, situation, shot_type, passer, shooter, event_type = data
+    add_event = app.add_goal_event if event_type == GOAL_EVENT_TYPE else app.add_shot_event
+    add_event(main_x, main_y, phase, situation, shot_type, passer, shooter, pass_x=x, pass_y=y)
+    _clear_pending_pass_data(app)
+    _show_plot_hint(player)
+
+
 def _on_video_left_click(player, event) -> str | None:
     if not getattr(player, "video_calibration_mode", tk.BooleanVar(value=False)).get():
         return None
-
-    coords = _video_event_to_plot_coordinates(player, event)
-    if coords is None:
+    video_coords = _video_event_to_video_coordinates(player, event)
+    plot_coords = _video_event_to_plot_coordinates(player, event)
+    if video_coords is None or plot_coords is None:
         return "break"
-
-    x, y = coords
-    messagebox.showinfo(
-        "Calibration Point Captured",
-        f"Captured prototype calibration click at current fallback rink coordinate:\n\nX={x}, Y={y}\n\n"
-        "The full GoPro preset will map this click to a named rink landmark.",
-    )
+    step = player.video_calibration_step
+    if step >= len(CALIBRATION_POINTS):
+        return "break"
+    name, target_plot, _instruction = CALIBRATION_POINTS[step]
+    player.video_calibration_clicks.append({"name": name, "video": video_coords, "fallback_plot": plot_coords, "target_plot": target_plot})
+    player.video_calibration_step += 1
+    if player.video_calibration_step >= len(CALIBRATION_POINTS):
+        _finish_calibration_sequence(player)
+    else:
+        _show_next_calibration_instruction(player)
     return "break"
 
 
 def _on_video_right_click(player, event) -> str | None:
-    if not getattr(player, "video_plot_mode", tk.BooleanVar(value=False)).get():
-        return None
-
     coords = _video_event_to_plot_coordinates(player, event)
     if coords is None:
         return "break"
-
     x, y = coords
+    app = player.app
+    if app is not None and getattr(app, "expecting_pass_click", False):
+        _add_pending_pass_origin_from_video(player, x, y)
+        return "break"
+    if not getattr(player, "video_plot_mode", tk.BooleanVar(value=False)).get():
+        return None
     menu = tk.Menu(player, tearoff=0)
-    menu.add_command(
-        label=f"Add Shot here ({x}, {y})",
-        command=lambda: _plot_video_point(player, x, y, SHOT_EVENT_TYPE),
-    )
-    menu.add_command(
-        label=f"Add Goal here ({x}, {y})",
-        command=lambda: _plot_video_point(player, x, y, GOAL_EVENT_TYPE),
-    )
+    menu.add_command(label=f"Add Shot here ({x}, {y})", command=lambda: _plot_video_point(player, x, y, SHOT_EVENT_TYPE))
+    menu.add_command(label=f"Add Goal here ({x}, {y})", command=lambda: _plot_video_point(player, x, y, GOAL_EVENT_TYPE))
     menu.post(event.x_root, event.y_root)
     return "break"
