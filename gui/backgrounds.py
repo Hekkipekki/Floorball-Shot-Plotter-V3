@@ -8,18 +8,14 @@ def get_available_backgrounds(app):
     return list_background_files()
 
 
+def _set_background_choice(app, background_name: str) -> None:
+    app.bg_choice.set(background_name)
+    app.selected_background.set(background_name)
+
+
 def init_background_files(app):
     app.bg_files = get_available_backgrounds(app)
-
-    default_bg = get_default_background()
-
-    if default_bg:
-        app.bg_choice.set(default_bg)
-        app.selected_background.set(default_bg)
-    else:
-        app.bg_choice.set("")
-        app.selected_background.set("")
-
+    _set_background_choice(app, get_default_background())
     update_background_menu(app)
 
 
@@ -33,4 +29,5 @@ def set_background(app, bg_name):
     app.selected_background.set(bg_name)
 
     from gui.plot_background import refresh_image
+
     refresh_image(app)
