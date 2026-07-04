@@ -4,8 +4,8 @@ import math
 
 # Measured against the current defensive-half background image.
 # This keeps distance/angle aligned with the same rink coordinates used by video calibration.
-GOAL_CENTER_X = 737
-GOAL_CENTER_Y = 1000
+GOAL_CENTER_X = 740
+GOAL_CENTER_Y = 990
 GOAL_WIDTH = 160
 GOAL_LEFT_X = GOAL_CENTER_X - GOAL_WIDTH / 2
 GOAL_RIGHT_X = GOAL_CENTER_X + GOAL_WIDTH / 2
@@ -14,9 +14,9 @@ GOAL_RIGHT_X = GOAL_CENTER_X + GOAL_WIDTH / 2
 # The distance shown in the shot log is zone depth from the goal line toward the
 # centre line, so it is clamped to 0..20m. This avoids diagonal corner distances
 # exceeding the defensive-zone length.
-RINK_LEFT_X = 21
-RINK_RIGHT_X = 1434
-RINK_TOP_Y = 23
+RINK_LEFT_X = 18
+RINK_RIGHT_X = 1431
+RINK_TOP_Y = 20
 RINK_GOAL_LINE_Y = GOAL_CENTER_Y
 RINK_WIDTH_UNITS = RINK_RIGHT_X - RINK_LEFT_X
 RINK_LENGTH_UNITS = RINK_GOAL_LINE_Y - RINK_TOP_Y
