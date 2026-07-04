@@ -13,6 +13,9 @@ CALIBRATION_DONE_TEXT = "Calibration active: video clicks now use calibrated rin
 CALIBRATION_VERSION = 3
 CALIBRATION_DIR = Path(DATA_DIR) / "calibrations"
 CALIBRATION_STORE = CALIBRATION_DIR / "video_calibrations.json"
+MAX_PAIR_Y_DIFF = 0.08
+MAX_CENTER_OFFSET = 0.12
+MIN_CAPTURED_POINTS = 8
 
 # Target plot coordinates are measured from the current defensive-half background image.
 # Source coordinates are normalized video coordinates, so calibration survives window resizing.
@@ -73,6 +76,72 @@ def load_video_calibration(video_path: str) -> list[dict]:
         return []
     clicks = record.get("clicks", [])
     return clicks if isinstance(clicks, list) else []
+
+
+def _click_by_name(calibration_clicks: list[dict]) -> dict:
+    return {click.get("name"): click for click in calibration_clicks}
+
+
+def _source(click: dict) -> tuple[float, float] | None:
+    value = click.get("source_norm")
+    if value is None or len(value) != 2:
+        return None
+    return float(value[0]), float(value[1])
+
+
+def _warn_if_pair_invalid(clicks_by_name: dict, left_name: str, right_name: str, label: str, warnings: list[str]) -> None:
+    left = clicks_by_name.get(left_name)
+    right = clicks_by_name.get(right_name)
+    if left is None or right is None:
+        return
+
+    left_source = _source(left)
+    right_source = _source(right)
+    if left_source is None or right_source is None:
+        return
+
+    if left_source[0] >= right_source[0]:
+        warnings.append(f"{label}: left/right order looks reversed.")
+    if abs(left_source[1] - right_source[1]) > MAX_PAIR_Y_DIFF:
+        warnings.append(f"{label}: left/right points are not on the same visible line.")
+
+
+def _warn_if_center_invalid(clicks_by_name: dict, left_name: str, right_name: str, center_name: str, label: str, warnings: list[str]) -> None:
+    left = clicks_by_name.get(left_name)
+    right = clicks_by_name.get(right_name)
+    center = clicks_by_name.get(center_name)
+    if left is None or right is None or center is None:
+        return
+
+    left_source = _source(left)
+    right_source = _source(right)
+    center_source = _source(center)
+    if left_source is None or right_source is None or center_source is None:
+        return
+
+    expected_x = (left_source[0] + right_source[0]) / 2
+    if abs(center_source[0] - expected_x) > MAX_CENTER_OFFSET:
+        warnings.append(f"{label}: centre point is far from the left/right midpoint.")
+
+
+def validate_calibration_clicks(calibration_clicks: list[dict]) -> list[str]:
+    warnings: list[str] = []
+    if len(calibration_clicks) < MIN_CAPTURED_POINTS:
+        warnings.append("Too few calibration points captured for reliable video plotting.")
+
+    clicks_by_name = _click_by_name(calibration_clicks)
+    _warn_if_pair_invalid(clicks_by_name, "4 Upper Left Goal Area", "3 Upper Right Goal Area", "Upper goal-area line", warnings)
+    _warn_if_pair_invalid(clicks_by_name, "1 Lower Left Goal Area", "2 Lower Right Goal Area", "Lower goal-area line", warnings)
+    _warn_if_pair_invalid(clicks_by_name, "7 Upper Left Goalie Area", "8 Upper Right Goalie Area", "Upper goalie-area line", warnings)
+    _warn_if_pair_invalid(clicks_by_name, "5 Lower Left Goalie Area", "6 Lower Right Goalie Area", "Lower goalie-area line", warnings)
+    _warn_if_pair_invalid(clicks_by_name, "10 Upper Left Defensive Zone", "11 Upper Right Defensive Zone", "Upper defensive-zone line", warnings)
+    _warn_if_pair_invalid(clicks_by_name, "14 Left Center Defensive Zone", "15 Right Center Defensive Zone", "Middle defensive-zone line", warnings)
+    _warn_if_pair_invalid(clicks_by_name, "16 Lower Left Faceoff Dot", "17 Lower Right Faceoff Dot", "Lower faceoff-dot line", warnings)
+
+    _warn_if_center_invalid(clicks_by_name, "4 Upper Left Goal Area", "3 Upper Right Goal Area", "9 Center of Goal Line", "Goal centre", warnings)
+    _warn_if_center_invalid(clicks_by_name, "10 Upper Left Defensive Zone", "11 Upper Right Defensive Zone", "12 Center Faceoff Dot", "Upper defensive-zone centre", warnings)
+    _warn_if_center_invalid(clicks_by_name, "14 Left Center Defensive Zone", "15 Right Center Defensive Zone", "13 Center of Defensive Zone", "Middle defensive-zone centre", warnings)
+    return warnings
 
 
 def compute_homography(calibration_clicks: list[dict]) -> np.ndarray | None:
