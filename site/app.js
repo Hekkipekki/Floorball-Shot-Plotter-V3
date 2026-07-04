@@ -1,5 +1,4 @@
 const REPO = "Hekkipekki/Floorball-Shot-Plotter-V3";
-const RELEASES_URL = `https://github.com/${REPO}/releases/latest`;
 const API_URL = `https://api.github.com/repos/${REPO}/releases/latest`;
 
 const downloadButton = document.getElementById("downloadButton");
@@ -9,7 +8,7 @@ const releaseNotes = document.getElementById("releaseNotes");
 
 function isDownloadAsset(asset) {
   const name = asset.name.toLowerCase();
-  return name.endsWith(".exe") || name.endsWith(".zip") || name.endsWith(".msi");
+  return name.endsWith(".zip") || name.endsWith(".exe") || name.endsWith(".msi");
 }
 
 function formatDate(dateText) {
@@ -28,6 +27,31 @@ function plainReleaseNotes(markdown) {
     .replace(/\*\*/g, "")
     .trim();
 }
+
+function setDownloadUnavailable(message) {
+  downloadButton.href = "#";
+  downloadButton.textContent = "Build not ready yet";
+  downloadButton.classList.add("is-disabled");
+  downloadButton.setAttribute("aria-disabled", "true");
+  releaseStatus.textContent = message;
+}
+
+function setDownloadAvailable(asset, releaseName, published) {
+  downloadButton.href = asset.browser_download_url;
+  downloadButton.textContent = "Download latest beta";
+  downloadButton.classList.remove("is-disabled");
+  downloadButton.removeAttribute("aria-disabled");
+  downloadButton.setAttribute("download", asset.name);
+  releaseStatus.textContent = published
+    ? `${releaseName} · Windows download · ${published}`
+    : `${releaseName} · Windows download`;
+}
+
+downloadButton.addEventListener("click", (event) => {
+  if (downloadButton.classList.contains("is-disabled")) {
+    event.preventDefault();
+  }
+});
 
 async function loadLatestRelease() {
   try {
@@ -48,21 +72,15 @@ async function loadLatestRelease() {
     releaseNotes.textContent = plainReleaseNotes(release.body);
 
     if (asset) {
-      downloadButton.href = asset.browser_download_url;
-      downloadButton.textContent = `Download ${asset.name}`;
-      releaseStatus.textContent = published
-        ? `Latest beta: ${releaseName} · published ${published}`
-        : `Latest beta: ${releaseName}`;
+      setDownloadAvailable(asset, releaseName, published);
       return;
     }
 
-    downloadButton.href = release.html_url || RELEASES_URL;
-    releaseStatus.textContent = "Latest release found, but no .exe/.zip/.msi asset is attached yet.";
+    setDownloadUnavailable("The beta page is live, but the Windows download is still being built. Please check back shortly.");
   } catch (error) {
-    downloadButton.href = RELEASES_URL;
-    releaseStatus.textContent = "No downloadable beta release found yet. Use View releases after a beta build is uploaded.";
-    releaseTitle.textContent = "No beta release uploaded yet";
-    releaseNotes.textContent = "Create a GitHub Release and attach a Windows .exe, .zip, or .msi build. This page will update automatically.";
+    releaseTitle.textContent = "Windows beta build coming soon";
+    releaseNotes.textContent = "The website is ready. The download button will activate automatically when the first Windows beta build is published.";
+    setDownloadUnavailable("The Windows download is not ready yet. Please check back shortly.");
   }
 }
 
