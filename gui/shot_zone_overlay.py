@@ -55,15 +55,15 @@ def toggle_shot_zone_overlay(app) -> None:
     if not hasattr(app, "show_shot_zone_overlay"):
         return
 
-    next_value = not app.show_shot_zone_overlay.get()
-    if next_value and load_shot_zone_overlay(app) is None:
+    enabled = app.show_shot_zone_overlay.get()
+    if enabled and load_shot_zone_overlay(app) is None:
+        app.show_shot_zone_overlay.set(False)
         messagebox.showwarning(
             "Shot Zone Overlay",
             f"No shot zone image found in:\n{SHOT_ZONE_DIR}\n\nAdd a PNG/JPG/WebP image there and try again.",
         )
         return
 
-    app.show_shot_zone_overlay.set(next_value)
     try:
         app.update_plot()
     except Exception:
