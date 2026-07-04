@@ -2,20 +2,27 @@ from __future__ import annotations
 
 import math
 
-GOAL_CENTER_X = 750
+# Measured against the current defensive-half background image.
+# This keeps distance/angle aligned with the same rink coordinates used by video calibration.
+GOAL_CENTER_X = 737
 GOAL_CENTER_Y = 1000
 GOAL_WIDTH = 160
 GOAL_LEFT_X = GOAL_CENTER_X - GOAL_WIDTH / 2
 GOAL_RIGHT_X = GOAL_CENTER_X + GOAL_WIDTH / 2
 
 # The plotted background is the defending half of an official 40m x 20m rink.
-# Therefore the displayed coordinate area represents 20m x 20m.
-PLOT_WIDTH_UNITS = 1500
-PLOT_HEIGHT_UNITS = 1000
+# The effective measured playing surface spans the current visible rink frame, not the
+# full 1500 x 1000 image canvas including margins.
+RINK_LEFT_X = 21
+RINK_RIGHT_X = 1434
+RINK_TOP_Y = 23
+RINK_GOAL_LINE_Y = GOAL_CENTER_Y
+RINK_WIDTH_UNITS = RINK_RIGHT_X - RINK_LEFT_X
+RINK_LENGTH_UNITS = RINK_GOAL_LINE_Y - RINK_TOP_Y
 DEFENSIVE_ZONE_WIDTH_METERS = 20
 DEFENSIVE_ZONE_LENGTH_METERS = 20
-METERS_PER_X_UNIT = DEFENSIVE_ZONE_WIDTH_METERS / PLOT_WIDTH_UNITS
-METERS_PER_Y_UNIT = DEFENSIVE_ZONE_LENGTH_METERS / PLOT_HEIGHT_UNITS
+METERS_PER_X_UNIT = DEFENSIVE_ZONE_WIDTH_METERS / RINK_WIDTH_UNITS
+METERS_PER_Y_UNIT = DEFENSIVE_ZONE_LENGTH_METERS / RINK_LENGTH_UNITS
 
 RINK_WIDTH = 1500
 LEFT_THIRD_MAX_X = 500
