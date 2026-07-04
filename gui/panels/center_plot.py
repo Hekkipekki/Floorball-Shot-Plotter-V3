@@ -25,6 +25,13 @@ HOTKEYS_TOOLTIP = (
     "👡 Double Click (Shot Log) = Delete Entry\n"
     "👡 Right Click (Shot Log) = Link / Play Video"
 )
+HOTKEYS_LABEL_TEXT = "ⓘ Hotkeys Info"
+HOTKEYS_LABEL_BG = "lightyellow"
+HOTKEYS_LABEL_FONT = ("Arial", 9, "bold")
+HOTKEYS_LABEL_X = 5
+HOTKEYS_LABEL_Y = 5
+SELECTOR_MARKER_SIZE = 15
+SELECTOR_MARKER_ALPHA = 0.5
 
 
 def _create_plot_figure() -> Figure:
@@ -47,7 +54,7 @@ def _store_plot_widgets(app, frame: tb.Frame, figure: Figure, canvas: FigureCanv
     app.canvas_frame = frame
 
     # Optional compatibility with older plot code
-    app.selector_dot, = app.ax.plot([], [], "o", markersize=15, alpha=0.5)
+    app.selector_dot, = app.ax.plot([], [], "o", markersize=SELECTOR_MARKER_SIZE, alpha=SELECTOR_MARKER_ALPHA)
     app.highlight_artist = None
 
 
@@ -60,13 +67,13 @@ def _bind_plot_events(app, canvas_widget) -> None:
 def _create_hotkeys_label(parent) -> tk.Label:
     label = tk.Label(
         parent,
-        text="ⓘ Hotkeys Info",
-        bg="lightyellow",
-        font=("Arial", 9, "bold"),
+        text=HOTKEYS_LABEL_TEXT,
+        bg=HOTKEYS_LABEL_BG,
+        font=HOTKEYS_LABEL_FONT,
         relief="ridge",
         borderwidth=1,
     )
-    label.place(x=5, y=5)
+    label.place(x=HOTKEYS_LABEL_X, y=HOTKEYS_LABEL_Y)
     BetterToolTip(label, HOTKEYS_TOOLTIP)
     return label
 
