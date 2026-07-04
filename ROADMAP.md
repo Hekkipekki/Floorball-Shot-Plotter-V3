@@ -2,6 +2,8 @@
 
 This document tracks the completed refactor work and the agreed direction for future feature development.
 
+Current priority is beta stability, smoother plotting workflow, packaging reliability, tester feedback, and video-assisted plotting. xG model development remains parked unless Daniel explicitly asks to resume it.
+
 ## Workflow
 
 - Work directly on `main` for normal cleanup and small feature changes.
@@ -9,6 +11,128 @@ This document tracks the completed refactor work and the agreed direction for fu
 - Prefer broad but themed batches: inspect a wider file group first, then make a safe grouped change, then pull/test once at the end.
 - Keep refactor changes behavior-preserving unless a functionality change is discussed first.
 - Avoid broad rewrites of sensitive working modules unless there is a bug or clear feature need.
+- Do not waste Netlify credits with app-code-only changes. Netlify should only deploy for `/site` or `netlify.toml` changes.
+
+## Current Beta Priorities
+
+### 1. Beta release stability
+
+Status: active.
+
+Focus:
+
+- Keep Windows zip builds stable through GitHub Actions.
+- Confirm packaged app assets load correctly beside the executable.
+- Verify bundled/local VLC playback works in packaged releases.
+- Keep Netlify deploys limited to `/site` and `netlify.toml` changes.
+- Keep the Netlify beta download button pulling the latest GitHub Release dynamically.
+
+Beta smoke test checklist:
+
+1. Rink/background appears.
+2. VLC video playback works.
+3. Demo shots work.
+4. Save/load works.
+5. Shot log collapse/resize works.
+6. Shot log scrolling and column filtering work.
+7. Video overlay segment controls still work.
+8. Basic video-assisted plotting does not break normal shot/goal logging.
+
+### 2. Shot log UX
+
+Status: active.
+
+Completed / in progress:
+
+- Shot log can collapse fully to the right.
+- Shot log can be resized by dragging its left border.
+- Shot log uses a small visible flap button to hide/show the panel.
+- Shot log has horizontal scrolling so all xG-ready fields can be visible.
+- Shot log column filtering remains available through the Columns menu.
+
+Next refinements:
+
+- Keep improving the collapsible/resizable behavior based on tester feedback.
+- Make sure the panel does not interfere with video overlay controls.
+- Keep column filtering usable as the number of logged fields grows.
+
+### 3. Video-assisted plotting
+
+Status: prototype started.
+
+Current direction:
+
+- Stabilize the current video overlay `Plot: ON` workflow.
+- Allow right-clicking video locations to create shot/goal entries through the normal dialog flow.
+- Keep the current simple normalized video-to-rink mapping as a fallback.
+- Make video plotting status clear in the UI.
+- Keep this separate from xG model development.
+
+Important limitation:
+
+- The first prototype maps video screen position proportionally to rink coordinates. This is useful for workflow testing but is not accurate enough for real camera perspective.
+- Accurate plotting from GoPro footage requires calibration from known rink landmarks.
+
+### 4. GoPro calibration preset
+
+Status: planned next major beta feature.
+
+Goal:
+
+- Add a guided calibration mode for recurring GoPro behind-goal recordings.
+- Use visible rink markings and board/goal-area landmarks to compute a video-to-rink coordinate transform.
+- Make plotting from GoPro video faster and more accurate.
+
+Preferred GoPro calibration anchors:
+
+- Far/upper left board or rink-frame reference point.
+- Far/upper center board reference point.
+- Far/upper right board or rink-frame reference point.
+- Left lower goalie-area / goal-zone corner.
+- Center front goal-line or goal-mouth reference point.
+- Right lower goalie-area / goal-zone corner.
+- Upper/center goalie-area reference point when visible.
+- Optional visible faceoff dots or board-side references.
+
+Suggested UX:
+
+1. Open linked video segment from the shot log.
+2. Choose **Calibration Mode**.
+3. Select **GoPro Behind Goal preset**.
+4. App draws numbered calibration dots on the rink template.
+5. User clicks the matching locations in the video frame.
+6. App computes and stores the calibration transform for that video/camera angle.
+7. Future video right-click plotting uses calibrated rink coordinates when available.
+8. App falls back to simple normalized mapping when no calibration exists.
+
+Technical direction:
+
+- Store calibration metadata separately from xG logic.
+- Use a projective transform / homography when enough reference points are provided.
+- Persist calibration per video path or match/video entry.
+- Add reset/recalibrate actions.
+- Make calibration status obvious in the video overlay.
+
+Related tracking issue:
+
+- GitHub issue #2: Video calibration for accurate shot plotting from rink reference points.
+
+### 5. Tester feedback loop
+
+Status: active.
+
+Collect feedback on:
+
+- Install/open experience.
+- Rink/background loading.
+- VLC/video playback.
+- Demo shot generation.
+- Save/load reliability.
+- Shot log usability.
+- Video-assisted plotting accuracy and workflow.
+- Packaging/release download flow.
+
+Prefer larger cleanup/refactor batches instead of many tiny commits.
 
 ## Completed Phases
 
@@ -105,7 +229,7 @@ Confirmed working after the major refactor:
 
 ## Current Stable Point
 
-The app is now considered stable after the major refactor. Feature development can resume.
+The app is considered stable after the major refactor. Feature development has resumed around beta UX, packaging, shot log usability, and video-assisted plotting.
 
 Stable branch to preserve this point:
 
@@ -133,18 +257,21 @@ Reason:
 
 ## Recommended Next Steps
 
-### 1. Start feature development
+### 1. Stabilize video-assisted plotting prototype
 
-Good feature candidates:
+- Locally test the video overlay `Plot: ON` control.
+- Confirm right-click video plotting opens the correct shot/goal dialog.
+- Confirm video controls, segment save, loop, close, and shot log interactions still work.
+- Fix any beta regressions before adding calibration.
 
-- UI improvements.
-- Better match/season workflow.
-- Shot filtering improvements.
-- Export/report features.
-- Video workflow improvements.
-- Quality-of-life fixes discovered during testing.
+### 2. Design the GoPro calibration implementation
 
-### 2. Use backup branches for bigger changes
+- Build the guided **GoPro Behind Goal preset** around the visible landmarks listed above.
+- Start with a clear calibration UI before optimizing math/storage.
+- Store calibration data safely and separately from match event data when possible.
+- Keep a fallback when calibration is missing or invalid.
+
+### 3. Use backup branches for bigger changes
 
 Before any bigger feature branch or behavior change, create a flat backup branch from the current working `main`, for example:
 
@@ -156,7 +283,7 @@ git branch backup-main-before-feature-name
 
 Or create the backup branch remotely before starting the next larger work batch.
 
-### 3. Consider Phase 6 only if it becomes useful
+### 4. Consider Phase 6 only if it becomes useful
 
 Phase 6 would evaluate whether a cleaner service layer is worthwhile.
 
@@ -255,11 +382,13 @@ Acceptance criteria:
 
 ## Notes for Next Session
 
-Start from the stable post-refactor state and switch to feature development unless Daniel asks for more cleanup.
+Start from the current beta feature-development state.
 
 Suggested first next action:
 
-1. Confirm latest `main` still works locally.
-2. Pick the next feature or behavior improvement.
-3. Create a backup branch before larger feature work.
-4. Do not start trained/custom xG model work unless Daniel explicitly asks to resume it.
+1. Pull latest `main` locally.
+2. Confirm the latest app still starts.
+3. Test shot log collapse/resize.
+4. Test linked video playback and segment controls.
+5. Test the video `Plot: ON` prototype.
+6. Do not start trained/custom xG model work unless Daniel explicitly asks to resume it.
