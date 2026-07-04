@@ -6,12 +6,12 @@ from utils.tooltips import BetterToolTip
 MATCH_MANAGER_BUTTONS = (
     ("📂 Load Match...", "handle_load_match", (PAD_Y, 3), None, "secondary", "Choose from existing matches to load."),
     ("📁 Load Several Matches", "handle_load_season", (0, 3), None, "secondary", "Load all matches or grouped folders."),
-    ("Delete This Match", "delete_current_match", (0, 3), "trash_icon", "danger-outline", "Remove the currently selected match."),
-    ("💾 Save as...", "prompt_save_match", (0, PAD_Y), None, "success", "Save the current shots/goals as a new match."),
+    ("Delete This Match", "delete_current_match", (0, 3), "trash_icon", "secondary", "Remove the currently selected match."),
+    ("💾 Save as...", "prompt_save_match", (0, PAD_Y), None, "secondary", "Save the current shots/goals as a new match."),
 )
 MATCH_MANAGER_STYLE = "secondary"
 DEMO_STYLE = "secondary"
-DEMO_BUTTON_STYLE = "info-outline"
+DEMO_BUTTON_STYLE = "secondary"
 
 
 def _create_full_width_button(parent: tb.Frame, text: str, command, pady, image=None, style="secondary") -> tb.Button:
