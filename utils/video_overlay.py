@@ -6,6 +6,7 @@ import tkinter as tk
 from tkinter import messagebox
 
 from utils.video_player_style import VIDEO_BG
+from utils.video_plot_adapter import install_video_plot_adapter
 from utils.video_runtime import PLUGINS_DIR, VLC_DIR, VLC_IMPORT_ERROR, vlc
 from utils.videoplayer import VLCOverlayWithControls
 
@@ -47,7 +48,7 @@ def _create_overlay_frame(app) -> tk.Frame:
 
 
 def _create_player(app, video_path, start, stop, autoplay, on_save_segment):
-    return VLCOverlayWithControls(
+    player = VLCOverlayWithControls(
         app.video_overlay,
         video_path=video_path,
         start=start,
@@ -56,6 +57,8 @@ def _create_player(app, video_path, start, stop, autoplay, on_save_segment):
         app=app,
         on_save_segment=on_save_segment,
     )
+    install_video_plot_adapter(player)
+    return player
 
 
 def show_video_overlay(
