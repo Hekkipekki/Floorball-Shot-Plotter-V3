@@ -82,8 +82,9 @@ VIDEO_COLUMN_HEADING = "🎬"
 COLUMN_BUTTON_TEXT = "Columns ▾"
 COLUMN_POPUP_TITLE = "Shot Log Columns"
 COLUMN_POPUP_COLUMNS = 2
-COLUMN_POPUP_PAD_X = 10
-COLUMN_POPUP_PAD_Y = 4
+COLUMN_POPUP_PAD_X = 12
+COLUMN_POPUP_PAD_Y = 5
+COLUMN_POPUP_PADDING = 10
 
 
 def _shotlog_heading_text(column: str) -> str:
@@ -170,7 +171,7 @@ def _close_column_popup(app) -> None:
 def _column_popup_position(button) -> tuple[int, int]:
     button.update_idletasks()
     x = button.winfo_rootx()
-    y = button.winfo_rooty() + button.winfo_height()
+    y = button.winfo_rooty() + button.winfo_height() + 4
     return x, y
 
 
@@ -182,7 +183,7 @@ def _create_popup_checkbox(app, parent, column: str, index: int) -> None:
         text=_shotlog_heading_text(column),
         variable=app.shotlog_column_vars[column],
         command=lambda: _apply_visible_columns(app),
-        bootstyle="primary",
+        bootstyle="round-toggle",
     )
     checkbox.grid(
         row=row,
@@ -207,7 +208,7 @@ def _open_column_popup(app, button) -> None:
     popup.protocol("WM_DELETE_WINDOW", lambda: _close_column_popup(app))
     app.shotlog_column_popup = popup
 
-    frame = tb.Frame(popup, padding=8)
+    frame = tb.Frame(popup, padding=COLUMN_POPUP_PADDING)
     frame.pack(fill="both", expand=True)
 
     for index, column in enumerate(SHOTLOG_COLUMNS):
@@ -215,11 +216,18 @@ def _open_column_popup(app, button) -> None:
 
     close_btn = tb.Button(
         frame,
-        text="Close",
+        text="Done",
         command=lambda: _close_column_popup(app),
-        bootstyle="secondary",
+        bootstyle="primary",
     )
-    close_btn.grid(row=(len(SHOTLOG_COLUMNS) + COLUMN_POPUP_COLUMNS - 1) // COLUMN_POPUP_COLUMNS, column=0, columnspan=COLUMN_POPUP_COLUMNS, sticky="ew", padx=COLUMN_POPUP_PAD_X, pady=(8, 2))
+    close_btn.grid(
+        row=(len(SHOTLOG_COLUMNS) + COLUMN_POPUP_COLUMNS - 1) // COLUMN_POPUP_COLUMNS,
+        column=0,
+        columnspan=COLUMN_POPUP_COLUMNS,
+        sticky="ew",
+        padx=COLUMN_POPUP_PAD_X,
+        pady=(10, 2),
+    )
 
     x, y = _column_popup_position(button)
     popup.geometry(f"+{x}+{y}")
@@ -235,7 +243,7 @@ def _create_column_toolbar(app, frame) -> None:
         toolbar,
         text=COLUMN_BUTTON_TEXT,
         command=lambda: _open_column_popup(app, button),
-        bootstyle="secondary",
+        bootstyle="primary-outline",
     )
     button.pack(anchor="w")
 
