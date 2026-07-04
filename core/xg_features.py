@@ -11,8 +11,9 @@ GOAL_LEFT_X = GOAL_CENTER_X - GOAL_WIDTH / 2
 GOAL_RIGHT_X = GOAL_CENTER_X + GOAL_WIDTH / 2
 
 # The plotted background is the defending half of an official 40m x 20m rink.
-# The effective measured playing surface spans the current visible rink frame, not the
-# full 1500 x 1000 image canvas including margins.
+# The distance shown in the shot log is zone depth from the goal line toward the
+# centre line, so it is clamped to 0..20m. This avoids diagonal corner distances
+# exceeding the defensive-zone length.
 RINK_LEFT_X = 21
 RINK_RIGHT_X = 1434
 RINK_TOP_Y = 23
@@ -75,14 +76,19 @@ def _plot_delta_to_meters(dx, dy) -> tuple[float, float]:
     return dx * METERS_PER_X_UNIT, dy * METERS_PER_Y_UNIT
 
 
+def _clamp_distance(distance: float) -> float:
+    return max(0.0, min(DEFENSIVE_ZONE_LENGTH_METERS, distance))
+
+
 def distance_to_goal(x, y) -> float | None:
     x = _float_or_none(x)
     y = _float_or_none(y)
     if x is None or y is None:
         return None
 
-    dx_m, dy_m = _plot_delta_to_meters(x - GOAL_CENTER_X, y - GOAL_CENTER_Y)
-    return round(math.hypot(dx_m, dy_m), 2)
+    depth_units = RINK_GOAL_LINE_Y - y
+    depth_meters = depth_units * METERS_PER_Y_UNIT
+    return round(_clamp_distance(depth_meters), 2)
 
 
 def shot_angle_to_goal(x, y) -> float | None:
