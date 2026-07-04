@@ -28,42 +28,64 @@ Publish directory: site
 
 The repository also includes `netlify.toml`, so Netlify should detect `site` as the publish folder automatically.
 
-## Updating the beta download
+## Automated Windows beta releases
 
-Create a new GitHub Release whenever there is a new beta build.
-
-1. Go to GitHub Releases.
-2. Click **Draft a new release**.
-3. Create a tag such as:
+The repository includes a GitHub Actions workflow:
 
 ```text
-v0.1.0-beta.1
+.github/workflows/build-windows.yml
 ```
 
-4. Add release notes.
-5. Upload the Windows build asset, for example:
+It builds a Windows portable zip with PyInstaller and publishes it to GitHub Releases when a version tag is pushed.
+
+The produced file is named like:
 
 ```text
-Floorball-Shot-Plotter-v0.1.0-beta.1.zip
-Floorball-Shot-Plotter-v0.1.0-beta.1.exe
-Floorball-Shot-Plotter-v0.1.0-beta.1.msi
+Floorball-Shot-Plotter-v0.1.0-beta.1-windows.zip
 ```
 
-6. Publish the release.
+## Creating a new beta release
 
-The Netlify beta page will automatically point the main download button to the latest downloadable release asset.
+From your local repo:
 
-## Packaging note
+```bash
+git pull
+git tag v0.1.0-beta.1
+git push origin v0.1.0-beta.1
+```
 
-The website is ready, but a downloadable app build still needs to be created and uploaded to GitHub Releases.
+GitHub Actions will then:
 
-Recommended first beta build format:
+1. Install Python on a Windows runner.
+2. Install the app requirements.
+3. Install PyInstaller.
+4. Build the desktop app into a portable Windows folder.
+5. Zip the folder.
+6. Create or update the GitHub Release for that tag.
+7. Attach the Windows zip to the release.
+
+The Netlify beta page will automatically point the main download button to the newest release asset.
+
+## Manual workflow run
+
+You can also test the build without creating a release:
+
+1. Go to **GitHub > Actions**.
+2. Open **Build Windows Beta**.
+3. Click **Run workflow**.
+4. Download the generated artifact from the workflow run.
+
+Manual workflow runs create a downloadable artifact, but they do not publish a GitHub Release unless the workflow runs from a tag.
+
+## Notes for testers
+
+Testers should download and unzip the Windows package, then run:
 
 ```text
-Windows zip or exe created with PyInstaller
+Floorball-Shot-Plotter.exe
 ```
 
-A later improvement can add automated build/release creation with GitHub Actions.
+Windows SmartScreen may warn testers because the app is not code-signed yet. That is expected for early beta builds.
 
 ## Tester feedback
 
