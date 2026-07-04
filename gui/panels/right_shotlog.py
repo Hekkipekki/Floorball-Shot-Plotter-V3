@@ -9,13 +9,16 @@ from gui.shotlog_view import setup_shotlog_frame
 
 RIGHT_PANEL_SIDE = "right"
 RIGHT_PANEL_FILL = "y"
-SHOTLOG_COLLAPSED_WIDTH = 28
 SHOTLOG_RESIZE_HANDLE_WIDTH = 6
 SHOTLOG_MIN_WIDTH = 300
 SHOTLOG_MAX_WIDTH = 760
+SHOTLOG_FLAP_WIDTH = 26
+SHOTLOG_FLAP_HEIGHT = 34
+SHOTLOG_FLAP_TOP_OFFSET = 12
 SHOTLOG_FLAP_EXPANDED_TEXT = "▶"
 SHOTLOG_FLAP_COLLAPSED_TEXT = "◀"
 SHOTLOG_RESIZE_CURSOR = "sb_h_double_arrow"
+SHOTLOG_BUTTON_STYLE = "secondary"
 
 
 def _clamp_width(width: int) -> int:
@@ -29,16 +32,49 @@ def _create_panel_container(parent, width: int) -> tb.Frame:
     return frame
 
 
-def _create_flap_button(parent, app) -> tb.Button:
+def _create_expanded_flap(parent, app) -> tb.Frame:
+    rail = tb.Frame(parent, width=SHOTLOG_FLAP_WIDTH)
+    rail.pack(side="left", fill="y")
+    rail.pack_propagate(False)
+
     button = tb.Button(
-        parent,
+        rail,
         text=SHOTLOG_FLAP_EXPANDED_TEXT,
         width=2,
-        bootstyle="secondary-outline",
+        bootstyle=SHOTLOG_BUTTON_STYLE,
         command=lambda: _toggle_shotlog_panel(app),
     )
-    button.pack(side="left", fill="y")
+    button.pack(side="top", anchor="n", pady=(SHOTLOG_FLAP_TOP_OFFSET, 0))
+    app.shotlog_flap_button = button
+
+    return rail
+
+
+def _create_collapsed_flap(parent, app) -> tb.Button:
+    button = tb.Button(
+        parent,
+        text=SHOTLOG_FLAP_COLLAPSED_TEXT,
+        width=2,
+        bootstyle=SHOTLOG_BUTTON_STYLE,
+        command=lambda: _toggle_shotlog_panel(app),
+    )
     return button
+
+
+def _show_collapsed_flap(app) -> None:
+    app.shotlog_collapsed_flap.place(
+        relx=1.0,
+        x=-2,
+        y=SHOTLOG_FLAP_TOP_OFFSET,
+        anchor="ne",
+        width=SHOTLOG_FLAP_WIDTH,
+        height=SHOTLOG_FLAP_HEIGHT,
+    )
+    app.shotlog_collapsed_flap.lift()
+
+
+def _hide_collapsed_flap(app) -> None:
+    app.shotlog_collapsed_flap.place_forget()
 
 
 def _create_resize_handle(parent, app) -> tb.Frame:
@@ -90,18 +126,20 @@ def _finish_resize(app) -> None:
 
 def _collapse_shotlog_panel(app) -> None:
     app.shotlog_panel_expanded = False
-    app.shotlog_resize_handle.pack_forget()
-    app.shotlog_content_frame.pack_forget()
-    app.shotlog_flap_button.configure(text=SHOTLOG_FLAP_COLLAPSED_TEXT)
-    app.right_panel.configure(width=SHOTLOG_COLLAPSED_WIDTH)
+    app.right_panel.pack_forget()
+    _show_collapsed_flap(app)
 
 
 def _expand_shotlog_panel(app) -> None:
     app.shotlog_panel_expanded = True
-    app.shotlog_resize_handle.pack(side="left", fill="y")
-    app.shotlog_content_frame.pack(side="left", fill="both", expand=True)
-    app.shotlog_flap_button.configure(text=SHOTLOG_FLAP_EXPANDED_TEXT)
+    _hide_collapsed_flap(app)
     app.right_panel.configure(width=app.shotlog_panel_width)
+
+    pack_options = {"side": RIGHT_PANEL_SIDE, "fill": RIGHT_PANEL_FILL}
+    if hasattr(app, "center_panel"):
+        pack_options["before"] = app.center_panel
+
+    app.right_panel.pack(**pack_options)
 
 
 def _toggle_shotlog_panel(app) -> None:
@@ -114,11 +152,13 @@ def _toggle_shotlog_panel(app) -> None:
 def create_right_panel(parent, app):
     app.shotlog_panel_width = RIGHT_PANEL_WIDTH
     app.shotlog_panel_expanded = True
+    app.shotlog_parent = parent
 
     frame = _create_panel_container(parent, app.shotlog_panel_width)
     app.right_panel = frame
-    app.shotlog_flap_button = _create_flap_button(frame, app)
+    app.shotlog_expanded_flap = _create_expanded_flap(frame, app)
     app.shotlog_resize_handle = _create_resize_handle(frame, app)
     app.shotlog_content_frame = _create_content_frame(frame, app)
+    app.shotlog_collapsed_flap = _create_collapsed_flap(parent, app)
 
     return frame
