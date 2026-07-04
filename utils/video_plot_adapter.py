@@ -17,12 +17,15 @@ SHOT_EVENT_TYPE = "shot"
 GOAL_EVENT_TYPE = "goal"
 VIDEO_PLOT_HELP = "Video Plot: right-click the video, then choose Shot or Goal."
 VIDEO_PASS_HELP = "Video Plot: right-click the pass-origin location."
+SKIP_BUTTON_DISABLED_TEXT = "Skip Point"
+SKIP_BUTTON_ACTIVE_TEXT = "Skip Point"
 
 
 def install_video_plot_adapter(player) -> None:
     player.video_plot_mode = tk.BooleanVar(value=False)
     player.video_calibration_mode = tk.BooleanVar(value=False)
     player.video_calibration_clicks = load_video_calibration(player.video_path)
+    player.video_calibration_skipped = []
     player.video_calibration_step = 0
     player.video_calibration_model = build_calibration_model(player.video_calibration_clicks) if player.video_calibration_clicks else None
     if player.app is not None and player.video_calibration_model is not None:
@@ -47,9 +50,9 @@ def _let_tk_receive_video_mouse_events(player) -> None:
 
 def _add_video_plot_controls(player) -> None:
     try:
-        player.timeline.grid_configure(columnspan=10)
-        player.save_btn.grid_configure(column=9)
-        player.close_small_btn.grid_configure(column=10)
+        player.timeline.grid_configure(columnspan=11)
+        player.save_btn.grid_configure(column=10)
+        player.close_small_btn.grid_configure(column=11)
     except Exception:
         pass
     player.video_plot_btn = create_control_button(player.controls, "Plot: OFF", lambda: _toggle_video_plot_mode(player))
@@ -57,6 +60,9 @@ def _add_video_plot_controls(player) -> None:
     cal_text = "Recalibrate" if player.video_calibration_model is not None else "Calibrate"
     player.video_calibration_btn = create_control_button(player.controls, cal_text, lambda: _toggle_video_calibration_mode(player))
     player.video_calibration_btn.grid(row=1, column=8, padx=3, pady=(6, 8), sticky="ew")
+    player.video_skip_calibration_btn = create_control_button(player.controls, SKIP_BUTTON_DISABLED_TEXT, lambda: _skip_calibration_point(player))
+    player.video_skip_calibration_btn.grid(row=1, column=9, padx=3, pady=(6, 8), sticky="ew")
+    player.video_skip_calibration_btn.config(state="disabled")
 
 
 def _add_video_plot_hint(player) -> None:
@@ -94,6 +100,7 @@ def _toggle_video_calibration_mode(player) -> None:
         _start_calibration_sequence(player)
     else:
         player.video_calibration_hint.place_forget()
+        player.video_skip_calibration_btn.config(state="disabled")
 
 
 def _show_plot_hint(player) -> None:
@@ -111,10 +118,15 @@ def _show_plot_hint(player) -> None:
 
 def _start_calibration_sequence(player) -> None:
     player.video_calibration_clicks = []
+    player.video_calibration_skipped = []
     player.video_calibration_step = 0
     player.video_calibration_model = None
+    player.video_skip_calibration_btn.config(state="normal", text=SKIP_BUTTON_ACTIVE_TEXT)
     _show_next_calibration_instruction(player)
-    messagebox.showinfo("Video Calibration", "Calibration started. Left-click each requested rink landmark in the video.")
+    messagebox.showinfo(
+        "Video Calibration",
+        "Calibration started. Left-click each requested rink landmark in the video.\n\nIf a landmark is outside the frame, use Skip Point.",
+    )
 
 
 def _show_next_calibration_instruction(player) -> None:
@@ -123,7 +135,9 @@ def _show_next_calibration_instruction(player) -> None:
         player.video_calibration_hint.config(text=CALIBRATION_DONE_TEXT)
     else:
         _name, _target, instruction = GOPRO_CALIBRATION_POINTS[step]
-        player.video_calibration_hint.config(text=f"Calibration {step + 1}/{len(GOPRO_CALIBRATION_POINTS)}: {instruction}")
+        player.video_calibration_hint.config(
+            text=f"Calibration {step + 1}/{len(GOPRO_CALIBRATION_POINTS)}: {instruction}  |  Skip if not visible."
+        )
     player.video_calibration_hint.place(relx=0.5, y=12, anchor="n")
     player.video_calibration_hint.lift()
 
@@ -137,8 +151,30 @@ def _finish_calibration_sequence(player) -> None:
         app.video_calibration_model = player.video_calibration_model
     player.video_calibration_mode.set(False)
     player.video_calibration_btn.config(text="Recalibrate")
+    player.video_skip_calibration_btn.config(state="disabled", text=SKIP_BUTTON_DISABLED_TEXT)
     player.video_calibration_hint.config(text=CALIBRATION_DONE_TEXT)
-    messagebox.showinfo("Calibration Complete", f"Captured and saved {len(player.video_calibration_clicks)} calibration points.\n\nCalibration will be restored when this video is reopened.")
+    skipped_count = len(getattr(player, "video_calibration_skipped", []))
+    messagebox.showinfo(
+        "Calibration Complete",
+        f"Captured and saved {len(player.video_calibration_clicks)} calibration points.\n"
+        f"Skipped {skipped_count} out-of-frame points.\n\n"
+        "Calibration will be restored when this video is reopened.",
+    )
+
+
+def _skip_calibration_point(player) -> None:
+    if not getattr(player, "video_calibration_mode", tk.BooleanVar(value=False)).get():
+        return
+    step = player.video_calibration_step
+    if step >= len(GOPRO_CALIBRATION_POINTS):
+        return
+    name, target_plot, _instruction = GOPRO_CALIBRATION_POINTS[step]
+    player.video_calibration_skipped.append({"name": name, "target_plot": target_plot})
+    player.video_calibration_step += 1
+    if player.video_calibration_step >= len(GOPRO_CALIBRATION_POINTS):
+        _finish_calibration_sequence(player)
+    else:
+        _show_next_calibration_instruction(player)
 
 
 def _video_content_rect(player) -> tuple[float, float, float, float]:
