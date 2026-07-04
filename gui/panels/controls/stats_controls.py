@@ -14,6 +14,8 @@ PERIOD_OPTIONS = ["All", "1", "2", "3", "OT"]
 EXPECTED_GOALS_TOOLTIP = (
     "Expected Goals (xG): how many goals should have been conceded based on shot quality."
 )
+STATS_VALUE_DEFAULT = "0"
+XG_VALUE_DEFAULT = "0.00"
 
 
 def _configure_two_column_grid(frame: tb.Frame) -> None:
@@ -21,22 +23,35 @@ def _configure_two_column_grid(frame: tb.Frame) -> None:
     frame.grid_columnconfigure(1, weight=1)
 
 
-def _add_stat_row(app, parent: tb.Frame, row: int, text: str, var_attr: str) -> None:
+def _create_stats_grid(parent: tb.Frame, pady) -> tb.Frame:
+    frame = tb.Frame(parent)
+    frame.pack(anchor="center", padx=PAD_X, pady=pady)
+    _configure_two_column_grid(frame)
+    return frame
+
+
+def _add_stat_row(
+    app,
+    parent: tb.Frame,
+    row: int,
+    text: str,
+    var_attr: str,
+    value_text: str = STATS_VALUE_DEFAULT,
+) -> tuple[tb.Label, tb.Label]:
     label = tb.Label(parent, text=text, font=("Segoe UI", 10))
     label.grid(row=row, column=0, sticky="w", padx=(PAD_X, 0), pady=2)
 
-    value = tb.Label(parent, text="0", anchor="w", font=("Segoe UI", 11))
+    value = tb.Label(parent, text=value_text, anchor="w", font=("Segoe UI", 11))
     value.grid(row=row, column=1, sticky="w", padx=(10, 0), pady=2)
     setattr(app, var_attr, value)
+    return label, value
 
 
 def setup_stats_filter_controls(app, parent: tb.Frame) -> None:
     frame = tb.Labelframe(parent, text="Statistics", bootstyle="primary")
     frame.pack(fill="x", pady=SECTION_PAD_Y, padx=SECTION_PAD_X)
 
-    stats = tb.Frame(frame)
-    stats.pack(anchor="center", padx=PAD_X, pady=(PAD_X, 0))
-    _configure_two_column_grid(stats)
+    stats = _create_stats_grid(frame, pady=(PAD_X, 0))
 
     for row, (label, var_attr) in enumerate(STAT_ROWS):
         _add_stat_row(app, stats, row, label, var_attr)
@@ -65,21 +80,24 @@ def setup_expected_goals_controls(app, parent: tb.Frame) -> None:
     frame = tb.Labelframe(parent, text="Expected Goals", bootstyle="primary")
     frame.pack(fill="x", pady=SECTION_PAD_Y, padx=SECTION_PAD_X)
 
-    stats = tb.Frame(frame)
-    stats.pack(anchor="center", padx=PAD_X, pady=(PAD_X, PAD_X))
-    _configure_two_column_grid(stats)
+    stats = _create_stats_grid(frame, pady=(PAD_X, PAD_X))
 
-    label_xg = tb.Label(stats, text="xG Goals:", font=("Segoe UI", 11))
-    label_xg.grid(row=0, column=0, sticky="w", padx=(PAD_X, 0), pady=1)
-
-    app.xg_goals_val = tb.Label(stats, text="0.00", anchor="w", font=("Segoe UI", 11))
-    app.xg_goals_val.grid(row=0, column=1, sticky="w", padx=(10, 0), pady=1)
-
-    label_goals = tb.Label(stats, text="Goals:", font=("Segoe UI", 11))
-    label_goals.grid(row=1, column=0, sticky="w", padx=(PAD_X, 0), pady=1)
-
-    app.actual_goals_val = tb.Label(stats, text="0", anchor="w", font=("Segoe UI", 11))
-    app.actual_goals_val.grid(row=1, column=1, sticky="w", padx=(10, 0), pady=1)
+    label_xg, _ = _add_stat_row(
+        app,
+        stats,
+        row=0,
+        text="xG Goals:",
+        var_attr="xg_goals_val",
+        value_text=XG_VALUE_DEFAULT,
+    )
+    label_goals, _ = _add_stat_row(
+        app,
+        stats,
+        row=1,
+        text="Goals:",
+        var_attr="actual_goals_val",
+        value_text=STATS_VALUE_DEFAULT,
+    )
 
     for widget in [frame, label_xg, app.xg_goals_val, label_goals, app.actual_goals_val]:
         BetterToolTip(widget, EXPECTED_GOALS_TOOLTIP)
