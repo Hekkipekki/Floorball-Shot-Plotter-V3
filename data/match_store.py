@@ -11,6 +11,8 @@ DEFAULT_MATCH_NAME = "New Match"
 SEASON_MATCH_NAME = "Season"
 JSON_FILETYPES = [("JSON Match Files", "*.json")]
 CSV_FILETYPES = [("CSV files", "*.csv")]
+JSON_EXTENSION = ".json"
+CSV_EXTENSION = ".csv"
 
 
 def _match_name_from_path(file_path):
@@ -48,6 +50,32 @@ def _is_editable_match(name):
     return name not in READ_ONLY_MATCHES
 
 
+def _ask_save_match_path():
+    return filedialog.asksaveasfilename(
+        defaultextension=JSON_EXTENSION,
+        filetypes=JSON_FILETYPES,
+        initialdir=MATCHES_DIR,
+        title="Save Match As...",
+        initialfile=DEFAULT_MATCH_NAME,
+    )
+
+
+def _ask_load_match_path():
+    return filedialog.askopenfilename(
+        title="Select Match File",
+        filetypes=JSON_FILETYPES,
+        initialdir=MATCHES_DIR,
+    )
+
+
+def _ask_load_multiple_match_paths(initial_dir):
+    return filedialog.askopenfilenames(
+        title="Load Multiple Matches",
+        filetypes=JSON_FILETYPES,
+        initialdir=initial_dir,
+    )
+
+
 def get_match_file(app, name):
     return os.path.join(MATCHES_DIR, f"{_safe_match_filename(name)}.json")
 
@@ -63,13 +91,7 @@ def prompt_save_match(app):
 
     _ensure_matches_dir()
 
-    file_path = filedialog.asksaveasfilename(
-        defaultextension=".json",
-        filetypes=JSON_FILETYPES,
-        initialdir=MATCHES_DIR,
-        title="Save Match As...",
-        initialfile=DEFAULT_MATCH_NAME,
-    )
+    file_path = _ask_save_match_path()
     if not file_path:
         return
 
@@ -89,11 +111,7 @@ def prompt_save_match(app):
 def load_match_from_file(app):
     _ensure_matches_dir()
 
-    file_path = filedialog.askopenfilename(
-        title="Select Match File",
-        filetypes=JSON_FILETYPES,
-        initialdir=MATCHES_DIR,
-    )
+    file_path = _ask_load_match_path()
     if not file_path:
         return
 
@@ -123,11 +141,7 @@ def load_all_matches(app, folder=None):
     initial_dir = folder or MATCHES_DIR
     _ensure_matches_dir(initial_dir)
 
-    file_paths = filedialog.askopenfilenames(
-        title="Load Multiple Matches",
-        filetypes=JSON_FILETYPES,
-        initialdir=initial_dir,
-    )
+    file_paths = _ask_load_multiple_match_paths(initial_dir)
     if not file_paths:
         return
 
@@ -189,7 +203,7 @@ def save_csv_dialog(app):
     name = app.current_match.get() or "All"
 
     file_path = filedialog.asksaveasfilename(
-        defaultextension=".csv",
+        defaultextension=CSV_EXTENSION,
         filetypes=CSV_FILETYPES,
         initialfile=f"{name}_shots.csv",
     )
