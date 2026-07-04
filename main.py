@@ -1,7 +1,13 @@
 import tkinter as tk
+
 from core.app_controller import FloorballShotPlotter
 
-if __name__ == "__main__":
+
+def main() -> None:
     root = tk.Tk()
-    app = FloorballShotPlotter(root)
+    FloorballShotPlotter(root)
     root.mainloop()
+
+
+if __name__ == "__main__":
+    main()
