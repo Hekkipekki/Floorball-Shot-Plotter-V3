@@ -218,7 +218,7 @@ def _open_column_popup(app, button) -> None:
         frame,
         text="Done",
         command=lambda: _close_column_popup(app),
-        bootstyle="primary",
+        bootstyle="secondary",
     )
     close_btn.grid(
         row=(len(SHOTLOG_COLUMNS) + COLUMN_POPUP_COLUMNS - 1) // COLUMN_POPUP_COLUMNS,
@@ -243,7 +243,7 @@ def _create_column_toolbar(app, frame) -> None:
         toolbar,
         text=COLUMN_BUTTON_TEXT,
         command=lambda: _open_column_popup(app, button),
-        bootstyle="primary-outline",
+        bootstyle="secondary-outline",
     )
     button.pack(anchor="w")
 
@@ -277,7 +277,7 @@ def setup_shotlog_frame(app, parent):
     style = tb.Style()
     style.configure(TREEVIEW_STYLE_NAME, font=(SHOTLOG_FONT_FAMILY, SHOTLOG_FONT_SIZE))
 
-    frame = tb.Labelframe(parent, text="Shot Log", bootstyle="primary")
+    frame = tb.Labelframe(parent, text="Shot Log", bootstyle="secondary")
     frame.pack(fill="both", expand=True, padx=PAD_X, pady=PAD_Y)
     _configure_shotlog_frame(frame)
     _create_column_toolbar(app, frame)
