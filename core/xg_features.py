@@ -8,6 +8,15 @@ GOAL_WIDTH = 160
 GOAL_LEFT_X = GOAL_CENTER_X - GOAL_WIDTH / 2
 GOAL_RIGHT_X = GOAL_CENTER_X + GOAL_WIDTH / 2
 
+# The plotted background is the defending half of an official 40m x 20m rink.
+# Therefore the displayed coordinate area represents 20m x 20m.
+PLOT_WIDTH_UNITS = 1500
+PLOT_HEIGHT_UNITS = 1000
+DEFENSIVE_ZONE_WIDTH_METERS = 20
+DEFENSIVE_ZONE_LENGTH_METERS = 20
+METERS_PER_X_UNIT = DEFENSIVE_ZONE_WIDTH_METERS / PLOT_WIDTH_UNITS
+METERS_PER_Y_UNIT = DEFENSIVE_ZONE_LENGTH_METERS / PLOT_HEIGHT_UNITS
+
 RINK_WIDTH = 1500
 LEFT_THIRD_MAX_X = 500
 RIGHT_THIRD_MIN_X = 1000
@@ -55,13 +64,18 @@ def _left_center_right(x, left_label, center_label, right_label):
     return center_label
 
 
+def _plot_delta_to_meters(dx, dy) -> tuple[float, float]:
+    return dx * METERS_PER_X_UNIT, dy * METERS_PER_Y_UNIT
+
+
 def distance_to_goal(x, y) -> float | None:
     x = _float_or_none(x)
     y = _float_or_none(y)
     if x is None or y is None:
         return None
 
-    return round(math.hypot(x - GOAL_CENTER_X, y - GOAL_CENTER_Y), 2)
+    dx_m, dy_m = _plot_delta_to_meters(x - GOAL_CENTER_X, y - GOAL_CENTER_Y)
+    return round(math.hypot(dx_m, dy_m), 2)
 
 
 def shot_angle_to_goal(x, y) -> float | None:
