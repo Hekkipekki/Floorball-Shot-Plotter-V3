@@ -8,12 +8,18 @@ from gui.panels.center_plot import create_center_plot
 from gui.panels.right_shotlog import create_right_panel
 from gui.panels.controls.heatmap_controls import show_heatmap_settings_window
 from gui.theme import apply_theme
+from gui.video_actions import open_video_clip
 
 FILE_MENU_COMMANDS = [
     ("Save CSV", "save_csv"),
     ("Load CSV", "load_csv"),
     None,
     ("Export Image", "export_plot"),
+]
+
+
+VIDEO_MENU_COMMANDS = [
+    ("Open Video Clip...", open_video_clip),
 ]
 
 
@@ -58,6 +64,15 @@ def _create_file_menu(app, menubar: tk.Menu) -> tk.Menu:
     return file_menu
 
 
+def _create_video_menu(app, menubar: tk.Menu) -> tk.Menu:
+    video_menu = tk.Menu(menubar, tearoff=0)
+
+    for label, callback in VIDEO_MENU_COMMANDS:
+        video_menu.add_command(label=label, command=lambda cb=callback: cb(app))
+
+    return video_menu
+
+
 def _create_heatmap_menu(app) -> tk.Menu:
     heatmap_menu = tk.Menu(app.root, tearoff=0)
     heatmap_menu.add_command(
@@ -72,6 +87,9 @@ def create_menu_bar(app):
 
     file_menu = _create_file_menu(app, menubar)
     menubar.add_cascade(label="File", menu=file_menu)
+
+    video_menu = _create_video_menu(app, menubar)
+    menubar.add_cascade(label="Video", menu=video_menu)
 
     heatmap_menu = _create_heatmap_menu(app)
     menubar.add_cascade(label="Heatmap", menu=heatmap_menu)
