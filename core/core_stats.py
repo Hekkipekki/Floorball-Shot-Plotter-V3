@@ -28,6 +28,34 @@ HEATMAP_PRESET_DESCRIPTIONS = {
 }
 
 
+def _count_entries_by_result(entries):
+    total = sum(1 for entry in entries if entry[IDX_RESULT] in COUNTED_RESULTS)
+    goals = sum(1 for entry in entries if entry[IDX_RESULT] == GOAL_RESULT)
+    saves = total - goals
+    save_pct = (saves / total) * 100 if total > 0 else 0
+    return total, goals, saves, save_pct
+
+
+def _expected_goals_values(entries):
+    xg_sum = sum(entry[IDX_XG] for entry in entries if entry[IDX_RESULT] == SHOT_RESULT)
+    goals = sum(1 for entry in entries if entry[IDX_RESULT] == GOAL_RESULT)
+    return xg_sum, goals
+
+
+def _set_entry_text(widget, value) -> None:
+    widget.config(text=str(value))
+
+
+def _set_optional_entry_text(app, attr_name: str, value) -> None:
+    if hasattr(app, attr_name):
+        getattr(app, attr_name).config(text=value)
+
+
+def _set_entry_value(entry, value: float) -> None:
+    entry.delete(0, "end")
+    entry.insert(0, f"{value:.2f}")
+
+
 class CoreLogic:
     def __init__(self, app):
         self.app = app
@@ -51,29 +79,22 @@ class CoreLogic:
         else:
             entries = filtered_entries
 
-        total = len([e for e in entries if e[IDX_RESULT] in COUNTED_RESULTS])
-        goals = len([e for e in entries if e[IDX_RESULT] == GOAL_RESULT])
-        saves = total - goals
-        pct = (saves / total) * 100 if total > 0 else 0
+        total, goals, saves, save_pct = _count_entries_by_result(entries)
 
-        self.app.totalshots_val.config(text=str(total))
-        self.app.shots_val.config(text=str(saves))
-        self.app.goals_val.config(text=str(goals))
-        self.app.savepct_val.config(text=f"{pct:.2f}%")
+        _set_entry_text(self.app.totalshots_val, total)
+        _set_entry_text(self.app.shots_val, saves)
+        _set_entry_text(self.app.goals_val, goals)
+        self.app.savepct_val.config(text=f"{save_pct:.2f}%")
 
     def update_expected_goals(self):
         entries = self.get_filtered_entries_by_period(
             self.app.stats_period.get()
         )
 
-        xg_sum = sum(e[IDX_XG] for e in entries if e[IDX_RESULT] == SHOT_RESULT)
-        goals = sum(1 for e in entries if e[IDX_RESULT] == GOAL_RESULT)
+        xg_sum, goals = _expected_goals_values(entries)
 
-        if hasattr(self.app, "xg_goals_val"):
-            self.app.xg_goals_val.config(text=f"{xg_sum:.2f}")
-
-        if hasattr(self.app, "actual_goals_val"):
-            self.app.actual_goals_val.config(text=str(goals))
+        _set_optional_entry_text(self.app, "xg_goals_val", f"{xg_sum:.2f}")
+        _set_optional_entry_text(self.app, "actual_goals_val", str(goals))
 
     # ---------------------------------------------------------
     # Event creation
@@ -143,12 +164,10 @@ class CoreLogic:
         self.app.sensitivity.set(sens)
 
         if hasattr(self.app, "sens_entry"):
-            self.app.sens_entry.delete(0, "end")
-            self.app.sens_entry.insert(0, f"{sens:.2f}")
+            _set_entry_value(self.app.sens_entry, sens)
 
         if hasattr(self.app, "kde_entry"):
-            self.app.kde_entry.delete(0, "end")
-            self.app.kde_entry.insert(0, f"{kde:.2f}")
+            _set_entry_value(self.app.kde_entry, kde)
 
         self.app.update_plot()
 
