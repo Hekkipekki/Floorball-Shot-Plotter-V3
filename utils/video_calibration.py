@@ -13,23 +13,24 @@ CALIBRATION_DONE_TEXT = "Calibration active: video clicks now use calibrated rin
 CALIBRATION_DIR = Path(DATA_DIR) / "calibrations"
 CALIBRATION_STORE = CALIBRATION_DIR / "video_calibrations.json"
 
-# Target plot coordinates use the current 1500 x 1000 defensive-half rink template.
+# Target plot coordinates are measured from the current defensive-half background image.
 # Source coordinates are normalized video coordinates, so calibration survives window resizing.
 GOPRO_CALIBRATION_POINTS = (
-    ("Målområde lower-left corner", (562, 825), "Click the lower-left corner of the large målområde rectangle."),
-    ("Målområde lower-right corner", (938, 825), "Click the lower-right corner of the large målområde rectangle."),
-    ("Målområde upper-right corner", (938, 625), "Click the upper-right corner of the large målområde rectangle."),
-    ("Målområde upper-left corner", (562, 625), "Click the upper-left corner of the large målområde rectangle."),
-    ("Målvaktsområde lower-left corner", (656, 825), "Click the lower-left corner of the smaller målvaktsområde rectangle."),
-    ("Målvaktsområde lower-right corner", (844, 825), "Click the lower-right corner of the smaller målvaktsområde rectangle."),
-    ("Målvaktsområde upper-right corner", (844, 775), "Click the upper-right corner of the smaller målvaktsområde rectangle."),
-    ("Målvaktsområde upper-left corner", (656, 775), "Click the upper-left corner of the smaller målvaktsområde rectangle."),
-    ("Defensive zone top-left", (0, 0), "Click the top-left defensive-zone board/rink reference."),
-    ("Defensive zone top-right", (1500, 0), "Click the top-right defensive-zone board/rink reference."),
-    ("Defensive zone top-middle", (750, 0), "Click the top-middle defensive-zone board/rink reference."),
-    ("Defensive zone centre", (750, 500), "Click the centre of the defensive zone."),
-    ("Left middle board", (0, 500), "Click the left board at about the middle of the defensive zone."),
-    ("Right middle board", (1500, 500), "Click the right board at about the middle of the defensive zone."),
+    ("Målområde lower-left corner", (566, 1033), "Click the lower-left corner of the large målområde rectangle."),
+    ("Målområde lower-right corner", (910, 1034), "Click the lower-right corner of the large målområde rectangle."),
+    ("Målområde upper-right corner", (909, 805), "Click the upper-right corner of the large målområde rectangle."),
+    ("Målområde upper-left corner", (566, 802), "Click the upper-left corner of the large målområde rectangle."),
+    ("Målvaktsområde lower-left corner", (644, 999), "Click the lower-left corner of the smaller målvaktsområde rectangle."),
+    ("Målvaktsområde lower-right corner", (831, 1000), "Click the lower-right corner of the smaller målvaktsområde rectangle."),
+    ("Målvaktsområde upper-right corner", (829, 930), "Click the upper-right corner of the smaller målvaktsområde rectangle."),
+    ("Målvaktsområde upper-left corner", (645, 932), "Click the upper-left corner of the smaller målvaktsområde rectangle."),
+    ("Defensive zone top-left", (21, 21), "Click the top-left defensive-zone board/rink reference."),
+    ("Defensive zone top-right", (1434, 23), "Click the top-right defensive-zone board/rink reference."),
+    ("Defensive zone top-middle", (734, 23), "Click the top-middle defensive-zone board/rink reference."),
+    ("Defensive zone centre", (734, 500), "Click the centre of the defensive zone."),
+    ("Left middle board", (21, 500), "Click the left board at about the middle of the defensive zone."),
+    ("Right middle board", (1434, 500), "Click the right board at about the middle of the defensive zone."),
+    ("Goal-line centre", (737, 1000), "Click the centre of the goal line / goal mouth."),
 )
 
 
