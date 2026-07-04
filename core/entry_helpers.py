@@ -29,70 +29,70 @@ def normalize_entry(entry):
     return row
 
 
-def get_number(entry):
-    return normalize_entry(entry)[IDX_NUMBER]
+def _get_field(entry, index):
+    return normalize_entry(entry)[index]
 
 
-def get_result(entry):
-    return normalize_entry(entry)[IDX_RESULT]
-
-
-def get_phase(entry):
-    return normalize_entry(entry)[IDX_PHASE]
-
-
-def get_situation(entry):
-    return normalize_entry(entry)[IDX_SITUATION]
-
-
-def get_type(entry):
-    return normalize_entry(entry)[IDX_TYPE]
-
-
-def get_passer(entry):
-    return normalize_entry(entry)[IDX_PASSER]
-
-
-def get_shooter(entry):
-    return normalize_entry(entry)[IDX_SHOOTER]
-
-
-def get_period(entry):
-    return normalize_entry(entry)[IDX_PERIOD]
-
-
-def get_xg(entry, default=0.0):
-    value = normalize_entry(entry)[IDX_XG]
+def _float_or_default(value, default=None):
     try:
         return float(value)
     except (TypeError, ValueError):
         return default
 
 
-def get_xy(entry):
+def _get_float_pair(entry, x_index, y_index):
     row = normalize_entry(entry)
+    x = _float_or_default(row[x_index])
+    y = _float_or_default(row[y_index])
 
-    try:
-        x = row[IDX_X]
-        y = row[IDX_Y]
-        if x is None or y is None:
-            return None, None
-        return float(x), float(y)
-    except (TypeError, ValueError):
+    if x is None or y is None:
         return None, None
+
+    return x, y
+
+
+def get_number(entry):
+    return _get_field(entry, IDX_NUMBER)
+
+
+def get_result(entry):
+    return _get_field(entry, IDX_RESULT)
+
+
+def get_phase(entry):
+    return _get_field(entry, IDX_PHASE)
+
+
+def get_situation(entry):
+    return _get_field(entry, IDX_SITUATION)
+
+
+def get_type(entry):
+    return _get_field(entry, IDX_TYPE)
+
+
+def get_passer(entry):
+    return _get_field(entry, IDX_PASSER)
+
+
+def get_shooter(entry):
+    return _get_field(entry, IDX_SHOOTER)
+
+
+def get_period(entry):
+    return _get_field(entry, IDX_PERIOD)
+
+
+def get_xg(entry, default=0.0):
+    return _float_or_default(_get_field(entry, IDX_XG), default)
+
+
+def get_xy(entry):
+    return _get_float_pair(entry, IDX_X, IDX_Y)
 
 
 def get_pass_xy(entry):
-    row = normalize_entry(entry)
-
-    try:
-        pass_x = row[IDX_PASS_X]
-        pass_y = row[IDX_PASS_Y]
-        if pass_x is None or pass_y is None:
-            return None, None
-        return float(pass_x), float(pass_y)
-    except (TypeError, ValueError):
-        return None, None
+    return _get_float_pair(entry, IDX_PASS_X, IDX_PASS_Y)
 
 
 def has_pass_point(entry):
@@ -101,4 +101,4 @@ def has_pass_point(entry):
 
 
 def get_video(entry):
-    return normalize_entry(entry)[IDX_VIDEO]
+    return _get_field(entry, IDX_VIDEO)
