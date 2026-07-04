@@ -1,7 +1,10 @@
 from tkinter import messagebox
-from core.schema import IDX_NUMBER
+
+from core.entry_helpers import get_number
 
 READ_ONLY_MATCHES = ("All", "Season")
+RESET_CONFIRM_TITLE = "Confirm Reset"
+RESET_CONFIRM_MESSAGE = "Are you sure you want to reset all data?"
 
 
 def _current_match(app):
@@ -19,8 +22,15 @@ def _safe_auto_save_current_match(app) -> None:
         print("⚠️ Auto-save current match failed:", e)
 
 
+def _safe_row_index(iid):
+    try:
+        return int(iid)
+    except (TypeError, ValueError):
+        return None
+
+
 def reset_shot_log(app):
-    if not messagebox.askyesno("Confirm Reset", "Are you sure you want to reset all data?"):
+    if not messagebox.askyesno(RESET_CONFIRM_TITLE, RESET_CONFIRM_MESSAGE):
         return
     app.log_entries.clear()
     app.update_shot_log_treeview()
@@ -34,10 +44,10 @@ def find_master_entry_index(app, entry):
         return None
 
     match_entries = app.match_logs.get(current_match, [])
-    entry_number = entry[IDX_NUMBER]
+    entry_number = get_number(entry)
 
     for i, candidate in enumerate(match_entries):
-        if len(candidate) > 0 and candidate[IDX_NUMBER] == entry_number:
+        if get_number(candidate) == entry_number:
             return i
 
     return None
@@ -84,28 +94,32 @@ def _delete_from_visible_log(app, index) -> None:
 
 def on_row_double_click(event, tree, app):
     iid = tree.identify_row(event.y)
-    if not iid:
+    index = _safe_row_index(iid)
+    if index is None or not (0 <= index < len(app.log_entries)):
         return
+
     try:
-        index = int(iid)
-        if 0 <= index < len(app.log_entries):
-            current_entry = app.log_entries[index]
-            current_match = _current_match(app)
+        current_entry = app.log_entries[index]
+        current_match = _current_match(app)
 
-            if _delete_from_current_match(app, current_match, current_entry):
-                return
+        if _delete_from_current_match(app, current_match, current_entry):
+            return
 
-            _delete_from_visible_log(app, index)
+        _delete_from_visible_log(app, index)
     except Exception as e:
         print("Double-click error:", e)
+
+
+def _clear_hover(app, tree) -> None:
+    tree._last_hovered_row_id = None
+    app.clear_highlight()
 
 
 def on_hover_shot(event, tree, app):
     iid = tree.identify_row(event.y)
     if not iid:
         if tree._last_hovered_row_id is not None:
-            tree._last_hovered_row_id = None
-            app.clear_highlight()
+            _clear_hover(app, tree)
         return
 
     if iid == tree._last_hovered_row_id:
@@ -118,11 +132,9 @@ def on_hover_shot(event, tree, app):
             app.highlight_point(index)
     except Exception as e:
         print("Hover error:", e)
-        app.clear_highlight()
-        tree._last_hovered_row_id = None
+        _clear_hover(app, tree)
 
 
 def on_leave_shotlog(event, tree, app):
     if tree._last_hovered_row_id is not None:
-        tree._last_hovered_row_id = None
-        app.clear_highlight()
+        _clear_hover(app, tree)
