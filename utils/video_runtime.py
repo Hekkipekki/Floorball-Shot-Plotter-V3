@@ -14,6 +14,7 @@ LIBVLC_FILENAME = "libvlc.dll"
 LIBVLCCORE_FILENAME = "libvlccore.dll"
 MISSING_RUNTIME_MESSAGE = "⚠️ Bundled VLC runtime not found or incomplete."
 INVALID_TIME_TEXT = "--:--"
+TIME_SECONDS_MIN = 0
 
 
 def _vlc_runtime_paths() -> tuple[Path, Path, Path, Path]:
@@ -37,6 +38,11 @@ def _configure_vlc_environment(vlc_dir: Path, plugins_dir: Path) -> None:
     os.environ["VLC_PLUGIN_PATH"] = str(plugins_dir.resolve())
 
 
+def _preload_vlc_dlls(libvlccore_path: Path, libvlc_path: Path) -> None:
+    ctypes.CDLL(str(libvlccore_path.resolve()))
+    ctypes.CDLL(str(libvlc_path.resolve()))
+
+
 def configure_vlc_runtime() -> tuple[Path | None, Path | None]:
     vlc_dir, plugins_dir, libvlc_path, libvlccore_path = _vlc_runtime_paths()
 
@@ -46,8 +52,7 @@ def configure_vlc_runtime() -> tuple[Path | None, Path | None]:
 
     try:
         _configure_vlc_environment(vlc_dir, plugins_dir)
-        ctypes.CDLL(str(libvlccore_path.resolve()))
-        ctypes.CDLL(str(libvlc_path.resolve()))
+        _preload_vlc_dlls(libvlccore_path, libvlc_path)
         return vlc_dir, plugins_dir
 
     except Exception as e:
@@ -55,13 +60,19 @@ def configure_vlc_runtime() -> tuple[Path | None, Path | None]:
         return None, None
 
 
+def _coerce_seconds(seconds) -> int | None:
+    try:
+        return max(TIME_SECONDS_MIN, int(float(seconds)))
+    except Exception:
+        return None
+
+
 def format_time(seconds: float | int | None) -> str:
     if seconds is None:
         return INVALID_TIME_TEXT
 
-    try:
-        seconds = max(0, int(float(seconds)))
-    except Exception:
+    seconds = _coerce_seconds(seconds)
+    if seconds is None:
         return INVALID_TIME_TEXT
 
     minutes = seconds // 60
