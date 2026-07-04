@@ -1,5 +1,39 @@
 from core.schema import IDX_VIDEO, ENTRY_LENGTH
 
+DEFAULT_VIDEO_START = 0.0
+
+
+def _padded_entry(entry):
+    return list(entry) + [None] * (ENTRY_LENGTH - len(entry))
+
+
+def _normalized_video_dict(video):
+    path = str(video.get("path") or "")
+    if not path:
+        return None
+
+    start = float(video.get("start") or DEFAULT_VIDEO_START)
+    stop = video.get("stop", None)
+    stop = None if stop in ("", None) else float(stop)
+
+    return {
+        "path": path,
+        "start": start,
+        "stop": stop,
+    }
+
+
+def _normalized_legacy_video(video):
+    path = str(video).strip()
+    if not path:
+        return None
+
+    return {
+        "path": path,
+        "start": DEFAULT_VIDEO_START,
+        "stop": None,
+    }
+
 
 def normalize_video(video):
     """
@@ -11,29 +45,9 @@ def normalize_video(video):
         return None
 
     if isinstance(video, dict):
-        path = str(video.get("path") or "")
-        if not path:
-            return None
+        return _normalized_video_dict(video)
 
-        start = float(video.get("start") or 0.0)
-        stop = video.get("stop", None)
-        stop = None if stop in ("", None) else float(stop)
-
-        return {
-            "path": path,
-            "start": start,
-            "stop": stop,
-        }
-
-    s = str(video).strip()
-    if not s:
-        return None
-
-    return {
-        "path": s,
-        "start": 0.0,
-        "stop": None,
-    }
+    return _normalized_legacy_video(video)
 
 
 def serialize_entry(entry):
@@ -41,7 +55,7 @@ def serialize_entry(entry):
     Returns a JSON-safe list length ENTRY_LENGTH.
     IDX_VIDEO is stored as dict or None.
     """
-    entry = list(entry) + [None] * (ENTRY_LENGTH - len(entry))
+    entry = _padded_entry(entry)
     entry[IDX_VIDEO] = normalize_video(entry[IDX_VIDEO])
     return entry[:ENTRY_LENGTH]
 
@@ -51,6 +65,6 @@ def deserialize_entry(entry):
     Returns a tuple length ENTRY_LENGTH.
     Upgrades legacy formats so IDX_VIDEO becomes dict/None.
     """
-    entry = list(entry) + [None] * (ENTRY_LENGTH - len(entry))
+    entry = _padded_entry(entry)
     entry[IDX_VIDEO] = normalize_video(entry[IDX_VIDEO])
     return tuple(entry[:ENTRY_LENGTH])
