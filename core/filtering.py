@@ -1,8 +1,10 @@
 from core.schema import IDX_PERIOD
 
+ALL_MATCHES = "All"
+
 
 def get_match_entries(app, match):
-    if match == "All":
+    if match == ALL_MATCHES:
         entries = []
         for logs in app.match_logs.values():
             entries.extend(logs)
@@ -11,7 +13,7 @@ def get_match_entries(app, match):
 
 
 def filter_by_period(entries, period):
-    if period == "All":
+    if period == ALL_MATCHES:
         return entries
     return [e for e in entries if str(e[IDX_PERIOD]) == str(period)]
 
