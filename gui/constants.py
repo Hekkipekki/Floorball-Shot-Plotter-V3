@@ -3,22 +3,27 @@ from __future__ import annotations
 # ---------------------------------------------------------
 # Theme
 # ---------------------------------------------------------
-DEFAULT_THEME = "flatly"
+DEFAULT_THEME = "darkly"
+APP_FONT_FAMILY = "Segoe UI"
+APP_FONT_SIZE = 10
+APP_FONT_SIZE_SMALL = 9
+APP_FONT_SIZE_LARGE = 11
+APP_FONT_SIZE_TITLE = 12
 
 # ---------------------------------------------------------
 # Layout sizing
 # ---------------------------------------------------------
-LEFT_PANEL_WIDTH = 300
-RIGHT_PANEL_WIDTH = 430
+LEFT_PANEL_WIDTH = 310
+RIGHT_PANEL_WIDTH = 460
 
 # ---------------------------------------------------------
 # Shared spacing
 # ---------------------------------------------------------
-PAD_X = 5
-PAD_Y = 5
-SECTION_PAD_X = 3
-SECTION_PAD_Y = (5, 0)
-BOTTOM_SECTION_PAD_Y = (5, 10)
+PAD_X = 7
+PAD_Y = 7
+SECTION_PAD_X = 6
+SECTION_PAD_Y = (7, 0)
+BOTTOM_SECTION_PAD_Y = (7, 12)
 
 # ---------------------------------------------------------
 # Common widget sizing
@@ -47,24 +52,26 @@ FIGURE_SUBPLOT_BOTTOM = 0.05
 # Shot log sizing
 # ---------------------------------------------------------
 SHOTLOG_FONT_FAMILY = "Segoe UI Emoji"
-SHOTLOG_FONT_SIZE = 9  # slightly increased for readability
+SHOTLOG_FONT_SIZE = 10
+SHOTLOG_ROW_HEIGHT = 26
+SHOTLOG_HEADING_FONT_SIZE = 10
 
 SHOTLOG_VIDEO_ICON_SIZE = 16
 SHOTLOG_VIDEO_ICON_BG = (44, 62, 80, 255)
 
-SHOTLOG_COL_WIDTH_NUMBER = 25
-SHOTLOG_COL_WIDTH_RESULT = 35
+SHOTLOG_COL_WIDTH_NUMBER = 32
+SHOTLOG_COL_WIDTH_RESULT = 42
 
-SHOTLOG_COL_WIDTH_PHASE = 90
-SHOTLOG_COL_WIDTH_SITUATION = 70
-SHOTLOG_COL_WIDTH_TYPE = 95
+SHOTLOG_COL_WIDTH_PHASE = 95
+SHOTLOG_COL_WIDTH_SITUATION = 82
+SHOTLOG_COL_WIDTH_TYPE = 105
 
-SHOTLOG_COL_WIDTH_PASSER = 35
-SHOTLOG_COL_WIDTH_SHOOTER = 70
+SHOTLOG_COL_WIDTH_PASSER = 52
+SHOTLOG_COL_WIDTH_SHOOTER = 78
 
-SHOTLOG_COL_WIDTH_PERIOD = 32
-SHOTLOG_COL_WIDTH_XG = 45
-SHOTLOG_COL_WIDTH_VIDEO = 45
+SHOTLOG_COL_WIDTH_PERIOD = 36
+SHOTLOG_COL_WIDTH_XG = 52
+SHOTLOG_COL_WIDTH_VIDEO = 48
 
 # ---------------------------------------------------------
 # Plot styling
