@@ -16,23 +16,31 @@ FILE_MENU_COMMANDS = [
 ]
 
 
-def setup_ui(app):
-    apply_theme(app)
+def _create_main_frame(root) -> tb.Frame:
+    frame = tb.Frame(root)
+    frame.pack(fill="both", expand=True)
+    return frame
 
-    root = app.root
 
-    main_frame = tb.Frame(root)
-    main_frame.pack(fill="both", expand=True)
-
+def _create_app_panels(app, main_frame: tb.Frame) -> None:
     # Important: create side panels first, then center last
     app.left_panel = create_left_panel(main_frame, app)
     app.right_panel = create_right_panel(main_frame, app)
     app.center_panel = create_center_plot(main_frame, app)
 
-    create_menu_bar(app)
 
+def _finish_initial_ui_state(app) -> None:
     app.update_match_dropdown()
     app.update_stats_filtered()
+
+
+def setup_ui(app):
+    apply_theme(app)
+
+    main_frame = _create_main_frame(app.root)
+    _create_app_panels(app, main_frame)
+    create_menu_bar(app)
+    _finish_initial_ui_state(app)
 
 
 def _create_file_menu(app, menubar: tk.Menu) -> tk.Menu:
