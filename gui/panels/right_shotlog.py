@@ -12,13 +12,15 @@ RIGHT_PANEL_FILL = "y"
 SHOTLOG_RESIZE_HANDLE_WIDTH = 6
 SHOTLOG_MIN_WIDTH = 300
 SHOTLOG_MAX_WIDTH = 760
-SHOTLOG_FLAP_WIDTH = 26
-SHOTLOG_FLAP_HEIGHT = 34
-SHOTLOG_FLAP_TOP_OFFSET = 12
-SHOTLOG_FLAP_EXPANDED_TEXT = "▶"
-SHOTLOG_FLAP_COLLAPSED_TEXT = "◀"
+SHOTLOG_FLAP_RAIL_WIDTH = 18
+SHOTLOG_FLAP_BUTTON_WIDTH = 16
+SHOTLOG_FLAP_HEIGHT = 28
+SHOTLOG_FLAP_TOP_OFFSET = 10
+SHOTLOG_FLAP_EXPANDED_TEXT = ">"
+SHOTLOG_FLAP_COLLAPSED_TEXT = "<"
 SHOTLOG_RESIZE_CURSOR = "sb_h_double_arrow"
-SHOTLOG_BUTTON_STYLE = "secondary"
+SHOTLOG_BUTTON_STYLE = "primary"
+SHOTLOG_FLAP_FONT = ("Segoe UI", 9, "bold")
 
 
 def _clamp_width(width: int) -> int:
@@ -33,18 +35,25 @@ def _create_panel_container(parent, width: int) -> tb.Frame:
 
 
 def _create_expanded_flap(parent, app) -> tb.Frame:
-    rail = tb.Frame(parent, width=SHOTLOG_FLAP_WIDTH)
+    rail = tb.Frame(parent, width=SHOTLOG_FLAP_RAIL_WIDTH)
     rail.pack(side="left", fill="y")
     rail.pack_propagate(False)
 
     button = tb.Button(
         rail,
         text=SHOTLOG_FLAP_EXPANDED_TEXT,
-        width=2,
+        width=1,
         bootstyle=SHOTLOG_BUTTON_STYLE,
         command=lambda: _toggle_shotlog_panel(app),
     )
-    button.pack(side="top", anchor="n", pady=(SHOTLOG_FLAP_TOP_OFFSET, 0))
+    button.configure(takefocus=False)
+    button.pack(
+        side="top",
+        anchor="n",
+        pady=(SHOTLOG_FLAP_TOP_OFFSET, 0),
+        ipadx=0,
+        ipady=0,
+    )
     app.shotlog_flap_button = button
 
     return rail
@@ -54,20 +63,21 @@ def _create_collapsed_flap(parent, app) -> tb.Button:
     button = tb.Button(
         parent,
         text=SHOTLOG_FLAP_COLLAPSED_TEXT,
-        width=2,
+        width=1,
         bootstyle=SHOTLOG_BUTTON_STYLE,
         command=lambda: _toggle_shotlog_panel(app),
     )
+    button.configure(takefocus=False)
     return button
 
 
 def _show_collapsed_flap(app) -> None:
     app.shotlog_collapsed_flap.place(
         relx=1.0,
-        x=-2,
+        x=0,
         y=SHOTLOG_FLAP_TOP_OFFSET,
         anchor="ne",
-        width=SHOTLOG_FLAP_WIDTH,
+        width=SHOTLOG_FLAP_BUTTON_WIDTH,
         height=SHOTLOG_FLAP_HEIGHT,
     )
     app.shotlog_collapsed_flap.lift()
