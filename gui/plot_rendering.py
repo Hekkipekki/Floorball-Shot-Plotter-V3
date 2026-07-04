@@ -6,7 +6,10 @@ from core.entry_helpers import get_xy
 from gui.constants import PLOT_DEFAULT_XLIM, PLOT_DEFAULT_YLIM
 from gui.plotting import plot_points, plot_heatmap
 
+DEFAULT_VIEW_MODE = "Plot"
 HEATMAP_VIEW_MODES = ("Heatmap", "Goal Heatmap", "Save Heatmap")
+SLIDER_MIN_VALUE = 0
+SLIDER_MAX_VALUE = 1.0
 
 
 def get_visible_entries(app):
@@ -27,11 +30,19 @@ def safe_get_xy(entry):
     return get_xy(entry)
 
 
+def _background_extent(app):
+    return getattr(
+        app,
+        "img_extent",
+        [*PLOT_DEFAULT_XLIM, PLOT_DEFAULT_YLIM[0], PLOT_DEFAULT_YLIM[1]],
+    )
+
+
 def redraw_background(app):
     if getattr(app, "img", None) is not None:
         app.ax.imshow(
             app.img,
-            extent=getattr(app, "img_extent", [*PLOT_DEFAULT_XLIM, PLOT_DEFAULT_YLIM[0], PLOT_DEFAULT_YLIM[1]]),
+            extent=_background_extent(app),
             origin="upper",
             aspect="auto",
         )
@@ -60,14 +71,23 @@ def _refresh_canvas(app) -> None:
         pass
 
 
+def _current_view_mode(app) -> str:
+    if hasattr(app, "view_mode"):
+        return app.view_mode.get()
+    return DEFAULT_VIEW_MODE
+
+
+def _reset_axes(app) -> None:
+    app.figure.clf()
+    app.ax = app.figure.add_subplot(111)
+
+
 def update_plot(app):
     try:
-        view = app.view_mode.get() if hasattr(app, "view_mode") else "Plot"
+        view = _current_view_mode(app)
         entries = get_visible_entries(app)
 
-        app.figure.clf()
-        app.ax = app.figure.add_subplot(111)
-
+        _reset_axes(app)
         redraw_background(app)
         _draw_current_view(app, entries, view)
         _apply_default_axes(app)
@@ -77,6 +97,10 @@ def update_plot(app):
         print("❌ update_plot error:", e)
 
 
+def _is_valid_slider_value(value: float) -> bool:
+    return SLIDER_MIN_VALUE < value <= SLIDER_MAX_VALUE
+
+
 def _apply_slider_entry_value(app, variable, entry, from_slider: bool) -> None:
     if from_slider:
         val = float(variable.get())
@@ -84,7 +108,7 @@ def _apply_slider_entry_value(app, variable, entry, from_slider: bool) -> None:
         entry.insert(0, f"{val:.2f}")
     else:
         val = float(entry.get())
-        if 0 < val <= 1.0:
+        if _is_valid_slider_value(val):
             variable.set(val)
 
 
