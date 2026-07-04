@@ -1,0 +1,73 @@
+name: Build Windows Beta
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows portable zip
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build app with PyInstaller
+        run: |
+          pyinstaller `
+            --name "Floorball-Shot-Plotter" `
+            --windowed `
+            --onedir `
+            --clean `
+            --collect-data ttkbootstrap `
+            --collect-data matplotlib `
+            --hidden-import PIL._tkinter_finder `
+            --add-data "assets;assets" `
+            main.py
+
+      - name: Copy README and deployment notes
+        shell: pwsh
+        run: |
+          Copy-Item README.md dist/Floorball-Shot-Plotter/README.md -ErrorAction SilentlyContinue
+          Copy-Item BETA_DEPLOYMENT.md dist/Floorball-Shot-Plotter/BETA_DEPLOYMENT.md -ErrorAction SilentlyContinue
+
+      - name: Create portable zip
+        shell: pwsh
+        run: |
+          $version = "manual"
+          if ($env:GITHUB_REF_TYPE -eq "tag") {
+            $version = $env:GITHUB_REF_NAME
+          }
+          $zipName = "Floorball-Shot-Plotter-$version-windows.zip"
+          Compress-Archive -Path dist/Floorball-Shot-Plotter -DestinationPath $zipName -Force
+          "ZIP_NAME=$zipName" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Floorball-Shot-Plotter-Windows
+          path: ${{ env.ZIP_NAME }}
+
+      - name: Publish GitHub Release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP_NAME }}
+          generate_release_notes: true
