@@ -1,4 +1,5 @@
 import csv
+from core.entry_helpers import normalize_entry
 from core.schema import (
     IDX_NUMBER,
     IDX_RESULT,
@@ -14,22 +15,33 @@ from core.schema import (
     IDX_PASS_X,
     IDX_PASS_Y,
     IDX_VIDEO,
+    IDX_DISTANCE,
+    IDX_ANGLE,
+    IDX_ZONE,
     ENTRY_LENGTH,
 )
 
 CSV_HEADERS = [
     "#", "S/G", "Phase", "Situation", "Shot Type", "Passer", "Shooter",
-    "Period", "xG", "X", "Y", "Pass X", "Pass Y",
+    "Period", "xG", "X", "Y", "Pass X", "Pass Y", "Distance", "Angle", "Zone",
 ]
 MIN_CSV_COLUMNS = 11
 
 
 def _padded_entry(entry):
-    return list(entry) + [None] * (ENTRY_LENGTH - len(entry))
+    return normalize_entry(entry)
 
 
 def _rounded_or_blank(value):
     return round(value, 2) if value is not None else ""
+
+
+def _optional_float(row, index):
+    return float(row[index]) if len(row) > index and row[index] else None
+
+
+def _optional_text(row, index):
+    return row[index] if len(row) > index else ""
 
 
 def _entry_to_csv_row(entry):
@@ -48,6 +60,9 @@ def _entry_to_csv_row(entry):
         round(row[IDX_Y], 2),
         _rounded_or_blank(row[IDX_PASS_X]),
         _rounded_or_blank(row[IDX_PASS_Y]),
+        _rounded_or_blank(row[IDX_DISTANCE]),
+        _rounded_or_blank(row[IDX_ANGLE]),
+        row[IDX_ZONE],
     ]
 
 
@@ -64,10 +79,13 @@ def _csv_row_to_entry(row):
     entry[IDX_XG] = float(row[8])
     entry[IDX_X] = float(row[9])
     entry[IDX_Y] = float(row[10])
-    entry[IDX_PASS_X] = float(row[11]) if len(row) > 11 and row[11] else None
-    entry[IDX_PASS_Y] = float(row[12]) if len(row) > 12 and row[12] else None
+    entry[IDX_PASS_X] = _optional_float(row, 11)
+    entry[IDX_PASS_Y] = _optional_float(row, 12)
     entry[IDX_VIDEO] = None
-    return tuple(entry)
+    entry[IDX_DISTANCE] = _optional_float(row, 13)
+    entry[IDX_ANGLE] = _optional_float(row, 14)
+    entry[IDX_ZONE] = _optional_text(row, 15)
+    return tuple(normalize_entry(entry))
 
 
 def save_csv(path, entries):
