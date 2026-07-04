@@ -16,6 +16,12 @@ SHOT_ZONE_USE_GENERATED_POLISHED = True
 
 BASE_WIDTH = 1500
 BASE_HEIGHT = 1000
+ZONE_Y_OFFSET = -70
+
+
+def _offset_rect(rect):
+    x1, y1, x2, y2 = rect
+    return x1, y1 + ZONE_Y_OFFSET, x2, y2 + ZONE_Y_OFFSET
 
 
 def _scaled_rect(rect, size):
@@ -29,8 +35,9 @@ def _scaled_rect(rect, size):
     )
 
 
-def _draw_zone(draw: ImageDraw.ImageDraw, rect, size, color, radius: int = 0) -> None:
-    scaled = _scaled_rect(rect, size)
+def _draw_zone(draw: ImageDraw.ImageDraw, rect, size, color, radius: int = 0, *, offset: bool = True) -> None:
+    source_rect = _offset_rect(rect) if offset else rect
+    scaled = _scaled_rect(source_rect, size)
     if radius:
         draw.rounded_rectangle(scaled, radius=radius, fill=color)
     else:
@@ -82,13 +89,13 @@ def _generate_polished_overlay(size) -> Image.Image:
         (560, 690, 940, 840),
         (20, 760, 1480, 980),
     ):
-        line.rectangle(_scaled_rect(rect, size), outline=separator, width=max(1, int(width * 0.002)))
+        line.rectangle(_scaled_rect(_offset_rect(rect), size), outline=separator, width=max(1, int(width * 0.002)))
 
     # Add a light centre highlight so the overlay looks less flat.
     glow = Image.new("RGBA", size, (0, 0, 0, 0))
     glow_draw = ImageDraw.Draw(glow)
     glow_draw.ellipse(
-        _scaled_rect((430, 260, 1070, 860), size),
+        _scaled_rect(_offset_rect((430, 260, 1070, 860)), size),
         fill=(255, 255, 255, 34),
     )
     overlay.alpha_composite(glow.filter(ImageFilter.GaussianBlur(radius=max(6, int(width * 0.035)))))
