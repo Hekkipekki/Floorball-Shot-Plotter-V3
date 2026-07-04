@@ -18,6 +18,7 @@ VIEW_MODE_TOOLTIP = (
     "- Plot = regular shot plot\n"
     "- Heatmaps = density views of shots or goals"
 )
+DEFAULT_VIEW_MODE = "Plot"
 
 
 def _period_button_width(period: str) -> int:
@@ -28,9 +29,27 @@ def _period_button_width(period: str) -> int:
     return 2
 
 
-def setup_period_controls(app, parent: tb.Frame) -> None:
-    frame = tb.Labelframe(parent, text="Period", bootstyle="primary")
+def _create_control_group(parent: tb.Frame, title: str) -> tb.Labelframe:
+    frame = tb.Labelframe(parent, text=title, bootstyle="primary")
     frame.pack(fill="x", expand=False, pady=SECTION_PAD_Y, padx=SECTION_PAD_X)
+    return frame
+
+
+def _create_period_button(app, parent: tb.Frame, period: str) -> tb.Button:
+    button = tb.Button(
+        parent,
+        text=period,
+        command=lambda p=period: app.set_period_filter(p),
+        width=_period_button_width(period),
+        bootstyle="primary",
+    )
+    button.pack(side="left", padx=3, pady=(2, 4))
+    BetterToolTip(button, PERIOD_TOOLTIPS[period])
+    return button
+
+
+def setup_period_controls(app, parent: tb.Frame) -> None:
+    frame = _create_control_group(parent, "Period")
     BetterToolTip(frame, "Select if you want to log shots/goals to a specific period.")
 
     button_frame = tb.Frame(frame)
@@ -39,25 +58,14 @@ def setup_period_controls(app, parent: tb.Frame) -> None:
     app.period_buttons = {}
 
     for period in PERIOD_OPTIONS:
-        button = tb.Button(
-            button_frame,
-            text=period,
-            command=lambda p=period: app.set_period_filter(p),
-            width=_period_button_width(period),
-            bootstyle="primary",
-        )
-        button.pack(side="left", padx=3, pady=(2, 4))
-        BetterToolTip(button, PERIOD_TOOLTIPS[period])
-        app.period_buttons[period] = button
+        app.period_buttons[period] = _create_period_button(app, button_frame, period)
 
     app.period_selected.trace("w", lambda *args: app.update_period_button_styles())
 
 
 def setup_view_mode_controls(app, parent: tb.Frame) -> None:
-    frame = tb.Labelframe(parent, text="View Mode", bootstyle="primary")
-    frame.pack(fill="x", pady=SECTION_PAD_Y, padx=SECTION_PAD_X)
-
-    app.view_mode.set("Plot")
+    frame = _create_control_group(parent, "View Mode")
+    app.view_mode.set(DEFAULT_VIEW_MODE)
 
     def on_select(event=None):
         selected = app.view_mode_dropdown.get()
