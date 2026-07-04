@@ -10,29 +10,32 @@ from scipy.interpolate import LinearNDInterpolator
 from app_paths import DATA_DIR
 
 CALIBRATION_DONE_TEXT = "Calibration active: video clicks now use calibrated rink coordinates."
+CALIBRATION_VERSION = 3
 CALIBRATION_DIR = Path(DATA_DIR) / "calibrations"
 CALIBRATION_STORE = CALIBRATION_DIR / "video_calibrations.json"
 
 # Target plot coordinates are measured from the current defensive-half background image.
 # Source coordinates are normalized video coordinates, so calibration survives window resizing.
+# Keep this preset tight: these are the mandatory/most useful anchors when visible.
 GOPRO_CALIBRATION_POINTS = (
-    ("Målområde lower-left corner", (566, 1033), "Click the lower-left corner of the large målområde rectangle."),
-    ("Målområde lower-right corner", (910, 1034), "Click the lower-right corner of the large målområde rectangle."),
-    ("Målområde upper-right corner", (909, 805), "Click the upper-right corner of the large målområde rectangle."),
-    ("Målområde upper-left corner", (566, 802), "Click the upper-left corner of the large målområde rectangle."),
-    ("Målvaktsområde lower-left corner", (644, 999), "Click the lower-left corner of the smaller målvaktsområde rectangle."),
-    ("Målvaktsområde lower-right corner", (831, 1000), "Click the lower-right corner of the smaller målvaktsområde rectangle."),
-    ("Målvaktsområde upper-right corner", (829, 930), "Click the upper-right corner of the smaller målvaktsområde rectangle."),
-    ("Målvaktsområde upper-left corner", (645, 932), "Click the upper-left corner of the smaller målvaktsområde rectangle."),
-    ("Defensive zone top-left", (21, 21), "Click the top-left defensive-zone board/rink reference."),
-    ("Defensive zone top-right", (1434, 23), "Click the top-right defensive-zone board/rink reference."),
-    ("Defensive zone top-middle", (734, 23), "Click the top-middle defensive-zone board/rink reference."),
-    ("Defensive zone centre", (734, 500), "Click the centre of the defensive zone."),
-    ("Left middle board", (21, 500), "Click the left board at about the middle of the defensive zone."),
-    ("Right middle board", (1434, 500), "Click the right board at about the middle of the defensive zone."),
-    ("Defensive zone lower-left", (21, 1000), "Click the lower-left defensive-zone corner near the end board."),
-    ("Defensive zone lower-right", (1434, 1000), "Click the lower-right defensive-zone corner near the end board."),
-    ("Goal-line centre", (737, 1000), "Click the centre of the goal line / goal mouth."),
+    ("1 Lower Left Goal Area", (562, 1033), "Click lower-left corner of the large goal area / målområde."),
+    ("2 Lower Right Goal Area", (914, 1034), "Click lower-right corner of the large goal area / målområde."),
+    ("3 Upper Right Goal Area", (913, 798), "Click upper-right corner of the large goal area / målområde."),
+    ("4 Upper Left Goal Area", (563, 796), "Click upper-left corner of the large goal area / målområde."),
+    ("5 Lower Left Goalie Area", (642, 999), "Click lower-left corner of the small goalie area / målvaktsområde."),
+    ("6 Lower Right Goalie Area", (835, 999), "Click lower-right corner of the small goalie area / målvaktsområde."),
+    ("7 Upper Left Goalie Area", (647, 930), "Click upper-left corner of the small goalie area / målvaktsområde."),
+    ("8 Upper Right Goalie Area", (832, 930), "Click upper-right corner of the small goalie area / målvaktsområde."),
+    ("9 Center of Goal Line", (740, 990), "Click the centre of the goal line / goal mouth."),
+    ("10 Upper Left Defensive Zone", (18, 20), "Click the upper-left defensive-zone board/rink reference."),
+    ("11 Upper Right Defensive Zone", (1431, 20), "Click the upper-right defensive-zone board/rink reference."),
+    ("12 Center Faceoff Dot", (729, 19), "Click the visible centre/upper faceoff-dot reference."),
+    ("13 Center of Defensive Zone", (730, 479), "Click the centre of the defensive zone."),
+    ("14 Left Center Defensive Zone", (14, 481), "Click the left-board centre reference of the defensive zone."),
+    ("15 Right Center Defensive Zone", (1437, 470), "Click the right-board centre reference of the defensive zone."),
+    ("16 Lower Left Faceoff Dot", (99, 1018), "Click the lower-left faceoff-dot/circle reference."),
+    ("17 Lower Right Faceoff Dot", (1350, 1022), "Click the lower-right faceoff-dot/circle reference."),
+    ("18 Behind Goal Near Board", (744, 1204), "Click the centre point behind the goal near the end board."),
 )
 
 
@@ -56,13 +59,18 @@ def _write_store(data: dict) -> None:
 
 def save_video_calibration(video_path: str, calibration_clicks: list[dict]) -> None:
     data = _read_store()
-    data[_video_key(video_path)] = {"clicks": calibration_clicks}
+    data[_video_key(video_path)] = {
+        "version": CALIBRATION_VERSION,
+        "clicks": calibration_clicks,
+    }
     _write_store(data)
 
 
 def load_video_calibration(video_path: str) -> list[dict]:
     data = _read_store()
     record = data.get(_video_key(video_path), {})
+    if record.get("version") != CALIBRATION_VERSION:
+        return []
     clicks = record.get("clicks", [])
     return clicks if isinstance(clicks, list) else []
 
