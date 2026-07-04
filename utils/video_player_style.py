@@ -18,21 +18,25 @@ CONTROL_BUTTON_PAD_X = 10
 CONTROL_BUTTON_PAD_Y = 4
 CONTROL_BUTTON_FONT = ("Segoe UI", 9, "bold")
 CONTROL_BUTTON_CURSOR = "hand2"
+CONTROL_BUTTON_BORDER_WIDTH = 0
+
+
+def _control_button_options(text: str, command: Callable[[], None]) -> dict:
+    return {
+        "text": text,
+        "command": command,
+        "bg": PANEL_BG_SOFT,
+        "fg": TEXT,
+        "activebackground": CONTROL_ACTIVE_BG,
+        "activeforeground": TEXT,
+        "bd": CONTROL_BUTTON_BORDER_WIDTH,
+        "padx": CONTROL_BUTTON_PAD_X,
+        "pady": CONTROL_BUTTON_PAD_Y,
+        "font": CONTROL_BUTTON_FONT,
+        "cursor": CONTROL_BUTTON_CURSOR,
+    }
 
 
 def create_control_button(parent: tk.Misc, text: str, command: Callable[[], None]) -> tk.Button:
     """Create a standard video-player control button."""
-    return tk.Button(
-        parent,
-        text=text,
-        command=command,
-        bg=PANEL_BG_SOFT,
-        fg=TEXT,
-        activebackground=CONTROL_ACTIVE_BG,
-        activeforeground=TEXT,
-        bd=0,
-        padx=CONTROL_BUTTON_PAD_X,
-        pady=CONTROL_BUTTON_PAD_Y,
-        font=CONTROL_BUTTON_FONT,
-        cursor=CONTROL_BUTTON_CURSOR,
-    )
+    return tk.Button(parent, **_control_button_options(text, command))
