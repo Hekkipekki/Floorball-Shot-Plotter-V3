@@ -6,6 +6,7 @@ import ttkbootstrap as tb
 from gui.panels.left_controls import create_left_panel
 from gui.panels.center_plot import create_center_plot
 from gui.panels.right_shotlog import create_right_panel
+from gui.panels.controls.heatmap_controls import show_heatmap_settings_window
 from gui.theme import apply_theme
 
 FILE_MENU_COMMANDS = [
@@ -57,11 +58,23 @@ def _create_file_menu(app, menubar: tk.Menu) -> tk.Menu:
     return file_menu
 
 
+def _create_heatmap_menu(app) -> tk.Menu:
+    heatmap_menu = tk.Menu(app.root, tearoff=0)
+    heatmap_menu.add_command(
+        label="Heatmap Settings...",
+        command=lambda: show_heatmap_settings_window(app),
+    )
+    return heatmap_menu
+
+
 def create_menu_bar(app):
     menubar = tk.Menu(app.root)
 
     file_menu = _create_file_menu(app, menubar)
     menubar.add_cascade(label="File", menu=file_menu)
+
+    heatmap_menu = _create_heatmap_menu(app)
+    menubar.add_cascade(label="Heatmap", menu=heatmap_menu)
 
     app.background_menu = tk.Menu(menubar, tearoff=0)
     update_background_menu(app)
