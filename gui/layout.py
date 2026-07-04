@@ -7,6 +7,7 @@ from gui.panels.left_controls import create_left_panel
 from gui.panels.center_plot import create_center_plot
 from gui.panels.right_shotlog import create_right_panel
 from gui.panels.controls.heatmap_controls import show_heatmap_settings_window
+from gui.shot_zone_overlay import toggle_shot_zone_overlay
 from gui.theme import apply_theme
 from gui.video_actions import open_video_clip
 
@@ -16,7 +17,6 @@ FILE_MENU_COMMANDS = [
     None,
     ("Export Image", "export_plot"),
 ]
-
 
 VIDEO_MENU_COMMANDS = [
     ("Open Video Clip...", open_video_clip),
@@ -43,6 +43,9 @@ def _finish_initial_ui_state(app) -> None:
 
 def setup_ui(app):
     apply_theme(app)
+
+    if not hasattr(app, "show_shot_zone_overlay"):
+        app.show_shot_zone_overlay = tk.BooleanVar(value=False)
 
     main_frame = _create_main_frame(app.root)
     _create_app_panels(app, main_frame)
@@ -82,6 +85,16 @@ def _create_heatmap_menu(app) -> tk.Menu:
     return heatmap_menu
 
 
+def _create_shot_zone_menu(app) -> tk.Menu:
+    shot_zone_menu = tk.Menu(app.root, tearoff=0)
+    shot_zone_menu.add_checkbutton(
+        label="Show Shot Zone Overlay",
+        variable=app.show_shot_zone_overlay,
+        command=lambda: toggle_shot_zone_overlay(app),
+    )
+    return shot_zone_menu
+
+
 def create_menu_bar(app):
     menubar = tk.Menu(app.root)
 
@@ -93,6 +106,9 @@ def create_menu_bar(app):
 
     heatmap_menu = _create_heatmap_menu(app)
     menubar.add_cascade(label="Heatmap", menu=heatmap_menu)
+
+    shot_zone_menu = _create_shot_zone_menu(app)
+    menubar.add_cascade(label="Shot Zone", menu=shot_zone_menu)
 
     app.background_menu = tk.Menu(menubar, tearoff=0)
     update_background_menu(app)
