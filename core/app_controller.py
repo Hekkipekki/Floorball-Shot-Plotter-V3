@@ -32,7 +32,7 @@ from core.app_refresh import (
 )
 from core.core_stats import CoreLogic
 from core.demo import generate_demo_shots as demo_fill
-from core.init_state import init_variables
+from core.init_state import DEFAULT_MATCH, init_variables
 from gui.backgrounds import init_background_files, set_background
 from gui.events import finalize_event
 from gui.layout import setup_ui
@@ -56,35 +56,50 @@ class FloorballShotPlotter:
         self.root = root
         self.root.title(APP_TITLE)
 
+        self._configure_runtime()
+        self._initialize_state()
+        self._initialize_services()
+        self._initialize_backgrounds()
+        self._build_ui()
+        self._load_initial_plot()
+        self._bind_runtime_events()
+        self._bind_compatibility_callbacks()
+
+    def _configure_runtime(self) -> None:
         configure_window(self)
         configure_paths(self)
         load_icons(self)
 
+    def _initialize_state(self) -> None:
         self.popup_open = False
         self.video_overlay = None
 
         init_variables(self)
-
         ensure_new_match_exists(self)
-        self.current_match.set("New Match")
+        self.current_match.set(DEFAULT_MATCH)
 
+    def _initialize_services(self) -> None:
         self.logic = CoreLogic(self)
 
+    def _initialize_backgrounds(self) -> None:
         init_background_files(self)
         self.set_background = lambda name: set_background(self, name)
 
+    def _build_ui(self) -> None:
         setup_ui(self)
-
         self._shotlog_update_entry = lambda visible_index, updated_entry: update_entry_in_all_places(
             self, visible_index, updated_entry
         )
 
+    def _load_initial_plot(self) -> None:
         load_image(self)
         self.update_plot()
 
+    def _bind_runtime_events(self) -> None:
         bind_events(self)
         add_tooltips(self)
 
+    def _bind_compatibility_callbacks(self) -> None:
         self.finalize_event = lambda *args, **kwargs: finalize_event(self, *args, **kwargs)
 
     # ---------------------------------------------------------
@@ -173,7 +188,18 @@ class FloorballShotPlotter:
         pass_x=None,
         pass_y=None,
     ):
-        self.logic.add_shot_event(x, y, phase, situation, shot_type, passer, shooter, period, pass_x, pass_y)
+        self.logic.add_shot_event(
+            x,
+            y,
+            phase,
+            situation,
+            shot_type,
+            passer,
+            shooter,
+            period,
+            pass_x,
+            pass_y,
+        )
         self.refresh_all()
 
     def add_goal_event(
@@ -189,7 +215,18 @@ class FloorballShotPlotter:
         pass_x=None,
         pass_y=None,
     ):
-        self.logic.add_goal_event(x, y, phase, situation, shot_type, passer, shooter, period, pass_x, pass_y)
+        self.logic.add_goal_event(
+            x,
+            y,
+            phase,
+            situation,
+            shot_type,
+            passer,
+            shooter,
+            period,
+            pass_x,
+            pass_y,
+        )
         self.refresh_all()
 
     def clear_all_data(self):
