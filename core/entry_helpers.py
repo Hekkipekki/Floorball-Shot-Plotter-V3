@@ -15,8 +15,35 @@ from core.schema import (
     IDX_PASS_X,
     IDX_PASS_Y,
     IDX_VIDEO,
+    IDX_DISTANCE,
+    IDX_ANGLE,
+    IDX_ZONE,
     ENTRY_LENGTH,
 )
+from core.xg_features import build_location_features
+
+
+def _float_or_default(value, default=None):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _add_missing_location_features(row) -> None:
+    x = _float_or_default(row[IDX_X])
+    y = _float_or_default(row[IDX_Y])
+    if x is None or y is None:
+        return
+
+    distance, angle, zone = build_location_features(x, y)
+
+    if row[IDX_DISTANCE] in (None, ""):
+        row[IDX_DISTANCE] = distance
+    if row[IDX_ANGLE] in (None, ""):
+        row[IDX_ANGLE] = angle
+    if row[IDX_ZONE] in (None, ""):
+        row[IDX_ZONE] = zone
 
 
 def normalize_entry(entry):
@@ -26,18 +53,13 @@ def normalize_entry(entry):
     row = list(entry) if entry is not None else []
     if len(row) < ENTRY_LENGTH:
         row += [None] * (ENTRY_LENGTH - len(row))
+
+    _add_missing_location_features(row)
     return row
 
 
 def _get_field(entry, index):
     return normalize_entry(entry)[index]
-
-
-def _float_or_default(value, default=None):
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return default
 
 
 def _get_float_pair(entry, x_index, y_index):
@@ -102,3 +124,15 @@ def has_pass_point(entry):
 
 def get_video(entry):
     return _get_field(entry, IDX_VIDEO)
+
+
+def get_distance(entry, default=""):
+    return _float_or_default(_get_field(entry, IDX_DISTANCE), default)
+
+
+def get_angle(entry, default=""):
+    return _float_or_default(_get_field(entry, IDX_ANGLE), default)
+
+
+def get_zone(entry):
+    return _get_field(entry, IDX_ZONE) or ""
