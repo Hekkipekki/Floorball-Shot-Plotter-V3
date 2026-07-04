@@ -8,6 +8,25 @@ from core.event_logic import (
 )
 from core.schema import IDX_RESULT, IDX_XG
 
+SHOT_RESULT = "S"
+GOAL_RESULT = "G"
+COUNTED_RESULTS = (SHOT_RESULT, GOAL_RESULT)
+
+HEATMAP_PRESETS = {
+    "Match Analysis": (0.17, 0.16),
+    "Multi-Match": (0.23, 0.22),
+    "Season Review": (0.30, 0.25),
+    "Season Review (Goal only)": (0.23, 0.22),
+}
+DEFAULT_HEATMAP_PRESET = (0.20, 0.20)
+
+HEATMAP_PRESET_DESCRIPTIONS = {
+    "Match Analysis": "Well-rounded smoothing, includes most shots.",
+    "Multi-Match": "Balanced: shows main clusters.",
+    "Season Review": "Focused: dense zones only.",
+    "Season Review (Goal only)": "Goal-focused overview.",
+}
+
 
 class CoreLogic:
     def __init__(self, app):
@@ -32,8 +51,8 @@ class CoreLogic:
         else:
             entries = filtered_entries
 
-        total = len([e for e in entries if e[IDX_RESULT] in ("S", "G")])
-        goals = len([e for e in entries if e[IDX_RESULT] == "G"])
+        total = len([e for e in entries if e[IDX_RESULT] in COUNTED_RESULTS])
+        goals = len([e for e in entries if e[IDX_RESULT] == GOAL_RESULT])
         saves = total - goals
         pct = (saves / total) * 100 if total > 0 else 0
 
@@ -47,8 +66,8 @@ class CoreLogic:
             self.app.stats_period.get()
         )
 
-        xg_sum = sum(e[IDX_XG] for e in entries if e[IDX_RESULT] == "S")
-        goals = sum(1 for e in entries if e[IDX_RESULT] == "G")
+        xg_sum = sum(e[IDX_XG] for e in entries if e[IDX_RESULT] == SHOT_RESULT)
+        goals = sum(1 for e in entries if e[IDX_RESULT] == GOAL_RESULT)
 
         if hasattr(self.app, "xg_goals_val"):
             self.app.xg_goals_val.config(text=f"{xg_sum:.2f}")
@@ -118,15 +137,7 @@ class CoreLogic:
     # ---------------------------------------------------------
     def apply_heatmap_preset(self):
         preset = self.app.heatmap_preset.get()
-
-        presets = {
-            "Match Analysis": (0.17, 0.16),
-            "Multi-Match": (0.23, 0.22),
-            "Season Review": (0.30, 0.25),
-            "Season Review (Goal only)": (0.23, 0.22),
-        }
-
-        kde, sens = presets.get(preset, (0.20, 0.20))
+        kde, sens = HEATMAP_PRESETS.get(preset, DEFAULT_HEATMAP_PRESET)
 
         self.app.kde_bandwidth.set(kde)
         self.app.sensitivity.set(sens)
@@ -145,12 +156,7 @@ class CoreLogic:
         if not hasattr(self.app, "preset_description"):
             return
 
-        descriptions = {
-            "Match Analysis": "Well-rounded smoothing, includes most shots.",
-            "Multi-Match": "Balanced: shows main clusters.",
-            "Season Review": "Focused: dense zones only.",
-            "Season Review (Goal only)": "Goal-focused overview.",
-        }
-
         preset = self.app.heatmap_preset.get()
-        self.app.preset_description.config(text=descriptions.get(preset, ""))
+        self.app.preset_description.config(
+            text=HEATMAP_PRESET_DESCRIPTIONS.get(preset, "")
+        )
