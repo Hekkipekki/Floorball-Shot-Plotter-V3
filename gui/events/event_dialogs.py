@@ -75,7 +75,7 @@ SITUATION_OPTIONS_BY_SUB_PHASE = {
     },
     "Opponent power play": {
         "Power-play point shot": "Opponent power-play shot from high/point position.",
-        "Power-play cross-pass": "Opponent power-play shot after lateral puck/ball movement.",
+        "Power-play cross-pass": "Opponent power-play shot after lateral ball movement.",
         "Power-play slot pass": "Opponent power-play pass into the slot before the shot.",
         "Power-play screen": "Opponent power-play shot through traffic/screen.",
         "Power-play rebound": "Opponent power-play rebound chance.",
@@ -166,6 +166,16 @@ PASSER_HAND_OPTIONS = {
     "No assist": "Opponent shot was unassisted.",
 }
 
+DIALOG_BG = "#223344"
+DIALOG_BTN_BG = "#4A9BE8"
+DIALOG_BACK_BG = "#445566"
+DIALOG_TEXT = "white"
+OPTION_ROW_HEIGHT = 36
+DIALOG_VERTICAL_CHROME = 108
+DIALOG_NAV_HEIGHT = 76
+DIALOG_DESC_HEIGHT = 46
+MAX_DIALOG_HEIGHT = 620
+
 
 def _create_base_popup(app, title, on_destroy=None):
     popup = tk.Toplevel(app.root)
@@ -177,19 +187,47 @@ def _create_base_popup(app, title, on_destroy=None):
     if on_destroy is not None:
         popup.bind("<Destroy>", lambda _: on_destroy())
 
-    frame = tk.Frame(popup)
+    frame = tk.Frame(popup, bg=DIALOG_BG)
     frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+    return popup, frame
 
-    desc_label = tk.Label(
-        frame,
-        text="",
-        wraplength=300,
-        justify="center",
-        anchor="center",
-    )
-    desc_label.pack_forget()
 
-    return popup, frame, desc_label
+def _dialog_height(option_count: int, requested_height: int, has_back: bool) -> int:
+    content_height = option_count * OPTION_ROW_HEIGHT + DIALOG_VERTICAL_CHROME
+    if has_back:
+        content_height += 36
+    return min(max(220, min(content_height, requested_height)), MAX_DIALOG_HEIGHT)
+
+
+def _make_scrollable_options(parent, height: int):
+    container = tk.Frame(parent, bg=DIALOG_BG)
+    container.pack(fill=tk.BOTH, expand=True)
+
+    canvas = tk.Canvas(container, bg=DIALOG_BG, highlightthickness=0, borderwidth=0)
+    scrollbar = tk.Scrollbar(container, orient="vertical", command=canvas.yview)
+    options_frame = tk.Frame(canvas, bg=DIALOG_BG)
+    window_id = canvas.create_window((0, 0), window=options_frame, anchor="nw")
+
+    def on_configure(_event=None):
+        canvas.configure(scrollregion=canvas.bbox("all"))
+        canvas.itemconfigure(window_id, width=canvas.winfo_width())
+
+    options_frame.bind("<Configure>", on_configure)
+    canvas.bind("<Configure>", on_configure)
+    canvas.configure(yscrollcommand=scrollbar.set, height=height)
+
+    canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+    return options_frame, canvas
+
+
+def _bind_mousewheel(widget, canvas):
+    def on_mousewheel(event):
+        canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+    widget.bind_all("<MouseWheel>", on_mousewheel)
+    widget.bind_all("<Button-4>", lambda _event: canvas.yview_scroll(-1, "units"))
+    widget.bind_all("<Button-5>", lambda _event: canvas.yview_scroll(1, "units"))
 
 
 def show_option_dialog(
@@ -202,15 +240,34 @@ def show_option_dialog(
     on_destroy=None,
     on_back=None,
 ):
-    popup, frame, desc_label = _create_base_popup(app, title, on_destroy=on_destroy)
+    popup_height = _dialog_height(len(options), height, on_back is not None)
+    popup, frame = _create_base_popup(app, title, on_destroy=on_destroy)
+
+    desc_label = tk.Label(
+        frame,
+        text="Hover an option to see details.",
+        bg=DIALOG_BG,
+        fg=DIALOG_TEXT,
+        wraplength=max(220, width - 45),
+        justify="center",
+        anchor="center",
+        height=2,
+    )
+    desc_label.pack(fill=tk.X, pady=(0, 8))
+
+    option_area_height = max(90, popup_height - DIALOG_DESC_HEIGHT - DIALOG_NAV_HEIGHT)
+    options_frame, canvas = _make_scrollable_options(frame, option_area_height)
+    _bind_mousewheel(popup, canvas)
 
     for label, description in options.items():
         btn = tk.Button(
-            frame,
+            options_frame,
             text=label,
-            bg="#223344",
-            fg="white",
-            relief=tk.RAISED,
+            bg=DIALOG_BTN_BG,
+            fg=DIALOG_TEXT,
+            activebackground="#5AADF2",
+            activeforeground=DIALOG_TEXT,
+            relief=tk.FLAT,
             padx=10,
             pady=5,
             anchor="center",
@@ -219,35 +276,40 @@ def show_option_dialog(
             command=lambda value=label: [popup.destroy(), on_select(value)],
         )
         btn.pack(fill=tk.X, pady=3)
-        btn.bind("<Enter>", lambda e, txt=description: desc_label.config(text=txt))
-        btn.bind("<Leave>", lambda e: desc_label.config(text=""))
+        btn.bind("<Enter>", lambda _e, txt=description: desc_label.config(text=txt))
+        btn.bind("<Leave>", lambda _e: desc_label.config(text="Hover an option to see details."))
 
-    desc_label.pack(fill=tk.BOTH, expand=True, pady=(10, 5))
+    nav_frame = tk.Frame(frame, bg=DIALOG_BG)
+    nav_frame.pack(fill=tk.X, pady=(8, 0))
 
     if on_back is not None:
         back = tk.Button(
-            frame,
+            nav_frame,
             text="← Back",
-            bg="#445566",
-            fg="white",
-            relief=tk.RAISED,
+            bg=DIALOG_BACK_BG,
+            fg=DIALOG_TEXT,
+            activebackground="#526679",
+            activeforeground=DIALOG_TEXT,
+            relief=tk.FLAT,
             font=("Arial", 9, "bold"),
             command=lambda: [popup.destroy(), on_back()],
         )
         back.pack(fill=tk.X, pady=(0, 5))
 
     cancel = tk.Button(
-        frame,
+        nav_frame,
         text="Cancel",
-        bg="#223344",
-        fg="white",
-        relief=tk.RAISED,
+        bg=DIALOG_BTN_BG,
+        fg=DIALOG_TEXT,
+        activebackground="#5AADF2",
+        activeforeground=DIALOG_TEXT,
+        relief=tk.FLAT,
         font=("Arial", 9),
         command=popup.destroy,
     )
-    cancel.pack(fill=tk.X, pady=(0, 5))
+    cancel.pack(fill=tk.X)
 
-    prepare_popup(popup, app, width=width, height=height)
+    prepare_popup(popup, app, width=width, height=popup_height)
 
 
 def show_phase_dialog(self, x, y, shot_or_goal):
@@ -343,8 +405,8 @@ def show_shot_type_dialog(self, x, y, phase, situation, shot_or_goal, phase_grou
             phase_group,
             sub_phase,
         ),
-        width=340,
-        height=560,
+        width=360,
+        height=620,
         on_back=lambda: show_situation_dialog(
             self, x, y, shot_or_goal, phase_group, sub_phase
         ),
