@@ -1,14 +1,50 @@
 from core.schema import IDX_PERIOD
 
 ALL_MATCHES = "All"
+SEASON_MATCH = "Season"
+SPECIAL_MATCHES = (ALL_MATCHES, SEASON_MATCH)
+
+
+def individual_match_names(app):
+    return [name for name in app.match_logs.keys() if name not in SPECIAL_MATCHES]
+
+
+def combined_match_entries(app):
+    if SEASON_MATCH in app.match_logs:
+        return list(app.match_logs.get(SEASON_MATCH, []))
+
+    entries = []
+    for name in individual_match_names(app):
+        entries.extend(app.match_logs.get(name, []))
+    return entries
+
+
+def selected_shotlog_match_names(app):
+    all_var = getattr(app, "shotlog_match_filter_all", None)
+    match_vars = getattr(app, "shotlog_match_filter_vars", None)
+
+    if all_var is None or match_vars is None or all_var.get():
+        return None
+
+    selected = []
+    for name, var in match_vars.items():
+        if name in app.match_logs and var.get():
+            selected.append(name)
+
+    return selected or None
 
 
 def get_match_entries(app, match):
-    if match == ALL_MATCHES:
+    selected_matches = selected_shotlog_match_names(app)
+    if selected_matches is not None:
         entries = []
-        for logs in app.match_logs.values():
-            entries.extend(logs)
+        for name in selected_matches:
+            entries.extend(app.match_logs.get(name, []))
         return entries
+
+    if match in (ALL_MATCHES, SEASON_MATCH):
+        return combined_match_entries(app)
+
     return app.match_logs.get(match, [])
 
 
