@@ -1,0 +1,224 @@
+# Floorball Shot Plotter — User Cheat Sheet
+
+This guide is for new beta testers who want a quick overview of what the app can do and how to use the main workflows.
+
+## What the app is for
+
+Floorball Shot Plotter is a desktop tool for logging **opponent shots and goals against your team** on a defensive-zone rink map.
+
+You can use it to:
+
+- plot opponent shots and goals
+- log shot type, situation, shooter hand, passer hand, and pass origin
+- review X/Y, distance, angle, and shot zone
+- filter and customize the Shot Log
+- load video clips and plot directly from video
+- calibrate video angles to the rink background
+- show heatmaps and danger-zone overlays
+- save/load match files and export data
+
+## Basic plotting
+
+### Add a shot
+
+1. Click a location on the rink.
+2. Choose **Add Shot**.
+3. Select the game state, context, situation, shot type, shooter hand, and passer/pass origin if needed.
+4. The shot appears on the rink and in the Shot Log.
+
+### Add a goal
+
+1. Click a location on the rink.
+2. Choose **Add Goal**.
+3. Fill in the same event details.
+4. The goal is logged separately from shots but still appears in the Shot Log.
+
+### What the event dialog means
+
+The dialog is written from your team’s defensive perspective.
+
+Use it for **opponent events only**:
+
+- **5v5 / Even strength** — normal opponent attacks.
+- **Special teams** — opponent power play, shorthanded chances, 6v5, empty net.
+- **Restart / set play against** — free hit, faceoff, penalty shot against.
+- **Broken play / rebound against** — rebounds, screens, scrambles, failed clearances.
+
+## Pass-origin logging
+
+When an event has a passer:
+
+1. Choose the opponent passer hand.
+2. The app asks if you want to mark the pass origin manually.
+3. Choose **Yes**.
+4. Click the pass-origin location on the rink or right-click the pass origin in video Plot mode.
+
+Use **No assist** when the shot is unassisted.
+
+## Shot Log
+
+The Shot Log is the table on the right side.
+
+You can use it to review:
+
+- result: shot or goal
+- phase/context/situation
+- shot type
+- passer/shooter hand
+- period
+- X/Y coordinates
+- pass-origin X/Y
+- distance
+- angle
+- zone
+- video links when available
+
+### Filtering and columns
+
+- Use the Shot Log dropdown/filter controls to focus on specific values.
+- Use column visibility controls to hide/show columns.
+- The Shot Log panel can be collapsed to the right.
+- Drag the panel border left/right to resize it.
+
+## Heatmaps
+
+Use the view controls to switch between plot and heatmap views.
+
+Available heatmap-style views include:
+
+- standard shot heatmap
+- goal heatmap
+- save heatmap
+
+Use **Heatmap Settings** from the top menu to adjust heatmap behavior.
+
+## Shot Zone overlay
+
+Use the top menu:
+
+```text
+Shot Zone → Show Shot Zone Overlay
+```
+
+This toggles a semi-transparent danger-zone overlay on top of the rink background.
+
+The app looks for:
+
+```text
+assets/resources/xG/Danger Zones.png
+```
+
+If that file is missing, it falls back to older xG overlay images in the same folder.
+
+## Video workflow
+
+### Open a video without logging first
+
+Use:
+
+```text
+Video → Open Video Clip...
+```
+
+This opens a video clip directly so you can review it before plotting.
+
+### Plot from video
+
+1. Open a video.
+2. Click **Plot: OFF** so it becomes **Plot: ON**.
+3. Right-click the shot location in the video.
+4. Choose **Add Shot here** or **Add Goal here**.
+5. Fill in the event details.
+6. If you choose manual pass origin, right-click the pass-origin location in the video.
+
+## Video calibration
+
+Calibration maps video clicks to the rink background.
+
+Use it when plotting directly from video, especially GoPro or fixed camera angles.
+
+### Calibrate a video angle
+
+1. Open a video.
+2. Click **Calibrate**.
+3. Left-click each requested rink landmark in the video.
+4. If a landmark is outside the frame, use **Skip Point**.
+5. When complete, the calibration is saved for that video file.
+
+When reopening the same video, the app should restore the saved calibration automatically.
+
+### Calibration landmarks
+
+The current calibration sequence asks for these landmarks when visible:
+
+1. Lower Left Goal Area
+2. Lower Right Goal Area
+3. Upper Right Goal Area
+4. Upper Left Goal Area
+5. Lower Left Goalie Area
+6. Lower Right Goalie Area
+7. Upper Left Goalie Area
+8. Upper Right Goalie Area
+9. Center of Goal Line
+10. Upper Left Defensive Zone
+11. Upper Right Defensive Zone
+12. Center Faceoff Dot
+13. Center of Defensive Zone
+14. Left Center Defensive Zone
+15. Right Center Defensive Zone
+16. Lower Left Faceoff Dot
+17. Lower Right Faceoff Dot
+18. Behind Goal Near Board
+
+The most reliable points are usually the goal-area and goalie-area corners, goal-line centre, visible faceoff dots, and clear defensive-zone board/line references.
+
+## Calibration warnings
+
+After calibration, the app checks basic geometry.
+
+It may warn if:
+
+- too few points were captured
+- left/right points look reversed
+- points that should be on the same line are too far apart
+- a centre point is far from the expected midpoint
+
+Warnings do not block saving, but they mean you should consider recalibrating.
+
+## Save, load, and export
+
+Use the top **File** menu:
+
+- **Save CSV** — export the current log data.
+- **Load CSV** — load previous match/event data.
+- **Export Image** — export the current rink/plot view.
+
+Use save/load when testing so you can verify that events, pass origins, and video data survive reopening.
+
+## Useful testing checklist
+
+Before reporting that a build is ready, test:
+
+1. App starts normally.
+2. Rink background appears.
+3. Demo shots work if available.
+4. Add Shot works.
+5. Add Goal works.
+6. Pass-origin manual click works.
+7. Shot Log filtering works.
+8. Shot Log collapse/resize works.
+9. Save/load works.
+10. Heatmap views work.
+11. Shot Zone overlay toggles on/off.
+12. Video opens and plays with VLC.
+13. Video Plot mode works.
+14. Video calibration saves and restores.
+15. Downloaded release zip contains `assets`, `data`, and bundled `vlc` folders.
+
+## Common notes
+
+- The app is desktop-first and runs locally.
+- The Netlify website is only the download/beta page.
+- The download button on Netlify always points to the latest GitHub Release.
+- App-only code changes require a new GitHub Release before testers get the update.
+- xG model development is not the current priority; the app is currently xG-ready by collecting useful event features.
