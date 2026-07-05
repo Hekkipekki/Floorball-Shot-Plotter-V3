@@ -49,20 +49,24 @@ def _let_tk_receive_video_mouse_events(player) -> None:
         pass
 
 
+def _pack_or_grid_control(button, parent, grid_column: int) -> None:
+    tools_frame = getattr(parent, "video_tools_frame", None)
+    if tools_frame is not None:
+        button.pack(in_=tools_frame, side="left", padx=(0, 5))
+    else:
+        button.grid(row=1, column=grid_column, padx=3, pady=(6, 8), sticky="ew")
+
+
 def _add_video_plot_controls(player) -> None:
-    try:
-        player.timeline.grid_configure(columnspan=11)
-        player.save_btn.grid_configure(column=10)
-        player.close_small_btn.grid_configure(column=11)
-    except Exception:
-        pass
     player.video_plot_btn = create_control_button(player.controls, "Plot: OFF", lambda: _toggle_video_plot_mode(player))
-    player.video_plot_btn.grid(row=1, column=7, padx=3, pady=(6, 8), sticky="ew")
+    _pack_or_grid_control(player.video_plot_btn, player, 7)
+
     cal_text = "Recalibrate" if player.video_calibration_model is not None else "Calibrate"
     player.video_calibration_btn = create_control_button(player.controls, cal_text, lambda: _toggle_video_calibration_mode(player))
-    player.video_calibration_btn.grid(row=1, column=8, padx=3, pady=(6, 8), sticky="ew")
+    _pack_or_grid_control(player.video_calibration_btn, player, 8)
+
     player.video_skip_calibration_btn = create_control_button(player.controls, SKIP_BUTTON_DISABLED_TEXT, lambda: _skip_calibration_point(player))
-    player.video_skip_calibration_btn.grid(row=1, column=9, padx=3, pady=(6, 8), sticky="ew")
+    _pack_or_grid_control(player.video_skip_calibration_btn, player, 9)
     player.video_skip_calibration_btn.config(state="disabled")
 
 
@@ -247,6 +251,8 @@ def _plot_video_point(player, x: int, y: int, shot_or_goal: str) -> None:
     try:
         if player.player is not None and player.player.is_playing():
             player.player.pause()
+            if hasattr(player, "_set_play_button_state"):
+                player._set_play_button_state()
     except Exception:
         pass
     try:
@@ -280,15 +286,17 @@ def _add_pending_pass_origin_from_video(player, x: int, y: int) -> None:
 def _on_video_left_click(player, event) -> str | None:
     if not getattr(player, "video_calibration_mode", tk.BooleanVar(value=False)).get():
         return None
+    if player.video_calibration_step >= len(GOPRO_CALIBRATION_POINTS):
+        return "break"
     source_norm = _video_event_to_normalized_coordinates(player, event)
-    fallback_plot = _fallback_normalized_to_plot(player, source_norm) if source_norm is not None else None
-    if source_norm is None or fallback_plot is None:
+    if source_norm is None:
         return "break"
-    step = player.video_calibration_step
-    if step >= len(GOPRO_CALIBRATION_POINTS):
-        return "break"
-    name, target_plot, _instruction = GOPRO_CALIBRATION_POINTS[step]
-    player.video_calibration_clicks.append({"name": name, "source_norm": source_norm, "fallback_plot": fallback_plot, "target_plot": target_plot})
+    name, target_plot, _instruction = GOPRO_CALIBRATION_POINTS[player.video_calibration_step]
+    player.video_calibration_clicks.append({
+        "name": name,
+        "source_norm": source_norm,
+        "target_plot": target_plot,
+    })
     player.video_calibration_step += 1
     if player.video_calibration_step >= len(GOPRO_CALIBRATION_POINTS):
         _finish_calibration_sequence(player)
@@ -298,18 +306,20 @@ def _on_video_left_click(player, event) -> str | None:
 
 
 def _on_video_right_click(player, event) -> str | None:
-    coords = _video_event_to_plot_coordinates(player, event)
-    if coords is None:
-        return "break"
-    x, y = coords
     app = player.app
-    if app is not None and getattr(app, "expecting_pass_click", False):
-        _add_pending_pass_origin_from_video(player, x, y)
-        return "break"
+    if app is None:
+        return None
     if not getattr(player, "video_plot_mode", tk.BooleanVar(value=False)).get():
         return None
+    plot_coords = _video_event_to_plot_coordinates(player, event)
+    if plot_coords is None:
+        return "break"
+    x, y = plot_coords
+    if getattr(app, "expecting_pass_click", False):
+        _add_pending_pass_origin_from_video(player, x, y)
+        return "break"
     menu = tk.Menu(player, tearoff=0)
-    menu.add_command(label=f"Add Shot here ({x}, {y})", command=lambda: _plot_video_point(player, x, y, SHOT_EVENT_TYPE))
-    menu.add_command(label=f"Add Goal here ({x}, {y})", command=lambda: _plot_video_point(player, x, y, GOAL_EVENT_TYPE))
+    menu.add_command(label="Add Shot here", command=lambda: _plot_video_point(player, x, y, SHOT_EVENT_TYPE))
+    menu.add_command(label="Add Goal here", command=lambda: _plot_video_point(player, x, y, GOAL_EVENT_TYPE))
     menu.post(event.x_root, event.y_root)
     return "break"
