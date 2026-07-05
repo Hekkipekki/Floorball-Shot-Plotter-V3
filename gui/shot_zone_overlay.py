@@ -3,13 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 from tkinter import messagebox
 
-from PIL import Image, ImageEnhance, ImageFilter
+from PIL import Image, ImageEnhance
 
 from app_paths import ASSETS_DIR
 
 SHOT_ZONE_DIR = Path(ASSETS_DIR) / "resources" / "xG"
 SHOT_ZONE_IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp")
-SHOT_ZONE_DEFAULT_ALPHA = 0.55
+SHOT_ZONE_DEFAULT_ALPHA = 0.62
 SHOT_ZONE_PREFERRED_FILENAME = "Danger Zones.png"
 SHOT_ZONE_FALLBACK_FILENAME = "xG Bild.png"
 
@@ -46,11 +46,8 @@ def _make_transparent(image: Image.Image, alpha: float = SHOT_ZONE_DEFAULT_ALPHA
 
 
 def _prepare_danger_zone_overlay(image: Image.Image) -> Image.Image:
-    # Keep the user's exact zone geometry/sizing and only soften the visual style a little.
-    image = _make_transparent(image)
-    image = ImageEnhance.Color(image).enhance(0.88)
-    image = ImageEnhance.Contrast(image).enhance(0.94)
-    return image.filter(ImageFilter.GaussianBlur(radius=0.35))
+    # Preserve the Photoshop asset exactly. Only apply transparency.
+    return _make_transparent(image)
 
 
 def load_shot_zone_overlay(app):
