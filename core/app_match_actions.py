@@ -33,8 +33,15 @@ def ensure_current_match_is_valid(app):
             app.current_match.set("New Match")
 
 
+def _sync_shotlog_match_filter(app) -> None:
+    sync = getattr(app, "sync_shotlog_match_filter", None)
+    if sync is not None:
+        sync()
+
+
 def update_match_dropdown(app):
     if not hasattr(app, "match_dropdown"):
+        _sync_shotlog_match_filter(app)
         return
 
     matches = list(app.match_logs.keys())
@@ -43,6 +50,7 @@ def update_match_dropdown(app):
 
     app.match_dropdown["values"] = matches
     ensure_current_match_is_valid(app)
+    _sync_shotlog_match_filter(app)
 
 
 def clear_all_data(app):
