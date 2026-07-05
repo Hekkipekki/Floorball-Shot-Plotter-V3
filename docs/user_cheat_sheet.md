@@ -17,18 +17,36 @@ You can use it to:
 - show heatmaps and danger-zone overlays
 - save/load match files and export data
 
+## Mouse controls quick reference
+
+### Rink map
+
+- **Left-click on the rink** — start normal rink plotting at that location.
+- **Add Shot** — log the clicked rink location as an opponent shot.
+- **Add Goal** — log the clicked rink location as an opponent goal.
+- **Left-click during pass-origin selection** — mark where the opponent pass came from.
+
+### Video window
+
+- **Video → Open Video Clip...** — open a video without selecting a shot first.
+- **Plot: OFF / ON** — turn video plotting mode on or off.
+- **Right-click in video while Plot mode is ON** — plot at that video location.
+- **Right-click during video pass-origin selection** — mark the pass origin from video.
+- **Left-click during calibration** — select the requested rink landmark in the video.
+- **Skip Point** — skip a calibration landmark that is not visible in the video frame.
+
 ## Basic plotting
 
 ### Add a shot
 
-1. Click a location on the rink.
+1. Left-click a location on the rink.
 2. Choose **Add Shot**.
 3. Select the game state, context, situation, shot type, shooter hand, and passer/pass origin if needed.
 4. The shot appears on the rink and in the Shot Log.
 
 ### Add a goal
 
-1. Click a location on the rink.
+1. Left-click a location on the rink.
 2. Choose **Add Goal**.
 3. Fill in the same event details.
 4. The goal is logged separately from shots but still appears in the Shot Log.
@@ -51,7 +69,8 @@ When an event has a passer:
 1. Choose the opponent passer hand.
 2. The app asks if you want to mark the pass origin manually.
 3. Choose **Yes**.
-4. Click the pass-origin location on the rink or right-click the pass origin in video Plot mode.
+4. On the rink map, left-click the pass-origin location.
+5. In video Plot mode, right-click the pass-origin location in the video.
 
 Use **No assist** when the shot is unassisted.
 
@@ -131,6 +150,8 @@ This opens a video clip directly so you can review it before plotting.
 5. Fill in the event details.
 6. If you choose manual pass origin, right-click the pass-origin location in the video.
 
+Important: video plotting uses **right-click**. Left-click in the video is used for calibration landmark selection.
+
 ## Video calibration
 
 Calibration maps video clicks to the rink background.
@@ -202,18 +223,20 @@ Before reporting that a build is ready, test:
 1. App starts normally.
 2. Rink background appears.
 3. Demo shots work if available.
-4. Add Shot works.
-5. Add Goal works.
-6. Pass-origin manual click works.
+4. Rink left-click Add Shot works.
+5. Rink left-click Add Goal works.
+6. Rink pass-origin left-click works.
 7. Shot Log filtering works.
 8. Shot Log collapse/resize works.
 9. Save/load works.
 10. Heatmap views work.
 11. Shot Zone overlay toggles on/off.
 12. Video opens and plays with VLC.
-13. Video Plot mode works.
-14. Video calibration saves and restores.
-15. Downloaded release zip contains `assets`, `data`, and bundled `vlc` folders.
+13. Video Plot mode right-click Add Shot/Add Goal works.
+14. Video pass-origin right-click works.
+15. Video calibration left-click landmarks work.
+16. Video calibration saves and restores.
+17. Downloaded release zip contains `assets`, `data`, and bundled `vlc` folders.
 
 ## Common notes
 
