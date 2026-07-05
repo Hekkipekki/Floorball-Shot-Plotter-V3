@@ -86,6 +86,12 @@ COLUMN_POPUP_COLUMNS = 3
 COLUMN_POPUP_PAD_X = 12
 COLUMN_POPUP_PAD_Y = 5
 COLUMN_POPUP_PADDING = 10
+MATCH_BUTTON_ALL_TEXT = "Matches: All ▾"
+MATCH_BUTTON_PREFIX = "Matches"
+MATCH_POPUP_TITLE = "Shot Log Matches"
+MATCH_POPUP_PADDING = 10
+MATCH_SPECIAL_NAMES = ("All", "Season")
+MATCH_ALL_LABEL = "All matches"
 
 
 def _shotlog_heading_text(column: str) -> str:
@@ -235,18 +241,161 @@ def _open_column_popup(app, button) -> None:
     popup.lift()
 
 
+def _match_names(app):
+    return [name for name in app.match_logs.keys() if name not in MATCH_SPECIAL_NAMES]
+
+
+def _init_match_filter_vars(app) -> None:
+    if not hasattr(app, "shotlog_match_filter_all"):
+        app.shotlog_match_filter_all = tk.BooleanVar(value=True)
+    if not hasattr(app, "shotlog_match_filter_vars"):
+        app.shotlog_match_filter_vars = {}
+
+    current_names = set(_match_names(app))
+    for name in current_names:
+        app.shotlog_match_filter_vars.setdefault(name, tk.BooleanVar(value=False))
+
+    for name in list(app.shotlog_match_filter_vars.keys()):
+        if name not in current_names:
+            del app.shotlog_match_filter_vars[name]
+
+    if not any(var.get() for var in app.shotlog_match_filter_vars.values()):
+        app.shotlog_match_filter_all.set(True)
+
+
+def _selected_match_count(app) -> int:
+    return sum(1 for var in getattr(app, "shotlog_match_filter_vars", {}).values() if var.get())
+
+
+def _update_match_filter_button_text(app) -> None:
+    button = getattr(app, "shotlog_match_filter_button", None)
+    if button is None:
+        return
+
+    if getattr(app, "shotlog_match_filter_all", tk.BooleanVar(value=True)).get():
+        button.configure(text=MATCH_BUTTON_ALL_TEXT)
+        return
+
+    selected = [name for name, var in app.shotlog_match_filter_vars.items() if var.get()]
+    if len(selected) == 1:
+        button.configure(text=f"{MATCH_BUTTON_PREFIX}: {selected[0]} ▾")
+    else:
+        button.configure(text=f"{MATCH_BUTTON_PREFIX}: {len(selected)} ▾")
+
+
+def sync_match_filter_controls(app) -> None:
+    _init_match_filter_vars(app)
+    _update_match_filter_button_text(app)
+
+
+def _apply_match_filter(app) -> None:
+    _update_match_filter_button_text(app)
+    app.refresh_all()
+
+
+def _on_all_matches_toggled(app) -> None:
+    if app.shotlog_match_filter_all.get():
+        for var in app.shotlog_match_filter_vars.values():
+            var.set(False)
+    elif _selected_match_count(app) == 0:
+        app.shotlog_match_filter_all.set(True)
+    _apply_match_filter(app)
+
+
+def _on_match_toggled(app) -> None:
+    if _selected_match_count(app) > 0:
+        app.shotlog_match_filter_all.set(False)
+    else:
+        app.shotlog_match_filter_all.set(True)
+    _apply_match_filter(app)
+
+
+def _close_match_popup(app) -> None:
+    popup = getattr(app, "shotlog_match_popup", None)
+    if popup is not None:
+        try:
+            popup.destroy()
+        except Exception:
+            pass
+    app.shotlog_match_popup = None
+
+
+def _open_match_popup(app, button) -> None:
+    existing = getattr(app, "shotlog_match_popup", None)
+    if existing is not None and existing.winfo_exists():
+        _close_match_popup(app)
+        return
+
+    _init_match_filter_vars(app)
+
+    popup = tk.Toplevel(button)
+    popup.title(MATCH_POPUP_TITLE)
+    popup.transient(app.root)
+    popup.resizable(False, False)
+    popup.bind("<Escape>", lambda _e: _close_match_popup(app))
+    popup.protocol("WM_DELETE_WINDOW", lambda: _close_match_popup(app))
+    app.shotlog_match_popup = popup
+
+    frame = tb.Frame(popup, padding=MATCH_POPUP_PADDING)
+    frame.pack(fill="both", expand=True)
+
+    all_checkbox = tb.Checkbutton(
+        frame,
+        text=MATCH_ALL_LABEL,
+        variable=app.shotlog_match_filter_all,
+        command=lambda: _on_all_matches_toggled(app),
+        bootstyle="round-toggle",
+    )
+    all_checkbox.pack(anchor="w", padx=8, pady=(4, 8))
+
+    tb.Separator(frame, orient="horizontal").pack(fill="x", pady=(0, 8))
+
+    for name in _match_names(app):
+        checkbox = tb.Checkbutton(
+            frame,
+            text=name,
+            variable=app.shotlog_match_filter_vars[name],
+            command=lambda: _on_match_toggled(app),
+            bootstyle="round-toggle",
+        )
+        checkbox.pack(anchor="w", padx=8, pady=3)
+
+    close_btn = tb.Button(
+        frame,
+        text="Done",
+        command=lambda: _close_match_popup(app),
+        bootstyle="secondary",
+    )
+    close_btn.pack(fill="x", padx=8, pady=(10, 2))
+
+    x, y = _column_popup_position(button)
+    popup.geometry(f"+{x}+{y}")
+    popup.lift()
+
+
 def _create_column_toolbar(app, frame) -> None:
     toolbar = tb.Frame(frame)
     toolbar.grid(row=0, column=0, columnspan=2, sticky="ew", padx=PAD_X, pady=(0, PAD_Y))
     _init_column_vars(app)
+    _init_match_filter_vars(app)
 
-    button = tb.Button(
+    column_button = tb.Button(
         toolbar,
         text=COLUMN_BUTTON_TEXT,
-        command=lambda: _open_column_popup(app, button),
+        command=lambda: _open_column_popup(app, column_button),
         bootstyle="secondary",
     )
-    button.pack(anchor="w")
+    column_button.pack(side="left")
+
+    match_button = tb.Button(
+        toolbar,
+        text=MATCH_BUTTON_ALL_TEXT,
+        command=lambda: _open_match_popup(app, match_button),
+        bootstyle="secondary",
+    )
+    match_button.pack(side="left", padx=(6, 0))
+    app.shotlog_match_filter_button = match_button
+    _update_match_filter_button_text(app)
 
 
 def _configure_shotlog_frame(frame) -> None:
@@ -282,6 +431,7 @@ def setup_shotlog_frame(app, parent):
     frame.pack(fill="both", expand=True, padx=PAD_X, pady=PAD_Y)
     _configure_shotlog_frame(frame)
     _create_column_toolbar(app, frame)
+    app.sync_shotlog_match_filter = lambda: sync_match_filter_controls(app)
 
     tree = _create_shotlog_tree(frame)
     _add_scrollbars(frame, tree)
