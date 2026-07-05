@@ -7,30 +7,49 @@ from PIL import Image, ImageEnhance
 
 from app_paths import ASSETS_DIR
 
-SHOT_ZONE_DIR = Path(ASSETS_DIR) / "resources" / "xG"
+RESOURCES_DIR = Path(ASSETS_DIR) / "resources"
+SHOT_ZONE_DIR = RESOURCES_DIR / "xG"
 SHOT_ZONE_IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp")
 SHOT_ZONE_DEFAULT_ALPHA = 0.62
 SHOT_ZONE_PREFERRED_FILENAME = "Danger Zones.png"
 SHOT_ZONE_FALLBACK_FILENAME = "xG Bild.png"
 
 
+def _candidate_directories() -> tuple[Path, ...]:
+    return (
+        RESOURCES_DIR,
+        SHOT_ZONE_DIR,
+    )
+
+
+def _find_named_image(filename: str) -> Path | None:
+    for directory in _candidate_directories():
+        path = directory / filename
+        if path.exists():
+            return path
+    return None
+
+
+def _find_first_supported_image() -> Path | None:
+    for directory in _candidate_directories():
+        if not directory.exists():
+            continue
+        for path in sorted(directory.iterdir()):
+            if path.is_file() and path.suffix.lower() in SHOT_ZONE_IMAGE_EXTENSIONS:
+                return path
+    return None
+
+
 def _find_shot_zone_image() -> Path | None:
-    preferred = SHOT_ZONE_DIR / SHOT_ZONE_PREFERRED_FILENAME
-    if preferred.exists():
+    preferred = _find_named_image(SHOT_ZONE_PREFERRED_FILENAME)
+    if preferred is not None:
         return preferred
 
-    fallback = SHOT_ZONE_DIR / SHOT_ZONE_FALLBACK_FILENAME
-    if fallback.exists():
+    fallback = _find_named_image(SHOT_ZONE_FALLBACK_FILENAME)
+    if fallback is not None:
         return fallback
 
-    if not SHOT_ZONE_DIR.exists():
-        return None
-
-    for path in sorted(SHOT_ZONE_DIR.iterdir()):
-        if path.is_file() and path.suffix.lower() in SHOT_ZONE_IMAGE_EXTENSIONS:
-            return path
-
-    return None
+    return _find_first_supported_image()
 
 
 def _target_size(app) -> tuple[int, int] | None:
@@ -85,7 +104,7 @@ def toggle_shot_zone_overlay(app) -> None:
         app.show_shot_zone_overlay.set(False)
         messagebox.showwarning(
             "Shot Zone Overlay",
-            f"No shot zone image found in:\n{SHOT_ZONE_DIR}\n\nAdd Danger Zones.png or another PNG/JPG/WebP image there and try again.",
+            f"No shot zone image found in:\n{RESOURCES_DIR} or {SHOT_ZONE_DIR}\n\nAdd Danger Zones.png or another PNG/JPG/WebP image there and try again.",
         )
         return
 
