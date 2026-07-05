@@ -36,12 +36,11 @@
     <section class="grid two-col">
       <article class="panel">
         <h2>Mouse controls</h2>
-        <h3>Rink map</h3>
+        <h3>Rink map / plotting view</h3>
         <ul>
-          <li><strong>Left-click on the rink</strong> — start normal rink plotting at that location.</li>
-          <li><strong>Add Shot</strong> — log the clicked rink location as an opponent shot.</li>
-          <li><strong>Add Goal</strong> — log the clicked rink location as an opponent goal.</li>
-          <li><strong>Left-click during pass-origin selection</strong> — mark where the opponent pass came from.</li>
+          <li><strong>Left-click on the rink</strong> — add an opponent shot at that location.</li>
+          <li><strong>Right-click on the rink</strong> — add an opponent goal at that location.</li>
+          <li><strong>Left-click during rink pass-origin selection</strong> — mark where the opponent pass came from.</li>
         </ul>
         <h3>Shot Log</h3>
         <ul>
@@ -70,16 +69,15 @@
         <h2>Basic plotting</h2>
         <h3>Add a shot</h3>
         <ol>
-          <li>Left-click a location on the rink.</li>
-          <li>Choose <strong>Add Shot</strong>.</li>
+          <li>Left-click the opponent shot location on the rink.</li>
           <li>Select game state, opponent context, situation, shot type, shooter hand, and passer details.</li>
           <li>The shot appears on the rink and in the Shot Log.</li>
         </ol>
         <h3>Add a goal</h3>
         <ol>
-          <li>Left-click a location on the rink.</li>
-          <li>Choose <strong>Add Goal</strong>.</li>
+          <li>Right-click the opponent goal location on the rink.</li>
           <li>Fill in the opponent event details.</li>
+          <li>The goal appears on the rink and in the Shot Log.</li>
         </ol>
       </article>
 
@@ -207,7 +205,8 @@
       <article class="panel">
         <h2>Beta testing checklist</h2>
         <ol>
-          <li>Rink left-click Add Shot/Add Goal works.</li>
+          <li>Rink left-click Add Shot works.</li>
+          <li>Rink right-click Add Goal works.</li>
           <li>Shot Log right-click video linking works.</li>
           <li>Play / Edit Segment works for linked clips.</li>
           <li>Video Plot mode right-click Add Shot/Add Goal works.</li>
