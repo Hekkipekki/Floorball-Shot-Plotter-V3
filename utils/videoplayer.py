@@ -5,7 +5,7 @@ Modern embedded VLC overlay player for Floorball Shot Plotter.
 Features:
 - Uses bundled VLC runtime
 - Fills the center canvas panel
-- Minimal bottom controls
+- Clean bottom controls
 - Clickable / draggable timeline
 - Start / Stop segment fields
 - Sync current video position to Start / Stop
@@ -37,6 +37,14 @@ from utils.video_runtime import (
     parse_float,
     vlc,
 )
+
+CONTROL_PANEL_HEIGHT = 116
+CONTROL_PANEL_PAD_X = 12
+CONTROL_PANEL_PAD_Y = 8
+ENTRY_WIDTH = 7
+PLAY_TEXT = "▶"
+PAUSE_TEXT = "⏸"
+STOP_TEXT = "⏹"
 
 
 # ------------------------------------------------------------
@@ -91,6 +99,121 @@ class VLCOverlayWithControls(tk.Frame):
         self.after(250, self._update_loop)
 
     # --------------------------------------------------------
+    # UI helpers
+    # --------------------------------------------------------
+    def _create_entry(self, parent: tk.Misc, value: str) -> tk.Entry:
+        entry = tk.Entry(
+            parent,
+            bg=self.PANEL_BG_SOFT,
+            fg=self.TEXT,
+            insertbackground=self.TEXT,
+            relief="flat",
+            justify="center",
+            font=("Segoe UI", 9),
+            width=ENTRY_WIDTH,
+        )
+        entry.insert(0, value)
+        entry.bind("<Return>", lambda _e: self.apply_segment_fields(normalize=True))
+        entry.bind("<FocusOut>", lambda _e: self.apply_segment_fields(normalize=True))
+        return entry
+
+    def _create_field_label(self, parent: tk.Misc, text: str) -> tk.Label:
+        return tk.Label(
+            parent,
+            text=text,
+            bg=self.PANEL_BG,
+            fg=self.MUTED,
+            font=("Segoe UI", 9, "bold"),
+        )
+
+    def _build_timeline_row(self) -> None:
+        timeline_row = tk.Frame(self.controls, bg=self.PANEL_BG)
+        timeline_row.pack(fill="x", padx=CONTROL_PANEL_PAD_X, pady=(CONTROL_PANEL_PAD_Y, 2))
+
+        self.time_label = tk.Label(
+            timeline_row,
+            text="00:00 / --:--",
+            bg=self.PANEL_BG,
+            fg=self.TEXT,
+            font=("Segoe UI", 10, "bold"),
+            width=14,
+            anchor="w",
+        )
+        self.time_label.pack(side="left", padx=(0, 10))
+
+        self.timeline = tk.Scale(
+            timeline_row,
+            from_=0,
+            to=100,
+            orient="horizontal",
+            showvalue=False,
+            resolution=0.1,
+            bg=self.PANEL_BG,
+            fg=self.TEXT,
+            troughcolor=TIMELINE_TROUGH,
+            highlightthickness=0,
+            bd=0,
+            command=self._on_timeline_drag,
+        )
+        self.timeline.pack(side="left", fill="x", expand=True)
+        self.timeline.bind("<ButtonPress-1>", self._on_timeline_press)
+        self.timeline.bind("<B1-Motion>", self._on_timeline_motion)
+        self.timeline.bind("<ButtonRelease-1>", self._on_timeline_release)
+
+    def _build_segment_group(self, parent: tk.Misc) -> None:
+        segment_group = tk.Frame(parent, bg=self.PANEL_BG)
+        segment_group.pack(side="left", padx=(0, 14))
+
+        self._create_field_label(segment_group, "Start").pack(side="left", padx=(0, 5))
+        self.start_entry = self._create_entry(segment_group, format_time(self.start_time))
+        self.start_entry.pack(side="left")
+
+        self.sync_start_btn = create_control_button(segment_group, "Set", self.sync_start_to_current)
+        self.sync_start_btn.pack(side="left", padx=(4, 12))
+
+        self._create_field_label(segment_group, "Stop").pack(side="left", padx=(0, 5))
+        self.stop_entry = self._create_entry(segment_group, "" if self.stop_time is None else format_time(self.stop_time))
+        self.stop_entry.pack(side="left")
+
+        self.sync_stop_btn = create_control_button(segment_group, "Set", self.sync_stop_to_current)
+        self.sync_stop_btn.pack(side="left", padx=(4, 0))
+
+    def _build_transport_group(self, parent: tk.Misc) -> None:
+        transport_group = tk.Frame(parent, bg=self.PANEL_BG)
+        transport_group.pack(side="left", padx=(0, 12))
+
+        self.play_btn = create_control_button(transport_group, PLAY_TEXT, self.toggle_play)
+        self.play_btn.pack(side="left", padx=(0, 5))
+
+        self.stop_btn = create_control_button(transport_group, STOP_TEXT, self.stop)
+        self.stop_btn.pack(side="left", padx=(0, 5))
+
+        self.loop_btn = create_control_button(transport_group, "Loop: ON", self.toggle_loop)
+        self.loop_btn.pack(side="left")
+
+    def _build_action_row(self) -> None:
+        action_row = tk.Frame(self.controls, bg=self.PANEL_BG)
+        action_row.pack(fill="x", padx=CONTROL_PANEL_PAD_X, pady=(2, CONTROL_PANEL_PAD_Y))
+
+        self._build_segment_group(action_row)
+        self._build_transport_group(action_row)
+
+        self.video_tools_frame = tk.Frame(action_row, bg=self.PANEL_BG)
+        self.video_tools_frame.pack(side="left", padx=(0, 12))
+
+        spacer = tk.Frame(action_row, bg=self.PANEL_BG)
+        spacer.pack(side="left", fill="x", expand=True)
+
+        self.action_group = tk.Frame(action_row, bg=self.PANEL_BG)
+        self.action_group.pack(side="right")
+
+        self.save_btn = create_control_button(self.action_group, "💾 Save", self.save_segment)
+        self.save_btn.pack(side="left", padx=(0, 5))
+
+        self.close_small_btn = create_control_button(self.action_group, "Close", self.close)
+        self.close_small_btn.pack(side="left")
+
+    # --------------------------------------------------------
     # UI
     # --------------------------------------------------------
     def _build_ui(self) -> None:
@@ -125,115 +248,12 @@ class VLCOverlayWithControls(tk.Frame):
             rely=1.0,
             anchor="s",
             relwidth=0.96,
-            height=86,
+            height=CONTROL_PANEL_HEIGHT,
             y=-12,
         )
 
-        self.controls.grid_columnconfigure(1, weight=1)
-
-        self.time_label = tk.Label(
-            self.controls,
-            text="00:00 / --:--",
-            bg=self.PANEL_BG,
-            fg=self.TEXT,
-            font=("Segoe UI", 9, "bold"),
-            width=13,
-        )
-        self.time_label.grid(row=0, column=0, padx=(10, 6), pady=(8, 0), sticky="w")
-
-        self.timeline = tk.Scale(
-            self.controls,
-            from_=0,
-            to=100,
-            orient="horizontal",
-            showvalue=False,
-            resolution=0.1,
-            bg=self.PANEL_BG,
-            fg=self.TEXT,
-            troughcolor=TIMELINE_TROUGH,
-            highlightthickness=0,
-            bd=0,
-            command=self._on_timeline_drag,
-        )
-        self.timeline.grid(
-            row=0,
-            column=1,
-            columnspan=10,
-            padx=(0, 10),
-            pady=(5, 0),
-            sticky="ew",
-        )
-        self.timeline.bind("<ButtonPress-1>", self._on_timeline_press)
-        self.timeline.bind("<B1-Motion>", self._on_timeline_motion)
-        self.timeline.bind("<ButtonRelease-1>", self._on_timeline_release)
-
-        tk.Label(
-            self.controls,
-            text="Start",
-            bg=self.PANEL_BG,
-            fg=self.MUTED,
-            font=("Segoe UI", 9),
-        ).grid(row=1, column=0, padx=(10, 4), pady=(6, 8), sticky="e")
-
-        self.start_entry = tk.Entry(
-            self.controls,
-            bg=self.PANEL_BG_SOFT,
-            fg=self.TEXT,
-            insertbackground=self.TEXT,
-            relief="flat",
-            justify="center",
-            font=("Segoe UI", 9),
-            width=7,
-        )
-        self.start_entry.insert(0, format_time(self.start_time))
-        self.start_entry.grid(row=1, column=1, padx=(0, 3), pady=(6, 8), sticky="w")
-
-        self.sync_start_btn = create_control_button(self.controls, "Set", self.sync_start_to_current)
-        self.sync_start_btn.grid(row=1, column=2, padx=(0, 8), pady=(6, 8), sticky="ew")
-
-        tk.Label(
-            self.controls,
-            text="Stop",
-            bg=self.PANEL_BG,
-            fg=self.MUTED,
-            font=("Segoe UI", 9),
-        ).grid(row=1, column=3, padx=(0, 4), pady=(6, 8), sticky="e")
-
-        self.stop_entry = tk.Entry(
-            self.controls,
-            bg=self.PANEL_BG_SOFT,
-            fg=self.TEXT,
-            insertbackground=self.TEXT,
-            relief="flat",
-            justify="center",
-            font=("Segoe UI", 9),
-            width=7,
-        )
-        self.stop_entry.insert(0, "" if self.stop_time is None else format_time(self.stop_time))
-        self.stop_entry.grid(row=1, column=4, padx=(0, 3), pady=(6, 8), sticky="w")
-
-        self.sync_stop_btn = create_control_button(self.controls, "Set", self.sync_stop_to_current)
-        self.sync_stop_btn.grid(row=1, column=5, padx=(0, 10), pady=(6, 8), sticky="ew")
-
-        self.play_btn = create_control_button(self.controls, "▶ / ⏸", self.toggle_play)
-        self.play_btn.grid(row=1, column=6, padx=3, pady=(6, 8), sticky="ew")
-
-        self.stop_btn = create_control_button(self.controls, "■", self.stop)
-        self.stop_btn.grid(row=1, column=7, padx=3, pady=(6, 8), sticky="ew")
-
-        self.loop_btn = create_control_button(self.controls, "Loop: ON", self.toggle_loop)
-        self.loop_btn.grid(row=1, column=8, padx=3, pady=(6, 8), sticky="ew")
-
-        self.save_btn = create_control_button(self.controls, "💾 Save", self.save_segment)
-        self.save_btn.grid(row=1, column=9, padx=3, pady=(6, 8), sticky="ew")
-
-        self.close_small_btn = create_control_button(self.controls, "Close", self.close)
-        self.close_small_btn.grid(row=1, column=10, padx=(3, 10), pady=(6, 8), sticky="ew")
-
-        self.start_entry.bind("<Return>", lambda _e: self.apply_segment_fields())
-        self.stop_entry.bind("<Return>", lambda _e: self.apply_segment_fields())
-        self.start_entry.bind("<FocusOut>", lambda _e: self.apply_segment_fields())
-        self.stop_entry.bind("<FocusOut>", lambda _e: self.apply_segment_fields())
+        self._build_timeline_row()
+        self._build_action_row()
 
     # --------------------------------------------------------
     # VLC
@@ -262,6 +282,15 @@ class VLCOverlayWithControls(tk.Frame):
     # --------------------------------------------------------
     # Playback controls
     # --------------------------------------------------------
+    def _set_play_button_state(self) -> None:
+        if not hasattr(self, "play_btn"):
+            return
+        try:
+            is_playing = bool(self.player is not None and self.player.is_playing())
+        except Exception:
+            is_playing = False
+        self.play_btn.config(text=PAUSE_TEXT if is_playing else PLAY_TEXT)
+
     def play(self) -> None:
         if self.player is None:
             return
@@ -271,6 +300,7 @@ class VLCOverlayWithControls(tk.Frame):
 
         try:
             self.player.play()
+            self.after(100, self._set_play_button_state)
             self.after(250, lambda: self.seek_to(self.start_time))
         except Exception as e:
             print("⚠️ play failed:", e)
@@ -288,11 +318,13 @@ class VLCOverlayWithControls(tk.Frame):
                 return
             if self.player.is_playing():
                 self.player.pause()
+                self._set_play_button_state()
                 return
 
             self._segment_end_paused = False
             self.apply_segment_fields()
             self.player.play()
+            self.after(100, self._set_play_button_state)
 
             if current_ms <= 0:
                 self.after(150, lambda: self.seek_to(self.start_time))
@@ -312,6 +344,7 @@ class VLCOverlayWithControls(tk.Frame):
             self._segment_end_paused = False
             self.seek_to(self.start_time)
             self.timeline.set(self.start_time)
+            self._set_play_button_state()
 
         except Exception as e:
             print("⚠️ stop failed:", e)
@@ -364,7 +397,7 @@ class VLCOverlayWithControls(tk.Frame):
         self._set_entry_time(self.stop_entry, self.stop_time)
         self._segment_end_paused = False
 
-    def apply_segment_fields(self) -> None:
+    def apply_segment_fields(self, normalize: bool = False) -> None:
         start = parse_float(self.start_entry.get(), self.start_time)
         stop = parse_float(self.stop_entry.get(), self.stop_time)
 
@@ -378,8 +411,12 @@ class VLCOverlayWithControls(tk.Frame):
         self.start_time = max(0.0, float(start))
         self.stop_time = None if stop is None else max(0.0, float(stop))
 
+        if normalize:
+            self._set_entry_time(self.start_entry, self.start_time)
+            self._set_entry_time(self.stop_entry, self.stop_time)
+
     def save_segment(self) -> None:
-        self.apply_segment_fields()
+        self.apply_segment_fields(normalize=True)
 
         if callable(self.on_save_segment):
             try:
@@ -451,6 +488,7 @@ class VLCOverlayWithControls(tk.Frame):
 
             if self._was_playing_before_drag and not self.player.is_playing():
                 self.player.play()
+                self.after(100, self._set_play_button_state)
 
         except Exception as e:
             print("⚠️ timeline release failed:", e)
@@ -465,6 +503,7 @@ class VLCOverlayWithControls(tk.Frame):
 
         try:
             self.player.play()
+            self.after(100, self._set_play_button_state)
         except Exception as e:
             print("⚠️ loop restart failed:", e)
 
@@ -481,6 +520,7 @@ class VLCOverlayWithControls(tk.Frame):
 
         self.seek_to(loop_end)
         self.timeline.set(loop_end)
+        self._set_play_button_state()
 
     def _update_loop(self) -> None:
         if not self.running:
@@ -503,6 +543,7 @@ class VLCOverlayWithControls(tk.Frame):
 
                 end_label = self.stop_time if self.stop_time is not None else self.duration_seconds
                 self.time_label.config(text=f"{format_time(current)} / {format_time(end_label)}")
+                self._set_play_button_state()
 
                 loop_end = self.stop_time if self.stop_time is not None else self.duration_seconds
                 near_loop_end = bool(loop_end and current >= loop_end - 0.25)
