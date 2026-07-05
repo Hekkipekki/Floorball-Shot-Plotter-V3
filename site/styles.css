@@ -33,12 +33,20 @@ body {
   padding: 64px 0 40px;
 }
 
+.guide-shell {
+  padding-top: 42px;
+}
+
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
   gap: 28px;
   align-items: stretch;
   margin-bottom: 28px;
+}
+
+.guide-hero {
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.55fr);
 }
 
 .hero-copy,
@@ -184,6 +192,15 @@ li + li {
   margin-top: 8px;
 }
 
+.guide-columns {
+  columns: 2;
+  column-gap: 36px;
+}
+
+.guide-columns li {
+  break-inside: avoid;
+}
+
 .text-link {
   color: var(--primary);
   font-weight: 800;
@@ -251,6 +268,7 @@ footer {
 
 @media (max-width: 860px) {
   .hero,
+  .guide-hero,
   .two-col,
   .three-col,
   .changelog {
@@ -259,6 +277,10 @@ footer {
 
   .hero-copy {
     padding: 34px;
+  }
+
+  .guide-columns {
+    columns: 1;
   }
 
   footer {
