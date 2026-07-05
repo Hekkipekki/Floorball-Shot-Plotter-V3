@@ -12,6 +12,7 @@ You can use it to:
 - log shot type, situation, shooter hand, passer hand, and pass origin
 - review X/Y, distance, angle, and shot zone
 - filter and customize the Shot Log
+- link videos or video segments to logged shots
 - load video clips and plot directly from video
 - calibrate video angles to the rink background
 - show heatmaps and danger-zone overlays
@@ -25,6 +26,14 @@ You can use it to:
 - **Add Shot** — log the clicked rink location as an opponent shot.
 - **Add Goal** — log the clicked rink location as an opponent goal.
 - **Left-click during pass-origin selection** — mark where the opponent pass came from.
+
+### Shot Log
+
+- **Right-click a Shot Log row** — open the video-link menu for that logged event.
+- **Link Offline Video** — attach a local video file to that event.
+- **Link Online Video** — attach a video URL to that event.
+- **Play / Edit Segment** — open a linked local clip and save the relevant start/stop segment.
+- **Remove Video Link** — clear the video from that row.
 
 ### Video window
 
@@ -99,6 +108,18 @@ You can use it to review:
 - The Shot Log panel can be collapsed to the right.
 - Drag the panel border left/right to resize it.
 
+## Video links for logged shots
+
+Use this when you have already logged a shot/goal and want to attach a clip afterwards.
+
+1. Find the shot/goal in the Shot Log.
+2. Right-click that Shot Log row.
+3. Choose **Link Offline Video** for a local file, or **Link Online Video** for a URL.
+4. A linked video row shows the video icon in the Shot Log.
+5. Right-click the same row again and choose **Play / Edit Segment** to open the clip.
+6. Save the start/stop segment if you only want the relevant part of the clip linked to that shot.
+7. Use **Relink Offline Video**, **Relink Online Video**, or **Remove Video Link** if you need to change it later.
+
 ## Heatmaps
 
 Use the view controls to switch between plot and heatmap views.
@@ -130,6 +151,11 @@ assets/resources/xG/Danger Zones.png
 If that file is missing, it falls back to older xG overlay images in the same folder.
 
 ## Video workflow
+
+There are two video workflows:
+
+- **Link video to an existing Shot Log row** when the event is already logged.
+- **Open a standalone video and plot from it** when you want to create shots/goals directly from video.
 
 ### Open a video without logging first
 
@@ -228,15 +254,17 @@ Before reporting that a build is ready, test:
 6. Rink pass-origin left-click works.
 7. Shot Log filtering works.
 8. Shot Log collapse/resize works.
-9. Save/load works.
-10. Heatmap views work.
-11. Shot Zone overlay toggles on/off.
-12. Video opens and plays with VLC.
-13. Video Plot mode right-click Add Shot/Add Goal works.
-14. Video pass-origin right-click works.
-15. Video calibration left-click landmarks work.
-16. Video calibration saves and restores.
-17. Downloaded release zip contains `assets`, `data`, and bundled `vlc` folders.
+9. Link Offline Video from a Shot Log row works.
+10. Play / Edit Segment from a linked Shot Log row works.
+11. Save/load works.
+12. Heatmap views work.
+13. Shot Zone overlay toggles on/off.
+14. Video opens and plays with VLC.
+15. Video Plot mode right-click Add Shot/Add Goal works.
+16. Video pass-origin right-click works.
+17. Video calibration left-click landmarks work.
+18. Video calibration saves and restores.
+19. Downloaded release zip contains `assets`, `data`, and bundled `vlc` folders.
 
 ## Common notes
 
