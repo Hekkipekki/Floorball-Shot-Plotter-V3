@@ -80,15 +80,34 @@ def format_time(seconds: float | int | None) -> str:
     return f"{minutes:02d}:{secs:02d}"
 
 
-def parse_float(value: str, fallback: float | None = None) -> float | None:
+def parse_time_input(value: str, fallback: float | None = None) -> float | None:
     value = (value or "").strip().replace(",", ".")
     if value == "":
         return fallback
 
+    if ":" in value:
+        parts = value.split(":")
+        try:
+            numbers = [float(part) for part in parts]
+        except ValueError:
+            return fallback
+
+        if len(numbers) == 2:
+            minutes, seconds = numbers
+            return max(0.0, minutes * 60 + seconds)
+        if len(numbers) == 3:
+            hours, minutes, seconds = numbers
+            return max(0.0, hours * 3600 + minutes * 60 + seconds)
+        return fallback
+
     try:
-        return float(value)
+        return max(0.0, float(value))
     except ValueError:
         return fallback
+
+
+def parse_float(value: str, fallback: float | None = None) -> float | None:
+    return parse_time_input(value, fallback)
 
 
 VLC_DIR, PLUGINS_DIR = configure_vlc_runtime()
