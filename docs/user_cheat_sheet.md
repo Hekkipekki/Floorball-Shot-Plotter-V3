@@ -20,12 +20,11 @@ You can use it to:
 
 ## Mouse controls quick reference
 
-### Rink map
+### Rink map / plotting view
 
-- **Left-click on the rink** — start normal rink plotting at that location.
-- **Add Shot** — log the clicked rink location as an opponent shot.
-- **Add Goal** — log the clicked rink location as an opponent goal.
-- **Left-click during pass-origin selection** — mark where the opponent pass came from.
+- **Left-click on the rink** — add an opponent shot at that location.
+- **Right-click on the rink** — add an opponent goal at that location.
+- **Left-click during rink pass-origin selection** — mark where the opponent pass came from.
 
 ### Shot Log
 
@@ -48,17 +47,15 @@ You can use it to:
 
 ### Add a shot
 
-1. Left-click a location on the rink.
-2. Choose **Add Shot**.
-3. Select the game state, context, situation, shot type, shooter hand, and passer/pass origin if needed.
-4. The shot appears on the rink and in the Shot Log.
+1. Left-click the opponent shot location on the rink.
+2. Select the game state, context, situation, shot type, shooter hand, and passer/pass origin if needed.
+3. The shot appears on the rink and in the Shot Log.
 
 ### Add a goal
 
-1. Left-click a location on the rink.
-2. Choose **Add Goal**.
-3. Fill in the same event details.
-4. The goal is logged separately from shots but still appears in the Shot Log.
+1. Right-click the opponent goal location on the rink.
+2. Fill in the same event details.
+3. The goal is logged separately from shots but still appears in the Shot Log.
 
 ### What the event dialog means
 
@@ -250,7 +247,7 @@ Before reporting that a build is ready, test:
 2. Rink background appears.
 3. Demo shots work if available.
 4. Rink left-click Add Shot works.
-5. Rink left-click Add Goal works.
+5. Rink right-click Add Goal works.
 6. Rink pass-origin left-click works.
 7. Shot Log filtering works.
 8. Shot Log collapse/resize works.
