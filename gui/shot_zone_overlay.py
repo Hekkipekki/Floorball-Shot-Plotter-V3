@@ -48,7 +48,7 @@ def _make_transparent(image: Image.Image, alpha: float = SHOT_ZONE_DEFAULT_ALPHA
 def _prepare_danger_zone_overlay(image: Image.Image) -> Image.Image:
     # Keep the user's exact zone geometry/sizing and only soften the visual style a little.
     image = _make_transparent(image)
-    image = ImageEnhance.Saturation(image).enhance(0.88)
+    image = ImageEnhance.Color(image).enhance(0.88)
     image = ImageEnhance.Contrast(image).enhance(0.94)
     return image.filter(ImageFilter.GaussianBlur(radius=0.35))
 
