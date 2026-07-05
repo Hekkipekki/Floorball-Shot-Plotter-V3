@@ -1,0 +1,690 @@
+{
+  "E:\\Raw Recordings\\Matcher\\IBS Dalen\\S\u00e4song 25-26\\Serien\\Holmsund\\Holmsund\\GX010241.MP4": {
+    "clicks": [
+      {
+        "name": "M\u00e5lomr\u00e5de lower-left corner",
+        "source_norm": [
+          0.2629310344827586,
+          0.6770114942528735
+        ],
+        "fallback_plot": [
+          383,
+          393
+        ],
+        "target_plot": [
+          566,
+          1033
+        ]
+      },
+      {
+        "name": "M\u00e5lomr\u00e5de lower-right corner",
+        "source_norm": [
+          0.7258620689655172,
+          0.6938697318007663
+        ],
+        "fallback_plot": [
+          1056,
+          373
+        ],
+        "target_plot": [
+          910,
+          1034
+        ]
+      },
+      {
+        "name": "M\u00e5lomr\u00e5de upper-right corner",
+        "source_norm": [
+          0.6310344827586207,
+          0.49616858237547895
+        ],
+        "fallback_plot": [
+          918,
+          613
+        ],
+        "target_plot": [
+          909,
+          805
+        ]
+      },
+      {
+        "name": "M\u00e5lomr\u00e5de upper-left corner",
+        "source_norm": [
+          0.3646551724137931,
+          0.4885057471264368
+        ],
+        "fallback_plot": [
+          531,
+          622
+        ],
+        "target_plot": [
+          566,
+          802
+        ]
+      },
+      {
+        "name": "M\u00e5lvaktsomr\u00e5de lower-left corner",
+        "source_norm": [
+          0.3905172413793103,
+          0.6325670498084291
+        ],
+        "fallback_plot": [
+          568,
+          447
+        ],
+        "target_plot": [
+          644,
+          999
+        ]
+      },
+      {
+        "name": "M\u00e5lvaktsomr\u00e5de lower-right corner",
+        "source_norm": [
+          0.5956896551724138,
+          0.6386973180076628
+        ],
+        "fallback_plot": [
+          867,
+          440
+        ],
+        "target_plot": [
+          831,
+          1000
+        ]
+      },
+      {
+        "name": "M\u00e5lvaktsomr\u00e5de upper-right corner",
+        "source_norm": [
+          0.5836206896551724,
+          0.5865900383141762
+        ],
+        "fallback_plot": [
+          849,
+          503
+        ],
+        "target_plot": [
+          829,
+          930
+        ]
+      },
+      {
+        "name": "M\u00e5lvaktsomr\u00e5de upper-left corner",
+        "source_norm": [
+          0.4051724137931034,
+          0.5789272030651341
+        ],
+        "fallback_plot": [
+          590,
+          512
+        ],
+        "target_plot": [
+          645,
+          932
+        ]
+      },
+      {
+        "name": "Defensive zone top-left",
+        "source_norm": [
+          0.2620689655172414,
+          0.3306513409961686
+        ],
+        "fallback_plot": [
+          381,
+          815
+        ],
+        "target_plot": [
+          21,
+          21
+        ]
+      },
+      {
+        "name": "Defensive zone top-right",
+        "source_norm": [
+          0.7267241379310345,
+          0.34444444444444444
+        ],
+        "fallback_plot": [
+          1057,
+          798
+        ],
+        "target_plot": [
+          1434,
+          23
+        ]
+      },
+      {
+        "name": "Defensive zone top-middle",
+        "source_norm": [
+          0.4982758620689655,
+          0.3413793103448276
+        ],
+        "fallback_plot": [
+          725,
+          802
+        ],
+        "target_plot": [
+          734,
+          23
+        ]
+      },
+      {
+        "name": "Defensive zone centre",
+        "source_norm": [
+          0.4982758620689655,
+          0.3996168582375479
+        ],
+        "fallback_plot": [
+          725,
+          731
+        ],
+        "target_plot": [
+          734,
+          500
+        ]
+      },
+      {
+        "name": "Left middle board",
+        "source_norm": [
+          0.14913793103448275,
+          0.3766283524904215
+        ],
+        "fallback_plot": [
+          217,
+          759
+        ],
+        "target_plot": [
+          21,
+          500
+        ]
+      },
+      {
+        "name": "Right middle board",
+        "source_norm": [
+          0.8353448275862069,
+          0.39808429118773947
+        ],
+        "fallback_plot": [
+          1215,
+          733
+        ],
+        "target_plot": [
+          1434,
+          500
+        ]
+      },
+      {
+        "name": "Goal-line centre",
+        "source_norm": [
+          0.48879310344827587,
+          0.635632183908046
+        ],
+        "fallback_plot": [
+          711,
+          443
+        ],
+        "target_plot": [
+          737,
+          1000
+        ]
+      }
+    ]
+  },
+  "E:\\Raw Recordings\\Matcher\\IBS Dalen\\S\u00e4song 25-26\\Playoff\\Skellefte\u00e5\\GX010295.MP4": {
+    "clicks": [
+      {
+        "name": "M\u00e5lomr\u00e5de lower-left corner",
+        "source_norm": [
+          0.6793103448275862,
+          0.667816091954023
+        ],
+        "fallback_plot": [
+          988,
+          404
+        ],
+        "target_plot": [
+          566,
+          1033
+        ]
+      },
+      {
+        "name": "M\u00e5lomr\u00e5de lower-right corner",
+        "source_norm": [
+          0.6672413793103448,
+          0.603448275862069
+        ],
+        "fallback_plot": [
+          971,
+          483
+        ],
+        "target_plot": [
+          910,
+          1034
+        ]
+      },
+      {
+        "name": "M\u00e5lomr\u00e5de upper-right corner",
+        "source_norm": [
+          0.5568965517241379,
+          0.6080459770114942
+        ],
+        "fallback_plot": [
+          810,
+          477
+        ],
+        "target_plot": [
+          909,
+          805
+        ]
+      },
+      {
+        "name": "M\u00e5lomr\u00e5de upper-left corner",
+        "source_norm": [
+          0.5310344827586206,
+          0.667816091954023
+        ],
+        "fallback_plot": [
+          773,
+          404
+        ],
+        "target_plot": [
+          566,
+          802
+        ]
+      },
+      {
+        "name": "M\u00e5lvaktsomr\u00e5de lower-left corner",
+        "source_norm": [
+          0.6517241379310345,
+          0.6463601532567049
+        ],
+        "fallback_plot": [
+          948,
+          430
+        ],
+        "target_plot": [
+          644,
+          999
+        ]
+      },
+      {
+        "name": "M\u00e5lvaktsomr\u00e5de lower-right corner",
+        "source_norm": [
+          0.6491379310344828,
+          0.6172413793103448
+        ],
+        "fallback_plot": [
+          944,
+          466
+        ],
+        "target_plot": [
+          831,
+          1000
+        ]
+      },
+      {
+        "name": "M\u00e5lvaktsomr\u00e5de upper-right corner",
+        "source_norm": [
+          0.6189655172413793,
+          0.6187739463601533
+        ],
+        "fallback_plot": [
+          901,
+          464
+        ],
+        "target_plot": [
+          829,
+          930
+        ]
+      },
+      {
+        "name": "M\u00e5lvaktsomr\u00e5de upper-left corner",
+        "source_norm": [
+          0.6172413793103448,
+          0.6478927203065135
+        ],
+        "fallback_plot": [
+          898,
+          429
+        ],
+        "target_plot": [
+          645,
+          932
+        ]
+      },
+      {
+        "name": "Defensive zone top-right",
+        "source_norm": [
+          0.3577586206896552,
+          0.5743295019157089
+        ],
+        "fallback_plot": [
+          521,
+          518
+        ],
+        "target_plot": [
+          1434,
+          23
+        ]
+      },
+      {
+        "name": "Defensive zone top-middle",
+        "source_norm": [
+          0.21982758620689655,
+          0.6448275862068965
+        ],
+        "fallback_plot": [
+          320,
+          432
+        ],
+        "target_plot": [
+          734,
+          23
+        ]
+      },
+      {
+        "name": "Defensive zone centre",
+        "source_norm": [
+          0.39827586206896554,
+          0.6340996168582376
+        ],
+        "fallback_plot": [
+          579,
+          445
+        ],
+        "target_plot": [
+          734,
+          500
+        ]
+      },
+      {
+        "name": "Left middle board",
+        "source_norm": [
+          0.24655172413793103,
+          0.9252873563218391
+        ],
+        "fallback_plot": [
+          359,
+          91
+        ],
+        "target_plot": [
+          21,
+          500
+        ]
+      },
+      {
+        "name": "Right middle board",
+        "source_norm": [
+          0.4663793103448276,
+          0.5666666666666667
+        ],
+        "fallback_plot": [
+          679,
+          527
+        ],
+        "target_plot": [
+          1434,
+          500
+        ]
+      },
+      {
+        "name": "Goal-line centre",
+        "source_norm": [
+          0.65,
+          0.6295019157088123
+        ],
+        "fallback_plot": [
+          946,
+          451
+        ],
+        "target_plot": [
+          737,
+          1000
+        ]
+      }
+    ]
+  },
+  "E:\\Raw Recordings\\Matcher\\IBS Dalen\\S\u00e4song 25-26\\Playoff\\ibk ume\u00e5 norr\\GX010289.MP4": {
+    "version": 3,
+    "clicks": [
+      {
+        "name": "1 Lower Left Goal Area",
+        "source_norm": [
+          0.2681034482758621,
+          0.6065134099616858
+        ],
+        "fallback_plot": [
+          390,
+          479
+        ],
+        "target_plot": [
+          562,
+          1033
+        ]
+      },
+      {
+        "name": "2 Lower Right Goal Area",
+        "source_norm": [
+          0.7206896551724138,
+          0.6157088122605364
+        ],
+        "fallback_plot": [
+          1049,
+          468
+        ],
+        "target_plot": [
+          914,
+          1034
+        ]
+      },
+      {
+        "name": "3 Upper Right Goal Area",
+        "source_norm": [
+          0.6327586206896552,
+          0.4210727969348659
+        ],
+        "fallback_plot": [
+          921,
+          705
+        ],
+        "target_plot": [
+          913,
+          798
+        ]
+      },
+      {
+        "name": "4 Upper Left Goal Area",
+        "source_norm": [
+          0.3646551724137931,
+          0.41800766283524904
+        ],
+        "fallback_plot": [
+          531,
+          708
+        ],
+        "target_plot": [
+          563,
+          796
+        ]
+      },
+      {
+        "name": "5 Lower Left Goalie Area",
+        "source_norm": [
+          0.3939655172413793,
+          0.560536398467433
+        ],
+        "fallback_plot": [
+          573,
+          535
+        ],
+        "target_plot": [
+          642,
+          999
+        ]
+      },
+      {
+        "name": "6 Lower Right Goalie Area",
+        "source_norm": [
+          0.5948275862068966,
+          0.5636015325670498
+        ],
+        "fallback_plot": [
+          865,
+          531
+        ],
+        "target_plot": [
+          835,
+          999
+        ]
+      },
+      {
+        "name": "7 Upper Left Goalie Area",
+        "source_norm": [
+          0.5836206896551724,
+          0.5114942528735632
+        ],
+        "fallback_plot": [
+          849,
+          595
+        ],
+        "target_plot": [
+          647,
+          930
+        ]
+      },
+      {
+        "name": "8 Upper Right Goalie Area",
+        "source_norm": [
+          0.4077586206896552,
+          0.506896551724138
+        ],
+        "fallback_plot": [
+          593,
+          600
+        ],
+        "target_plot": [
+          832,
+          930
+        ]
+      },
+      {
+        "name": "9 Center of Goal Line",
+        "source_norm": [
+          0.4956896551724138,
+          0.560536398467433
+        ],
+        "fallback_plot": [
+          721,
+          535
+        ],
+        "target_plot": [
+          740,
+          990
+        ]
+      },
+      {
+        "name": "10 Upper Left Defensive Zone",
+        "source_norm": [
+          0.25948275862068965,
+          0.26015325670498085
+        ],
+        "fallback_plot": [
+          378,
+          900
+        ],
+        "target_plot": [
+          18,
+          20
+        ]
+      },
+      {
+        "name": "11 Upper Right Defensive Zone",
+        "source_norm": [
+          0.7310344827586207,
+          0.2647509578544061
+        ],
+        "fallback_plot": [
+          1064,
+          895
+        ],
+        "target_plot": [
+          1431,
+          20
+        ]
+      },
+      {
+        "name": "12 Center Faceoff Dot",
+        "source_norm": [
+          0.49482758620689654,
+          0.2632183908045977
+        ],
+        "fallback_plot": [
+          720,
+          897
+        ],
+        "target_plot": [
+          729,
+          19
+        ]
+      },
+      {
+        "name": "13 Center of Defensive Zone",
+        "source_norm": [
+          0.4974137931034483,
+          0.31992337164750956
+        ],
+        "fallback_plot": [
+          724,
+          828
+        ],
+        "target_plot": [
+          730,
+          479
+        ]
+      },
+      {
+        "name": "14 Left Center Defensive Zone",
+        "source_norm": [
+          0.14051724137931035,
+          0.31226053639846746
+        ],
+        "fallback_plot": [
+          204,
+          837
+        ],
+        "target_plot": [
+          14,
+          481
+        ]
+      },
+      {
+        "name": "15 Right Center Defensive Zone",
+        "source_norm": [
+          0.8413793103448276,
+          0.32145593869731803
+        ],
+        "fallback_plot": [
+          1224,
+          826
+        ],
+        "target_plot": [
+          1437,
+          470
+        ]
+      },
+      {
+        "name": "18 Behind Goal Near Board",
+        "source_norm": [
+          0.4939655172413793,
+          0.9942528735632183
+        ],
+        "fallback_plot": [
+          719,
+          7
+        ],
+        "target_plot": [
+          744,
+          1204
+        ]
+      }
+    ]
+  }
+}
