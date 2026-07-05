@@ -21,6 +21,7 @@ from core.app_match_actions import (
     save_csv,
     save_match,
     select_current_match,
+    start_new_match,
     update_match_dropdown,
 )
 from core.app_refresh import (
@@ -234,6 +235,9 @@ class FloorballShotPlotter:
 
     def new_project(self):
         new_project(self)
+
+    def start_new_match(self):
+        start_new_match(self)
 
     def generate_demo_shots(self):
         demo_fill(self)
