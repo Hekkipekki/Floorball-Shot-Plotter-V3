@@ -3,30 +3,25 @@ from __future__ import annotations
 from pathlib import Path
 from tkinter import messagebox
 
-import numpy as np
-from PIL import Image, ImageFilter
+from PIL import Image, ImageEnhance, ImageFilter
 
 from app_paths import ASSETS_DIR
 
 SHOT_ZONE_DIR = Path(ASSETS_DIR) / "resources" / "xG"
 SHOT_ZONE_IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp")
-SHOT_ZONE_DEFAULT_ALPHA = 1.0
-SHOT_ZONE_PREFERRED_FILENAME = "xG Bild.png"
-
-# Use the real 918x612 source image as the geometry reference, then clean it into
-# a transparent overlay. This preserves alignment with the current background image.
-ZONE_ALPHA_GREEN = 95
-ZONE_ALPHA_GREEN_STRONG = 115
-ZONE_ALPHA_RED = 120
-ZONE_ALPHA_RED_STRONG = 150
-SATURATION_THRESHOLD = 25
-CHANNEL_DOMINANCE = 1.05
+SHOT_ZONE_DEFAULT_ALPHA = 0.55
+SHOT_ZONE_PREFERRED_FILENAME = "Danger Zones.png"
+SHOT_ZONE_FALLBACK_FILENAME = "xG Bild.png"
 
 
 def _find_shot_zone_image() -> Path | None:
     preferred = SHOT_ZONE_DIR / SHOT_ZONE_PREFERRED_FILENAME
     if preferred.exists():
         return preferred
+
+    fallback = SHOT_ZONE_DIR / SHOT_ZONE_FALLBACK_FILENAME
+    if fallback.exists():
+        return fallback
 
     if not SHOT_ZONE_DIR.exists():
         return None
@@ -42,63 +37,20 @@ def _target_size(app) -> tuple[int, int] | None:
     return getattr(app, "img_size", None)
 
 
-def _zone_masks(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    red = rgb[:, :, 0]
-    green = rgb[:, :, 1]
-    blue = rgb[:, :, 2]
-    saturation = rgb.max(axis=2) - rgb.min(axis=2)
-
-    red_mask = (
-        (red > green * CHANNEL_DOMINANCE)
-        & (red > blue * CHANNEL_DOMINANCE)
-        & (red > 70)
-        & (saturation > SATURATION_THRESHOLD)
-    )
-    strong_red_mask = red_mask & (red > 150) & (green < 90)
-
-    green_mask = (
-        (green > red * CHANNEL_DOMINANCE)
-        & (green > blue * CHANNEL_DOMINANCE)
-        & (green > 80)
-        & (saturation > SATURATION_THRESHOLD)
-    )
-    strong_green_mask = green_mask & ((green - red) > 70)
-    return red_mask, strong_red_mask, green_mask, strong_green_mask
+def _make_transparent(image: Image.Image, alpha: float = SHOT_ZONE_DEFAULT_ALPHA) -> Image.Image:
+    image = image.convert("RGBA")
+    r, g, b, a = image.split()
+    a = ImageEnhance.Brightness(a).enhance(alpha)
+    image.putalpha(a)
+    return image
 
 
-def _polish_source_overlay(image: Image.Image) -> Image.Image:
-    source = image.convert("RGBA")
-    arr = np.asarray(source).astype(np.float32)
-    rgb = arr[:, :, :3]
-
-    red_mask, strong_red_mask, green_mask, strong_green_mask = _zone_masks(rgb)
-    out = np.zeros_like(arr, dtype=np.uint8)
-
-    # Soft greens for lower-danger zones.
-    out[green_mask, 0] = 135
-    out[green_mask, 1] = 205
-    out[green_mask, 2] = 105
-    out[green_mask, 3] = ZONE_ALPHA_GREEN
-
-    out[strong_green_mask, 0] = 78
-    out[strong_green_mask, 1] = 170
-    out[strong_green_mask, 2] = 56
-    out[strong_green_mask, 3] = ZONE_ALPHA_GREEN_STRONG
-
-    # Softer reds for danger zones.
-    out[red_mask, 0] = 205
-    out[red_mask, 1] = 74
-    out[red_mask, 2] = 74
-    out[red_mask, 3] = ZONE_ALPHA_RED
-
-    out[strong_red_mask, 0] = 225
-    out[strong_red_mask, 1] = 36
-    out[strong_red_mask, 2] = 36
-    out[strong_red_mask, 3] = ZONE_ALPHA_RED_STRONG
-
-    polished = Image.fromarray(out, "RGBA")
-    # Tiny blur removes harsh jagged source edges without changing the underlying geometry.
-    return polished.filter(ImageFilter.GaussianBlur(radius=0.7))
+def _prepare_danger_zone_overlay(image: Image.Image) -> Image.Image:
+    # Keep the user's exact zone geometry/sizing and only soften the visual style a little.
+    image = _make_transparent(image)
+    image = ImageEnhance.Saturation(image).enhance(0.88)
+    image = ImageEnhance.Contrast(image).enhance(0.94)
+    return image.filter(ImageFilter.GaussianBlur(radius=0.35))
 
 
 def load_shot_zone_overlay(app):
@@ -113,7 +65,7 @@ def load_shot_zone_overlay(app):
         if target_size:
             image = image.resize(target_size, Image.Resampling.LANCZOS)
 
-        image = _polish_source_overlay(image)
+        image = _prepare_danger_zone_overlay(image)
         app.shot_zone_overlay_img = image
         app.shot_zone_overlay_path = path
         return image
@@ -136,7 +88,7 @@ def toggle_shot_zone_overlay(app) -> None:
         app.show_shot_zone_overlay.set(False)
         messagebox.showwarning(
             "Shot Zone Overlay",
-            f"No shot zone image found in:\n{SHOT_ZONE_DIR}\n\nAdd a PNG/JPG/WebP image there and try again.",
+            f"No shot zone image found in:\n{SHOT_ZONE_DIR}\n\nAdd Danger Zones.png or another PNG/JPG/WebP image there and try again.",
         )
         return
 
