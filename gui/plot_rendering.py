@@ -5,7 +5,7 @@ import tkinter as tk
 from core.entry_helpers import get_xy
 from gui.constants import PLOT_DEFAULT_XLIM, PLOT_DEFAULT_YLIM
 from gui.plotting import plot_points, plot_heatmap
-from gui.shot_zone_overlay import load_shot_zone_overlay, shot_zone_overlay_enabled, SHOT_ZONE_DEFAULT_ALPHA
+from gui.shot_zone_overlay import load_shot_zone_overlay, shot_zone_overlay_enabled
 
 DEFAULT_VIEW_MODE = "Plot"
 HEATMAP_VIEW_MODES = ("Heatmap", "Goal Heatmap", "Save Heatmap")
@@ -64,7 +64,6 @@ def redraw_shot_zone_overlay(app):
         extent=_background_extent(app),
         origin="upper",
         aspect="auto",
-        alpha=SHOT_ZONE_DEFAULT_ALPHA,
         zorder=1,
     )
 
