@@ -5,123 +5,132 @@ from gui.events.event_finalize import finalize_event
 
 
 PHASE_GROUPS = {
-    "With ball": {
-        "description": "Your team has controlled possession and is trying to attack.",
+    "5v5 / Even strength": {
+        "description": "Opponent shot against your team during normal even-strength play.",
         "sub_phases": {
-            "Zone entry vs full court press": "You are trying to play through or around an aggressive full-court press.",
-            "Zone entry": "You are entering the offensive zone against a more organized or passive defense.",
-            "Zone offense": "Settled offensive-zone possession where your team is trying to create chances.",
+            "Opponent controlled entry": "Opponent enters your defensive zone with the ball before the shot.",
+            "Opponent settled offense": "Opponent has established possession in your defensive zone.",
+            "Opponent transition / rush": "Opponent creates the shot from a quick transition or rush.",
+            "Defensive turnover against": "Your team loses the ball and the opponent shoots from the turnover.",
         },
     },
-    "Without ball": {
-        "description": "The opponent has controlled possession and your team is defending.",
+    "Special teams": {
+        "description": "Opponent shot against your team during power play, box play, or goalie-pulled situations.",
         "sub_phases": {
-            "Full court press": "Your team is pressing high to force mistakes or win the ball back early.",
-            "Zone entry defense": "Your team is defending while the opponent tries to enter your defensive zone.",
-            "Zone defense": "Settled defensive-zone play where the opponent has established possession.",
+            "Opponent power play": "Opponent is attacking with a player advantage.",
+            "Opponent box play / shorthanded": "Opponent is shorthanded but still creates a shot.",
+            "Opponent 6v5 / goalie pulled": "Opponent has pulled the goalkeeper for an extra attacker.",
+            "Against empty net": "Opponent shoots at your empty net.",
         },
     },
-    "Possession change": {
-        "description": "The ball has just changed team and both teams are reorganizing.",
+    "Restart / set play against": {
+        "description": "Opponent shot against your team from a static restart or set play.",
         "sub_phases": {
-            "Counter-press": "Your team lost the ball and immediately tries to win it back.",
-            "Zone exit": "Your team won the ball and is trying to exit the defensive zone.",
+            "Free hit against": "Opponent creates a shot from a free hit/free shot restart.",
+            "Faceoff against": "Opponent creates a shot directly or shortly after a faceoff.",
+            "Penalty shot against": "Opponent penalty-shot attempt against your goalkeeper.",
         },
     },
-    "Chaos": {
-        "description": "Neither team has full tactical control or structure.",
+    "Broken play / rebound against": {
+        "description": "Opponent shot against your team from chaos, rebounds, or loose-ball situations.",
         "sub_phases": {
-            "Counter on counter": "One team counters, loses the ball, and the opponent counters back.",
-            "Uncontrolled": "Loose-ball, rebound, scramble, broken play or unclear structure.",
-        },
-    },
-    "Free shots": {
-        "description": "Static restart situations.",
-        "sub_phases": {
-            "Free shot for": "Your team has a restart/free shot and can run a set play.",
-            "Free shot against": "The opponent has a restart/free shot and your team is defending it.",
+            "Rebound against": "Opponent shoots after a save, block, or loose rebound.",
+            "Screen / traffic against": "Opponent shot with traffic or screen in front of the goalkeeper.",
+            "Loose ball / scramble against": "Opponent shot from a loose-ball or crease-scramble situation.",
+            "Blocked shot second chance": "Opponent gets another chance after a blocked shot.",
         },
     },
 }
 
 
 SITUATION_OPTIONS_BY_SUB_PHASE = {
-    "Zone entry vs full court press": {
-        "Press break": "Shot chance created after breaking full court pressure.",
-        "Turnover forced": "Opponent pressure causes a mistake, leading to a chance.",
-        "Quick middle attack": "Fast attack through the middle after beating pressure.",
-        "Wide entry attack": "Chance created after entering wide against pressure.",
+    "Opponent controlled entry": {
+        "Controlled entry shot": "Opponent enters with control and shoots from the entry.",
+        "Wide entry shot": "Opponent enters wide and creates a shot from the side lane.",
+        "Middle-lane entry": "Opponent attacks the middle lane on entry before shooting.",
+        "Drop / trailer on entry": "Opponent uses a drop pass or late trailer before the shot.",
     },
-    "Zone entry": {
-        "Controlled entry": "Chance after entering the offensive zone with control.",
-        "Rush attack": "Fast attack before the defense is fully set.",
-        "Drop pass": "Chance created through a drop pass on entry.",
-        "Wide entry attack": "Chance created from the side after entering the zone.",
-        "Middle lane attack": "Chance created by attacking the central lane.",
+    "Opponent settled offense": {
+        "Point shot": "Opponent shoots from high or near the defensive-zone line.",
+        "Slot pass": "Opponent passes into the slot before the shot.",
+        "Cross-pass": "Opponent creates lateral movement before the shot.",
+        "Low-high": "Opponent moves the ball from low/deep to a higher shooter.",
+        "Behind-net play": "Opponent uses a play from behind or beside the goal.",
+        "Cycle / long possession": "Opponent creates the shot after longer possession.",
     },
-    "Zone offense": {
-        "Cross-pass": "Shot after a lateral pass across the defensive structure.",
-        "Slot pass": "Pass into the central scoring area before the shot.",
-        "Low-high": "Ball moves from low/deep position to a higher shooter.",
-        "Screen": "Goalkeeper's vision is blocked.",
-        "Rebound": "Shot after a save, block, or loose rebound.",
-        "Cycle play": "Chance created through longer settled possession movement.",
+    "Opponent transition / rush": {
+        "Breakaway against": "Opponent gets free alone against the goalkeeper.",
+        "2v1 against": "Opponent creates a two-against-one rush.",
+        "3v2 against": "Opponent creates a three-against-two rush.",
+        "Odd-man rush against": "Opponent creates any other numerical rush advantage.",
+        "Quick counter shot": "Opponent shoots quickly after transition.",
+        "Trailer shot against": "Opponent late trailer receives the ball and shoots.",
     },
-    "Full court press": {
-        "High steal": "Your team wins the ball high up the court.",
-        "Forced turnover": "Opponent loses the ball due to pressure.",
-        "Immediate shot": "Shot comes directly after winning the ball.",
-        "Trap success": "Chance created after trapping the opponent.",
+    "Defensive turnover against": {
+        "Lost ball low": "Your team loses possession low/deep in the defensive zone.",
+        "Lost ball middle": "Your team loses possession in the central defensive-zone area.",
+        "Failed zone exit": "Your team fails to exit and the opponent shoots.",
+        "Bad pass intercepted": "Opponent intercepts a pass before shooting.",
+        "Pressure turnover against": "Opponent pressure forces the turnover before the shot.",
     },
-    "Zone entry defense": {
-        "Entry denied turnover": "Your team stops the entry and wins the ball.",
-        "Forced wide turnover": "Opponent is forced wide and loses possession.",
-        "Counter after entry defense": "Chance created after defending the opponent's entry.",
+    "Opponent power play": {
+        "Power-play point shot": "Opponent power-play shot from high/point position.",
+        "Power-play cross-pass": "Opponent power-play shot after lateral puck/ball movement.",
+        "Power-play slot pass": "Opponent power-play pass into the slot before the shot.",
+        "Power-play screen": "Opponent power-play shot through traffic/screen.",
+        "Power-play rebound": "Opponent power-play rebound chance.",
     },
-    "Zone defense": {
-        "Defensive-zone turnover": "Your team wins the ball in settled defense.",
-        "Blocked shot transition": "Chance comes after blocking a shot.",
-        "Rebound clear counter": "Chance after clearing a rebound or loose ball.",
-        "Outlet pass": "Chance created by first pass out of defense.",
+    "Opponent box play / shorthanded": {
+        "Shorthanded rush against": "Opponent creates a shorthanded transition/rush chance.",
+        "Shorthanded turnover": "Opponent creates a shorthanded shot after winning the ball.",
+        "Clearance becomes shot": "Opponent clearance or pressure turns into a shot chance.",
     },
-    "Counter-press": {
-        "Immediate regain": "Your team wins the ball back immediately after losing it.",
-        "Pressure turnover": "Opponent loses the ball under counter-pressure.",
-        "Second wave shot": "Shot after regaining and attacking again quickly.",
+    "Opponent 6v5 / goalie pulled": {
+        "6v5 point shot": "Opponent 6v5 shot from high/point position.",
+        "6v5 slot pass": "Opponent 6v5 pass into the slot before the shot.",
+        "6v5 screen": "Opponent 6v5 shot through traffic/screen.",
+        "6v5 rebound": "Opponent 6v5 rebound chance.",
     },
-    "Zone exit": {
-        "Breakaway": "Attacker breaks through alone on the goalkeeper.",
-        "2v0": "Two attackers against the goalkeeper without defenders.",
-        "2v1": "Two attackers versus one defender.",
-        "3v1": "Three attackers versus one defender.",
-        "3v2": "Three attackers versus two defenders.",
-        "Trailer shot": "Late arriving player gets the shot after the rush.",
-        "Fast break": "Quick attack after winning the ball.",
+    "Against empty net": {
+        "Empty-net shot against": "Opponent shoots at your empty net.",
+        "Empty-net long shot": "Opponent attempts a longer empty-net shot.",
+        "Empty-net tap-in": "Opponent gets a close empty-net finish.",
     },
-    "Counter on counter": {
-        "Breakaway": "Attacker breaks through alone on the goalkeeper.",
-        "2v1": "Two attackers versus one defender.",
-        "3v2": "Three attackers versus two defenders.",
-        "Turnover on rush": "Chance created after stealing the ball during opponent's counter.",
-        "Broken rush": "Rush becomes messy but still creates a chance.",
+    "Free hit against": {
+        "Direct free hit": "Opponent shoots directly from the restart.",
+        "Set play against": "Opponent runs a prepared free-hit play.",
+        "Free-hit screen": "Opponent free-hit shot with screen/traffic.",
+        "Pass before free-hit shot": "Opponent passes before shooting from the restart.",
     },
-    "Uncontrolled": {
-        "Loose ball": "Nobody has full control before the shot.",
-        "Crease scramble": "Chaotic chance around the goal area.",
-        "Blocked-shot rebound": "Shot comes after a blocked shot bounces loose.",
-        "Failed clearance": "Defending team fails to clear the ball.",
-        "Broken play": "Structure breaks down before the shot.",
+    "Faceoff against": {
+        "Clean faceoff shot": "Opponent wins the faceoff directly to a shot.",
+        "Faceoff set play": "Opponent creates the shot from a faceoff pattern.",
+        "Faceoff scramble": "Opponent shot follows a loose-ball faceoff scramble.",
     },
-    "Free shot for": {
-        "Direct free shot": "Shot directly from the restart.",
-        "Set play": "Prepared play from a restart.",
-        "Screened free shot": "Free shot with traffic/screen in front.",
-        "Pass before shot": "Restart creates a pass before the shot.",
+    "Penalty shot against": {
+        "Penalty shot": "Opponent penalty-shot attempt.",
     },
-    "Free shot against": {
-        "Defended free shot": "Opponent free shot creates a chance against you.",
-        "Screened free shot against": "Opponent shot with screen from restart.",
-        "Rebound after free shot": "Chance against after the first free shot rebound.",
+    "Rebound against": {
+        "Shot rebound": "Opponent shoots after a goalkeeper save or rebound.",
+        "Blocked-shot rebound": "Opponent shoots after a block rebounds loose.",
+        "Loose rebound in slot": "Opponent finds a rebound in the slot.",
+        "Goal-mouth rebound": "Opponent chance around the goal mouth.",
+    },
+    "Screen / traffic against": {
+        "Goalkeeper screened": "Goalkeeper's vision is blocked on the shot.",
+        "Traffic in slot": "Opponent shot through traffic in the slot.",
+        "Deflection / tip against": "Opponent redirects the shot near the goal.",
+    },
+    "Loose ball / scramble against": {
+        "Crease scramble": "Opponent chance from a messy goal-area scramble.",
+        "Loose ball": "Opponent shoots after a loose ball.",
+        "Broken coverage": "Your defensive coverage breaks down before the shot.",
+        "Failed clearance": "Your team fails to clear before the opponent shot.",
+    },
+    "Blocked shot second chance": {
+        "Second chance shot": "Opponent gets a second shot after the first is blocked.",
+        "Block rebound to slot": "Blocked ball rebounds into a dangerous central area.",
+        "Reset after block": "Opponent recovers the block and shoots again after a small reset.",
     },
 }
 
@@ -140,20 +149,21 @@ SHOT_TYPE_OPTIONS = {
     "Bounce shot": "Shot intentionally or unintentionally bouncing.",
     "Empty net": "Shot against an empty net.",
     "Free shot": "Direct shot from a restart/free-hit.",
+    "Penalty shot": "Penalty-shot attempt.",
     "Own Goal": "Ball directed into own net by defending team.",
 }
 
 
 SHOOTER_HAND_OPTIONS = {
-    "Left": "Shooter stick blade on the left side.",
-    "Right": "Shooter stick blade on the right side.",
+    "Left": "Opponent shooter stick blade on the left side.",
+    "Right": "Opponent shooter stick blade on the right side.",
 }
 
 
 PASSER_HAND_OPTIONS = {
-    "Left": "Passer stick blade on the left side.",
-    "Right": "Passer stick blade on the right side.",
-    "No assist": "Shot was unassisted.",
+    "Left": "Opponent passer stick blade on the left side.",
+    "Right": "Opponent passer stick blade on the right side.",
+    "No assist": "Opponent shot was unassisted.",
 }
 
 
@@ -253,13 +263,13 @@ def show_phase_dialog(self, x, y, shot_or_goal):
 
     show_option_dialog(
         self,
-        title="Select Game Phase",
+        title="Opponent Shot/Goal: Select Game State",
         options=group_options,
         on_select=lambda phase_group: show_sub_phase_dialog(
             self, x, y, shot_or_goal, phase_group
         ),
-        width=330,
-        height=300,
+        width=360,
+        height=320,
         on_destroy=lambda: setattr(self, "popup_open", False),
     )
 
@@ -274,13 +284,13 @@ def show_sub_phase_dialog(self, x, y, shot_or_goal, phase_group):
 
     show_option_dialog(
         self,
-        title=f"{phase_group}: Select Sub Phase",
+        title=f"{phase_group}: Select Opponent Context",
         options=sub_options,
         on_select=lambda sub_phase: show_situation_dialog(
             self, x, y, shot_or_goal, phase_group, sub_phase
         ),
-        width=360,
-        height=320,
+        width=390,
+        height=370,
         on_back=lambda: show_phase_dialog_after_back(self, x, y, shot_or_goal),
     )
 
@@ -291,15 +301,15 @@ def show_situation_dialog(self, x, y, shot_or_goal, phase_group, sub_phase):
     situation_options = SITUATION_OPTIONS_BY_SUB_PHASE.get(
         sub_phase,
         {
-            "General chance": "General scoring chance.",
-            "Rebound": "Shot opportunity following a saved or blocked shot.",
-            "Screen": "Shot where the goalkeeper's vision is blocked.",
+            "General chance against": "General opponent scoring chance against your team.",
+            "Rebound against": "Opponent shot opportunity following a saved or blocked shot.",
+            "Screen against": "Opponent shot where the goalkeeper's vision is blocked.",
         },
     )
 
     show_option_dialog(
         self,
-        title="Select Situation",
+        title="Select Opponent Shot Situation",
         options=situation_options,
         on_select=lambda situation: show_shot_type_dialog(
             self,
@@ -311,8 +321,8 @@ def show_situation_dialog(self, x, y, shot_or_goal, phase_group, sub_phase):
             phase_group,
             sub_phase,
         ),
-        width=360,
-        height=390,
+        width=380,
+        height=430,
         on_back=lambda: show_sub_phase_dialog(self, x, y, shot_or_goal, phase_group),
     )
 
@@ -320,7 +330,7 @@ def show_situation_dialog(self, x, y, shot_or_goal, phase_group, sub_phase):
 def show_shot_type_dialog(self, x, y, phase, situation, shot_or_goal, phase_group, sub_phase):
     show_option_dialog(
         self,
-        title="Select Shot Type",
+        title="Select Opponent Shot Type",
         options=SHOT_TYPE_OPTIONS,
         on_select=lambda shot_type: show_shooter_hand_dialog(
             self,
@@ -333,8 +343,8 @@ def show_shot_type_dialog(self, x, y, phase, situation, shot_or_goal, phase_grou
             phase_group,
             sub_phase,
         ),
-        width=330,
-        height=520,
+        width=340,
+        height=560,
         on_back=lambda: show_situation_dialog(
             self, x, y, shot_or_goal, phase_group, sub_phase
         ),
@@ -354,10 +364,9 @@ def show_shooter_hand_dialog(
 ):
     def handle_selection(shooter_hand):
         unassisted = (
-            situation in ("Direct free shot", "Penalty Shot", "Free shot")
-            or shot_type in ("Free shot",)
+            situation in ("Direct free shot", "Penalty Shot", "Penalty shot", "Free shot")
+            or shot_type in ("Free shot", "Penalty shot")
         )
-
         if unassisted:
             finalize_event(
                 self,
@@ -366,7 +375,7 @@ def show_shooter_hand_dialog(
                 phase,
                 situation,
                 shot_type,
-                "",
+                "No assist",
                 shooter_hand,
                 shot_or_goal,
             )
@@ -386,20 +395,13 @@ def show_shooter_hand_dialog(
 
     show_option_dialog(
         self,
-        title="Shooter Stick Hand",
+        title="Select Opponent Shooter Hand",
         options=SHOOTER_HAND_OPTIONS,
         on_select=handle_selection,
-        width=280,
-        height=170,
+        width=300,
+        height=250,
         on_back=lambda: show_shot_type_dialog(
-            self,
-            x,
-            y,
-            phase,
-            situation,
-            shot_or_goal,
-            phase_group,
-            sub_phase,
+            self, x, y, phase, situation, shot_or_goal, phase_group, sub_phase
         ),
     )
 
@@ -411,96 +413,29 @@ def show_passer_hand_dialog(
     phase,
     situation,
     shot_type,
-    shooter,
+    shooter_hand,
     shot_or_goal,
     phase_group,
     sub_phase,
 ):
-    def handle_selection(passer_hand):
-        passer_value = "" if passer_hand == "No assist" else passer_hand
-
-        finalize_event(
-            self,
-            x,
-            y,
-            phase,
-            situation,
-            shot_type,
-            passer_value,
-            shooter,
-            shot_or_goal,
-        )
-
     show_option_dialog(
         self,
-        title="Passer Stick Hand",
+        title="Select Opponent Passer Hand",
         options=PASSER_HAND_OPTIONS,
-        on_select=handle_selection,
-        width=280,
-        height=210,
-        on_back=lambda: show_shooter_hand_dialog(
+        on_select=lambda passer_hand: finalize_event(
             self,
             x,
             y,
             phase,
             situation,
             shot_type,
+            passer_hand,
+            shooter_hand,
             shot_or_goal,
-            phase_group,
-            sub_phase,
+        ),
+        width=300,
+        height=280,
+        on_back=lambda: show_shooter_hand_dialog(
+            self, x, y, phase, situation, shot_type, shot_or_goal, phase_group, sub_phase
         ),
     )
-
-
-def show_pass_origin_dialog(self, x, y, phase, situation, shot_type, passer, shooter):
-    popup = tk.Toplevel(self.root)
-    popup.title("Mark Pass Origin?")
-    popup.transient(self.root)
-    popup.grab_set()
-    popup.bind("<Escape>", lambda e: popup.destroy())
-    popup.bind("<Destroy>", lambda _: setattr(self, "popup_open", False))
-
-    frame = tk.Frame(popup)
-    frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
-
-    label = tk.Label(
-        frame,
-        text="Do you want to place a pass origin point?",
-        wraplength=250,
-        justify="center",
-        font=("Arial", 9, "bold"),
-    )
-    label.pack(pady=(0, 15))
-
-    btn_yes = tk.Button(
-        frame,
-        text="Yes (mark manually)",
-        bg="#223344",
-        fg="white",
-        font=("Arial", 9, "bold"),
-        command=lambda: [
-            popup.destroy(),
-            setattr(
-                self,
-                "pending_pass_data",
-                (x, y, phase, situation, shot_type, passer, shooter),
-            ),
-            setattr(self, "expecting_pass_click", True),
-        ],
-    )
-    btn_yes.pack(fill=tk.X, pady=(0, 8))
-
-    btn_no = tk.Button(
-        frame,
-        text="No (skip pass origin)",
-        bg="#223344",
-        fg="white",
-        font=("Arial", 9, "bold"),
-        command=lambda: [
-            popup.destroy(),
-            self.add_shot_event(x, y, phase, situation, shot_type, passer, shooter),
-        ],
-    )
-    btn_no.pack(fill=tk.X)
-
-    prepare_popup(popup, self, width=320, height=150)
