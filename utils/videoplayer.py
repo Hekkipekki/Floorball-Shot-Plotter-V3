@@ -8,6 +8,7 @@ Features:
 - Minimal bottom controls
 - Clickable / draggable timeline
 - Start / Stop segment fields
+- Sync current video position to Start / Stop
 - Play / Pause / Stop
 - Loop Segment ON/OFF
 - Save Segment callback
@@ -157,7 +158,7 @@ class VLCOverlayWithControls(tk.Frame):
         self.timeline.grid(
             row=0,
             column=1,
-            columnspan=8,
+            columnspan=10,
             padx=(0, 10),
             pady=(5, 0),
             sticky="ew",
@@ -184,8 +185,11 @@ class VLCOverlayWithControls(tk.Frame):
             font=("Segoe UI", 9),
             width=7,
         )
-        self.start_entry.insert(0, f"{self.start_time:g}")
-        self.start_entry.grid(row=1, column=1, padx=(0, 8), pady=(6, 8), sticky="w")
+        self.start_entry.insert(0, format_time(self.start_time))
+        self.start_entry.grid(row=1, column=1, padx=(0, 3), pady=(6, 8), sticky="w")
+
+        self.sync_start_btn = create_control_button(self.controls, "Set", self.sync_start_to_current)
+        self.sync_start_btn.grid(row=1, column=2, padx=(0, 8), pady=(6, 8), sticky="ew")
 
         tk.Label(
             self.controls,
@@ -193,7 +197,7 @@ class VLCOverlayWithControls(tk.Frame):
             bg=self.PANEL_BG,
             fg=self.MUTED,
             font=("Segoe UI", 9),
-        ).grid(row=1, column=2, padx=(0, 4), pady=(6, 8), sticky="e")
+        ).grid(row=1, column=3, padx=(0, 4), pady=(6, 8), sticky="e")
 
         self.stop_entry = tk.Entry(
             self.controls,
@@ -205,23 +209,26 @@ class VLCOverlayWithControls(tk.Frame):
             font=("Segoe UI", 9),
             width=7,
         )
-        self.stop_entry.insert(0, "" if self.stop_time is None else f"{self.stop_time:g}")
-        self.stop_entry.grid(row=1, column=3, padx=(0, 12), pady=(6, 8), sticky="w")
+        self.stop_entry.insert(0, "" if self.stop_time is None else format_time(self.stop_time))
+        self.stop_entry.grid(row=1, column=4, padx=(0, 3), pady=(6, 8), sticky="w")
+
+        self.sync_stop_btn = create_control_button(self.controls, "Set", self.sync_stop_to_current)
+        self.sync_stop_btn.grid(row=1, column=5, padx=(0, 10), pady=(6, 8), sticky="ew")
 
         self.play_btn = create_control_button(self.controls, "▶ / ⏸", self.toggle_play)
-        self.play_btn.grid(row=1, column=4, padx=3, pady=(6, 8), sticky="ew")
+        self.play_btn.grid(row=1, column=6, padx=3, pady=(6, 8), sticky="ew")
 
         self.stop_btn = create_control_button(self.controls, "■", self.stop)
-        self.stop_btn.grid(row=1, column=5, padx=3, pady=(6, 8), sticky="ew")
+        self.stop_btn.grid(row=1, column=7, padx=3, pady=(6, 8), sticky="ew")
 
         self.loop_btn = create_control_button(self.controls, "Loop: ON", self.toggle_loop)
-        self.loop_btn.grid(row=1, column=6, padx=3, pady=(6, 8), sticky="ew")
+        self.loop_btn.grid(row=1, column=8, padx=3, pady=(6, 8), sticky="ew")
 
         self.save_btn = create_control_button(self.controls, "💾 Save", self.save_segment)
-        self.save_btn.grid(row=1, column=7, padx=3, pady=(6, 8), sticky="ew")
+        self.save_btn.grid(row=1, column=9, padx=3, pady=(6, 8), sticky="ew")
 
         self.close_small_btn = create_control_button(self.controls, "Close", self.close)
-        self.close_small_btn.grid(row=1, column=8, padx=(3, 10), pady=(6, 8), sticky="ew")
+        self.close_small_btn.grid(row=1, column=10, padx=(3, 10), pady=(6, 8), sticky="ew")
 
         self.start_entry.bind("<Return>", lambda _e: self.apply_segment_fields())
         self.stop_entry.bind("<Return>", lambda _e: self.apply_segment_fields())
@@ -279,7 +286,6 @@ class VLCOverlayWithControls(tk.Frame):
             if length_ms > 0 and current_ms >= length_ms - 300:
                 self.play()
                 return
-
             if self.player.is_playing():
                 self.player.pause()
                 return
@@ -327,6 +333,37 @@ class VLCOverlayWithControls(tk.Frame):
     # --------------------------------------------------------
     # Segment
     # --------------------------------------------------------
+    def _current_video_time(self) -> float:
+        if self.player is None:
+            return 0.0
+        try:
+            current_ms = self.player.get_time()
+            return max(0.0, current_ms / 1000) if current_ms and current_ms > 0 else 0.0
+        except Exception:
+            return 0.0
+
+    def _set_entry_time(self, entry: tk.Entry, seconds: float | None) -> None:
+        entry.delete(0, "end")
+        if seconds is not None:
+            entry.insert(0, format_time(seconds))
+
+    def sync_start_to_current(self) -> None:
+        self.start_time = self._current_video_time()
+        if self.stop_time is not None and self.stop_time <= self.start_time:
+            self.stop_time = None
+            self._set_entry_time(self.stop_entry, None)
+        self._set_entry_time(self.start_entry, self.start_time)
+        self._segment_end_paused = False
+
+    def sync_stop_to_current(self) -> None:
+        current = self._current_video_time()
+        self.apply_segment_fields()
+        if current <= self.start_time:
+            current = self.start_time + 0.1
+        self.stop_time = current
+        self._set_entry_time(self.stop_entry, self.stop_time)
+        self._segment_end_paused = False
+
     def apply_segment_fields(self) -> None:
         start = parse_float(self.start_entry.get(), self.start_time)
         stop = parse_float(self.stop_entry.get(), self.stop_time)
