@@ -14,7 +14,7 @@
         <p class="eyebrow">User guide</p>
         <h1>Cheat Sheet</h1>
         <p class="lead">
-          A quick overview of the main actions, menus, and workflows available in Floorball Shot Plotter.
+          A quick overview of the main actions, mouse controls, menus, and video workflows available in Floorball Shot Plotter.
         </p>
         <div class="actions">
           <a class="button primary" href="/">Back to download page</a>
@@ -25,6 +25,7 @@
         <ul>
           <li>Opponent shots and goals against your team</li>
           <li>Video-assisted plotting and calibration</li>
+          <li>Video links and shot-specific segments</li>
           <li>Pass-origin logging</li>
           <li>Heatmaps and danger-zone overlays</li>
           <li>Shot Log filtering, save/load, and CSV export</li>
@@ -34,17 +35,49 @@
 
     <section class="grid two-col">
       <article class="panel">
+        <h2>Mouse controls</h2>
+        <h3>Rink map</h3>
+        <ul>
+          <li><strong>Left-click on the rink</strong> — start normal rink plotting at that location.</li>
+          <li><strong>Add Shot</strong> — log the clicked rink location as an opponent shot.</li>
+          <li><strong>Add Goal</strong> — log the clicked rink location as an opponent goal.</li>
+          <li><strong>Left-click during pass-origin selection</strong> — mark where the opponent pass came from.</li>
+        </ul>
+        <h3>Shot Log</h3>
+        <ul>
+          <li><strong>Right-click a Shot Log row</strong> — open the video-link menu for that event.</li>
+          <li><strong>Link Offline Video</strong> — attach a local video file.</li>
+          <li><strong>Link Online Video</strong> — attach a video URL.</li>
+          <li><strong>Play / Edit Segment</strong> — open a linked local clip and save start/stop times.</li>
+        </ul>
+      </article>
+
+      <article class="panel">
+        <h2>Video controls</h2>
+        <ul>
+          <li><strong>Video → Open Video Clip...</strong> — open a video without selecting a shot first.</li>
+          <li><strong>Plot: OFF / ON</strong> — turn video plotting mode on or off.</li>
+          <li><strong>Right-click in video while Plot mode is ON</strong> — plot at that video location.</li>
+          <li><strong>Right-click during video pass-origin selection</strong> — mark the pass origin from video.</li>
+          <li><strong>Left-click during calibration</strong> — select the requested rink landmark in the video.</li>
+          <li><strong>Skip Point</strong> — skip a calibration landmark that is not visible.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="grid two-col">
+      <article class="panel">
         <h2>Basic plotting</h2>
         <h3>Add a shot</h3>
         <ol>
-          <li>Click a location on the rink.</li>
+          <li>Left-click a location on the rink.</li>
           <li>Choose <strong>Add Shot</strong>.</li>
           <li>Select game state, opponent context, situation, shot type, shooter hand, and passer details.</li>
           <li>The shot appears on the rink and in the Shot Log.</li>
         </ol>
         <h3>Add a goal</h3>
         <ol>
-          <li>Click a location on the rink.</li>
+          <li>Left-click a location on the rink.</li>
           <li>Choose <strong>Add Goal</strong>.</li>
           <li>Fill in the opponent event details.</li>
         </ol>
@@ -68,7 +101,8 @@
         <ol>
           <li>Choose the opponent passer hand.</li>
           <li>When asked, choose to mark the pass origin manually.</li>
-          <li>Click the pass-origin location on the rink, or right-click it in video Plot mode.</li>
+          <li>On the rink map, left-click the pass-origin location.</li>
+          <li>In video Plot mode, right-click the pass-origin location in the video.</li>
         </ol>
         <p>Use <strong>No assist</strong> when the shot is unassisted.</p>
       </article>
@@ -87,19 +121,31 @@
 
     <section class="grid two-col">
       <article class="panel">
-        <h2>Video workflow</h2>
-        <h3>Open a video</h3>
-        <p>Use <strong>Video → Open Video Clip...</strong> to load a clip without logging first.</p>
-        <h3>Plot from video</h3>
+        <h2>Video links for logged shots</h2>
         <ol>
-          <li>Open a video.</li>
+          <li>Find the shot/goal in the Shot Log.</li>
+          <li>Right-click that Shot Log row.</li>
+          <li>Choose <strong>Link Offline Video</strong> for a local file, or <strong>Link Online Video</strong> for a URL.</li>
+          <li>Right-click the same row again and choose <strong>Play / Edit Segment</strong> to open the clip.</li>
+          <li>Save start/stop times if only one part of the clip should be linked.</li>
+          <li>Use <strong>Relink</strong> or <strong>Remove Video Link</strong> if you need to change it later.</li>
+        </ol>
+      </article>
+
+      <article class="panel">
+        <h2>Plot directly from video</h2>
+        <ol>
+          <li>Use <strong>Video → Open Video Clip...</strong>.</li>
           <li>Click <strong>Plot: OFF</strong> so it becomes <strong>Plot: ON</strong>.</li>
           <li>Right-click the shot location in the video.</li>
           <li>Choose <strong>Add Shot here</strong> or <strong>Add Goal here</strong>.</li>
           <li>If needed, right-click the pass-origin location in the video.</li>
         </ol>
+        <p><strong>Important:</strong> video plotting uses right-click. Left-click is used for calibration landmarks.</p>
       </article>
+    </section>
 
+    <section class="grid two-col">
       <article class="panel">
         <h2>Video calibration</h2>
         <ol>
@@ -110,6 +156,15 @@
           <li>When complete, calibration is saved for that video file.</li>
         </ol>
         <p>When the same video is reopened, saved calibration should restore automatically.</p>
+      </article>
+
+      <article class="panel">
+        <h2>Heatmaps and overlay</h2>
+        <ul>
+          <li>Switch between plot, standard heatmap, goal heatmap, and save heatmap views.</li>
+          <li>Use <strong>Heatmap → Heatmap Settings...</strong> to adjust heatmap behavior.</li>
+          <li>Use <strong>Shot Zone → Show Shot Zone Overlay</strong> to toggle the semi-transparent danger-zone image.</li>
+        </ul>
       </article>
     </section>
 
@@ -141,15 +196,6 @@
 
     <section class="grid two-col">
       <article class="panel">
-        <h2>Heatmaps and overlay</h2>
-        <ul>
-          <li>Switch between plot, standard heatmap, goal heatmap, and save heatmap views.</li>
-          <li>Use <strong>Heatmap → Heatmap Settings...</strong> to adjust heatmap behavior.</li>
-          <li>Use <strong>Shot Zone → Show Shot Zone Overlay</strong> to toggle the semi-transparent danger-zone image.</li>
-        </ul>
-      </article>
-
-      <article class="panel">
         <h2>Save, load, export</h2>
         <ul>
           <li><strong>File → Save CSV</strong> exports the current log data.</li>
@@ -157,25 +203,19 @@
           <li><strong>File → Export Image</strong> exports the current rink/plot view.</li>
         </ul>
       </article>
-    </section>
 
-    <section class="panel">
-      <h2>Beta testing checklist</h2>
-      <ol class="guide-columns">
-        <li>App starts normally.</li>
-        <li>Rink background appears.</li>
-        <li>Add Shot works.</li>
-        <li>Add Goal works.</li>
-        <li>Pass-origin manual click works.</li>
-        <li>Shot Log filtering works.</li>
-        <li>Shot Log collapse/resize works.</li>
-        <li>Save/load works.</li>
-        <li>Heatmap views work.</li>
-        <li>Shot Zone overlay toggles on/off.</li>
-        <li>Video opens and plays with VLC.</li>
-        <li>Video Plot mode works.</li>
-        <li>Video calibration saves and restores.</li>
-      </ol>
+      <article class="panel">
+        <h2>Beta testing checklist</h2>
+        <ol>
+          <li>Rink left-click Add Shot/Add Goal works.</li>
+          <li>Shot Log right-click video linking works.</li>
+          <li>Play / Edit Segment works for linked clips.</li>
+          <li>Video Plot mode right-click Add Shot/Add Goal works.</li>
+          <li>Video pass-origin right-click works.</li>
+          <li>Video calibration left-click landmarks work.</li>
+          <li>Shot Log filtering, heatmaps, overlays, save/load, and export work.</li>
+        </ol>
+      </article>
     </section>
   </main>
 
