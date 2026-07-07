@@ -8,7 +8,7 @@ from tkinter import messagebox
 
 from core.schema import IDX_VIDEO
 from paths import VIDEOS_DIR, ensure_data_dirs
-from utils.render_progress import close_render_progress, show_render_progress
+from utils.render_progress import close_render_progress, show_render_progress, update_render_progress
 from utils.video_clip_exporter import VideoClipExportError, export_local_segment
 from utils.youtube_resolver import is_http_url
 
@@ -85,10 +85,16 @@ def _video_dict_for_segment(app, segment: dict, event_number) -> dict:
     output_path = _clip_output_path(source_id, event_number, start, stop)
     progress = show_render_progress(
         app,
-        message="Saving shot and rendering the linked video clip...\nThis can take a little while for 4K video.",
+        message="Saving shot and rendering the linked 1080p video clip...",
     )
     try:
-        exported = export_local_segment(source_id, str(output_path), start=start, stop=stop)
+        exported = export_local_segment(
+            source_id,
+            str(output_path),
+            start=start,
+            stop=stop,
+            progress_callback=lambda fraction, rendered, total: update_render_progress(progress, fraction, rendered, total),
+        )
     finally:
         close_render_progress(progress)
     clip_duration = max(0.0, float(stop) - start)
