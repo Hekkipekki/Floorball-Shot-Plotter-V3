@@ -18,12 +18,19 @@ from core.schema import (
     IDX_DISTANCE,
     IDX_ANGLE,
     IDX_ZONE,
+    IDX_STRENGTH_STATE,
+    IDX_CHANCE_TYPE,
+    IDX_SCREEN,
+    IDX_PRESSURE,
+    IDX_GOALIE_STATE,
+    IDX_PERIOD_TIME,
     ENTRY_LENGTH,
 )
 
 CSV_HEADERS = [
     "#", "S/G", "Phase", "Situation", "Shot Type", "Passer", "Shooter",
     "Period", "xG", "X", "Y", "Pass X", "Pass Y", "Distance", "Angle", "Zone",
+    "Strength State", "Chance Type", "Screen", "Pressure", "Goalie State", "Clock",
 ]
 MIN_CSV_COLUMNS = 11
 
@@ -63,6 +70,12 @@ def _entry_to_csv_row(entry):
         _rounded_or_blank(row[IDX_DISTANCE]),
         _rounded_or_blank(row[IDX_ANGLE]),
         row[IDX_ZONE],
+        row[IDX_STRENGTH_STATE],
+        row[IDX_CHANCE_TYPE],
+        row[IDX_SCREEN],
+        row[IDX_PRESSURE],
+        row[IDX_GOALIE_STATE],
+        row[IDX_PERIOD_TIME],
     ]
 
 
@@ -85,6 +98,12 @@ def _csv_row_to_entry(row):
     entry[IDX_DISTANCE] = _optional_float(row, 13)
     entry[IDX_ANGLE] = _optional_float(row, 14)
     entry[IDX_ZONE] = _optional_text(row, 15)
+    entry[IDX_STRENGTH_STATE] = _optional_text(row, 16)
+    entry[IDX_CHANCE_TYPE] = _optional_text(row, 17)
+    entry[IDX_SCREEN] = _optional_text(row, 18)
+    entry[IDX_PRESSURE] = _optional_text(row, 19)
+    entry[IDX_GOALIE_STATE] = _optional_text(row, 20)
+    entry[IDX_PERIOD_TIME] = _optional_text(row, 21)
     return tuple(normalize_entry(entry))
 
 
