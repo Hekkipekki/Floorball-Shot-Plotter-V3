@@ -6,7 +6,7 @@ from tkinter import filedialog, messagebox, simpledialog
 
 from gui.shotlog_video import CLIP_FILETYPES, VIDEO_FILETYPES
 from paths import VIDEOS_DIR, ensure_data_dirs
-from utils.render_progress import close_render_progress, show_render_progress
+from utils.render_progress import close_render_progress, show_render_progress, update_render_progress
 from utils.video_clip_exporter import export_local_segment
 from utils.video_overlay import show_video_overlay
 from utils.youtube_resolver import OnlineVideoError, resolve_online_video
@@ -35,12 +35,18 @@ def _export_standalone_local_clip(app, path: str, start: float, stop: float | No
     if not output_path:
         return
 
-    progress = show_render_progress(app, message="Exporting and compressing selected video segment...\nPlease wait.")
+    progress = show_render_progress(app, message="Exporting 1080p analysis clip...\nPlease wait.")
     try:
-        export_local_segment(path, output_path, start=start, stop=stop)
+        export_local_segment(
+            path,
+            output_path,
+            start=start,
+            stop=stop,
+            progress_callback=lambda fraction, rendered, total: update_render_progress(progress, fraction, rendered, total),
+        )
     finally:
         close_render_progress(progress)
-    messagebox.showinfo("Clip Exported", "The shorter clip was exported successfully.")
+    messagebox.showinfo("Clip Exported", "The shorter 1080p clip was exported successfully.")
 
 
 def open_video_clip(app) -> None:
