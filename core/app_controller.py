@@ -47,6 +47,7 @@ from gui.plot_interactions import (
 from gui.shotlog_interactions import update_entry_in_all_places
 from utils.export import export_figure_as_image
 from utils.tooltips import add_tooltips
+from utils.video_event_linker import attach_pending_video_to_latest_event
 
 
 APP_TITLE = "Floorball Shot Plotter v3.0 - By Daniel Norberg"
@@ -201,6 +202,7 @@ class FloorballShotPlotter:
             pass_x,
             pass_y,
         )
+        attach_pending_video_to_latest_event(self)
         self.refresh_all()
 
     def add_goal_event(
@@ -228,6 +230,7 @@ class FloorballShotPlotter:
             pass_x,
             pass_y,
         )
+        attach_pending_video_to_latest_event(self)
         self.refresh_all()
 
     def clear_all_data(self):
