@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -11,12 +13,80 @@ class VideoClipExportError(RuntimeError):
     """Raised when a segment cannot be exported."""
 
 
+COMMON_FFMPEG_PATHS = (
+    r"C:\ffmpeg\bin\ffmpeg.exe",
+    r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
+    r"C:\Program Files (x86)\ffmpeg\bin\ffmpeg.exe",
+    r"C:\ProgramData\chocolatey\bin\ffmpeg.exe",
+)
+
+
+def _candidate_paths_from_path_env() -> list[str]:
+    candidates: list[str] = []
+    for folder in os.environ.get("PATH", "").split(os.pathsep):
+        folder = folder.strip().strip('"')
+        if not folder:
+            continue
+        candidate = Path(folder) / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg")
+        candidates.append(str(candidate))
+    return candidates
+
+
+def _is_usable_ffmpeg(command: str) -> bool:
+    try:
+        result = subprocess.run(
+            [command, "-version"],
+            capture_output=True,
+            text=True,
+            check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
 def _find_ffmpeg() -> str:
-    ffmpeg = shutil.which("ffmpeg")
-    if ffmpeg:
-        return ffmpeg
+    candidates: list[str] = []
+
+    # Works in normal Python sessions when PATH is inherited correctly.
+    found = shutil.which("ffmpeg") or shutil.which("ffmpeg.exe")
+    if found:
+        candidates.append(found)
+
+    # Works when subprocess can resolve ffmpeg even if shutil.which cannot.
+    candidates.append("ffmpeg")
+    if os.name == "nt":
+        candidates.append("ffmpeg.exe")
+
+    # Works for common Windows installs and packaged builds with stale PATH handling.
+    candidates.extend(COMMON_FFMPEG_PATHS)
+    candidates.extend(_candidate_paths_from_path_env())
+
+    # Works if ffmpeg.exe is copied next to the packaged executable or source main.py.
+    try:
+        candidates.append(str(Path(sys.executable).resolve().parent / "ffmpeg.exe"))
+    except Exception:
+        pass
+    try:
+        candidates.append(str(Path(__file__).resolve().parents[1] / "ffmpeg.exe"))
+    except Exception:
+        pass
+
+    seen: set[str] = set()
+    for candidate in candidates:
+        if not candidate or candidate in seen:
+            continue
+        seen.add(candidate)
+        if candidate not in {"ffmpeg", "ffmpeg.exe"} and not Path(candidate).exists():
+            continue
+        if _is_usable_ffmpeg(candidate):
+            return candidate
+
     raise VideoClipExportError(
-        "FFmpeg is required to export shorter clips. Install FFmpeg and make sure ffmpeg.exe is available on PATH."
+        "FFmpeg is required to export shorter clips, but the app could not find ffmpeg.exe.\n\n"
+        "PowerShell can see FFmpeg, so restart the app after installing it. If this still happens, "
+        "copy ffmpeg.exe next to Floorball Shot Plotter.exe or into C:\\ffmpeg\\bin."
     )
 
 
@@ -30,7 +100,13 @@ def _duration(start: float, stop: float | None) -> float | None:
 
 
 def _run_ffmpeg(command: list[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(command, capture_output=True, text=True, check=False)
+    return subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        check=False,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
 
 
 def export_local_segment(source_path: str, output_path: str, start: float = 0.0, stop: float | None = None) -> Path:
