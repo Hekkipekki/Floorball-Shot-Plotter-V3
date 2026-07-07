@@ -187,6 +187,7 @@ class FloorballShotPlotter:
         period=None,
         pass_x=None,
         pass_y=None,
+        context=None,
     ):
         self.logic.add_shot_event(
             x,
@@ -199,6 +200,7 @@ class FloorballShotPlotter:
             period,
             pass_x,
             pass_y,
+            context,
         )
         attach_pending_video_to_latest_event(self)
         self.refresh_all()
@@ -215,6 +217,7 @@ class FloorballShotPlotter:
         period=None,
         pass_x=None,
         pass_y=None,
+        context=None,
     ):
         self.logic.add_goal_event(
             x,
@@ -227,6 +230,7 @@ class FloorballShotPlotter:
             period,
             pass_x,
             pass_y,
+            context,
         )
         attach_pending_video_to_latest_event(self)
         self.refresh_all()
