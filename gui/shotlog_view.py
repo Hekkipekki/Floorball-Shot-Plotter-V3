@@ -69,8 +69,8 @@ SHOTLOG_COLUMNS = (
     "Goalie",
     "Video",
 )
-# The shot log has horizontal scrolling, so all available fields can be shown by default.
 DEFAULT_VISIBLE_COLUMNS = SHOTLOG_COLUMNS
+MANDATORY_VISIBLE_COLUMNS = ("#",)
 SHOTLOG_COLUMN_WIDTHS = {
     "#": SHOTLOG_COL_WIDTH_NUMBER,
     "S/G": SHOTLOG_COL_WIDTH_RESULT,
@@ -174,7 +174,7 @@ def _entry_values(entry) -> list:
 def _visible_columns(app):
     column_vars = getattr(app, "shotlog_column_vars", {})
     selected = [column for column in SHOTLOG_COLUMNS if column_vars.get(column, tk.BooleanVar(value=True)).get()]
-    return selected or ["#"]
+    return selected or list(MANDATORY_VISIBLE_COLUMNS)
 
 
 def _apply_visible_columns(app) -> None:
@@ -225,6 +225,42 @@ def _create_popup_checkbox(app, parent, column: str, index: int) -> None:
     )
 
 
+def _set_all_column_vars(app, value: bool) -> None:
+    for column, var in app.shotlog_column_vars.items():
+        var.set(value or column in MANDATORY_VISIBLE_COLUMNS)
+    _apply_visible_columns(app)
+
+
+def _create_column_action_buttons(app, parent, row: int) -> int:
+    actions = tb.Frame(parent)
+    actions.grid(
+        row=row,
+        column=0,
+        columnspan=COLUMN_POPUP_COLUMNS,
+        sticky="ew",
+        padx=COLUMN_POPUP_PAD_X,
+        pady=(10, 2),
+    )
+    actions.columnconfigure(0, weight=1)
+    actions.columnconfigure(1, weight=1)
+
+    tb.Button(
+        actions,
+        text="Tick all",
+        command=lambda: _set_all_column_vars(app, True),
+        bootstyle="secondary-outline",
+    ).grid(row=0, column=0, sticky="ew", padx=(0, 4))
+
+    tb.Button(
+        actions,
+        text="Untick all",
+        command=lambda: _set_all_column_vars(app, False),
+        bootstyle="secondary-outline",
+    ).grid(row=0, column=1, sticky="ew", padx=(4, 0))
+
+    return row + 1
+
+
 def _open_column_popup(app, button) -> None:
     existing = getattr(app, "shotlog_column_popup", None)
     if existing is not None and existing.winfo_exists():
@@ -245,6 +281,9 @@ def _open_column_popup(app, button) -> None:
     for index, column in enumerate(SHOTLOG_COLUMNS):
         _create_popup_checkbox(app, frame, column, index)
 
+    next_row = (len(SHOTLOG_COLUMNS) + COLUMN_POPUP_COLUMNS - 1) // COLUMN_POPUP_COLUMNS
+    next_row = _create_column_action_buttons(app, frame, next_row)
+
     close_btn = tb.Button(
         frame,
         text="Done",
@@ -252,12 +291,12 @@ def _open_column_popup(app, button) -> None:
         bootstyle="secondary",
     )
     close_btn.grid(
-        row=(len(SHOTLOG_COLUMNS) + COLUMN_POPUP_COLUMNS - 1) // COLUMN_POPUP_COLUMNS,
+        row=next_row,
         column=0,
         columnspan=COLUMN_POPUP_COLUMNS,
         sticky="ew",
         padx=COLUMN_POPUP_PAD_X,
-        pady=(10, 2),
+        pady=(8, 2),
     )
 
     x, y = _column_popup_position(button)
