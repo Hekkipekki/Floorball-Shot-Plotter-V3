@@ -16,6 +16,12 @@ from core.entry_helpers import (
     get_angle,
     get_zone,
     get_video,
+    get_strength_state,
+    get_chance_type,
+    get_screen,
+    get_pressure,
+    get_goalie_state,
+    get_period_time,
 )
 from gui.constants import (
     PAD_X,
@@ -49,12 +55,18 @@ SHOTLOG_COLUMNS = (
     "Passer",
     "Shooter",
     "P",
+    "Clock",
     "xG",
     "X",
     "Y",
     "Distance",
     "Angle",
     "Zone",
+    "Strength",
+    "Chance",
+    "Screen",
+    "Pressure",
+    "Goalie",
     "Video",
 )
 # The shot log has horizontal scrolling, so all available fields can be shown by default.
@@ -68,12 +80,18 @@ SHOTLOG_COLUMN_WIDTHS = {
     "Passer": SHOTLOG_COL_WIDTH_PASSER,
     "Shooter": SHOTLOG_COL_WIDTH_SHOOTER,
     "P": SHOTLOG_COL_WIDTH_PERIOD,
+    "Clock": 75,
     "xG": SHOTLOG_COL_WIDTH_XG,
     "X": 70,
     "Y": 70,
     "Distance": 90,
     "Angle": 75,
     "Zone": 100,
+    "Strength": 130,
+    "Chance": 100,
+    "Screen": 105,
+    "Pressure": 105,
+    "Goalie": 110,
     "Video": SHOTLOG_COL_WIDTH_VIDEO,
 }
 SHOTLOG_DEFAULT_COLUMN_WIDTH = 60
@@ -137,12 +155,18 @@ def _entry_values(entry) -> list:
         get_passer(entry),
         get_shooter(entry),
         get_period(entry),
+        get_period_time(entry),
         f"{get_xg(entry):.2f}",
         _format_optional_float(x),
         _format_optional_float(y),
         _format_optional_float(get_distance(entry)),
         _format_optional_float(get_angle(entry)),
         get_zone(entry),
+        get_strength_state(entry),
+        get_chance_type(entry),
+        get_screen(entry),
+        get_pressure(entry),
+        get_goalie_state(entry),
         video_display_symbol(get_video(entry)),
     ]
 
@@ -360,90 +384,74 @@ def _open_match_popup(app, button) -> None:
         )
         checkbox.pack(anchor="w", padx=8, pady=3)
 
-    close_btn = tb.Button(
-        frame,
-        text="Done",
-        command=lambda: _close_match_popup(app),
-        bootstyle="secondary",
-    )
-    close_btn.pack(fill="x", padx=8, pady=(10, 2))
-
     x, y = _column_popup_position(button)
     popup.geometry(f"+{x}+{y}")
     popup.lift()
 
 
-def _create_column_toolbar(app, frame) -> None:
-    toolbar = tb.Frame(frame)
-    toolbar.grid(row=0, column=0, columnspan=2, sticky="ew", padx=PAD_X, pady=(0, PAD_Y))
+def create_shotlog_tree(parent, app):
     _init_column_vars(app)
     _init_match_filter_vars(app)
 
-    column_button = tb.Button(
-        toolbar,
+    container = tb.Frame(parent)
+    container.pack(fill="both", expand=True, padx=PAD_X, pady=PAD_Y)
+
+    controls = tb.Frame(container)
+    controls.pack(fill="x", pady=(0, 4))
+
+    app.shotlog_column_button = tb.Button(
+        controls,
         text=COLUMN_BUTTON_TEXT,
-        command=lambda: _open_column_popup(app, column_button),
-        bootstyle="secondary",
+        command=lambda: _open_column_popup(app, app.shotlog_column_button),
+        bootstyle="secondary-outline",
     )
-    column_button.pack(side="left")
+    app.shotlog_column_button.pack(side="left")
 
-    match_button = tb.Button(
-        toolbar,
+    app.shotlog_match_filter_button = tb.Button(
+        controls,
         text=MATCH_BUTTON_ALL_TEXT,
-        command=lambda: _open_match_popup(app, match_button),
-        bootstyle="secondary",
+        command=lambda: _open_match_popup(app, app.shotlog_match_filter_button),
+        bootstyle="secondary-outline",
     )
-    match_button.pack(side="left", padx=(6, 0))
-    app.shotlog_match_filter_button = match_button
-    _update_match_filter_button_text(app)
+    app.shotlog_match_filter_button.pack(side="left", padx=(6, 0))
 
+    scroll_y = tb.Scrollbar(container, orient="vertical")
+    scroll_x = tb.Scrollbar(container, orient="horizontal")
 
-def _configure_shotlog_frame(frame) -> None:
-    frame.rowconfigure(1, weight=1)
-    frame.columnconfigure(0, weight=1)
+    tree = tb.Treeview(
+        container,
+        columns=SHOTLOG_COLUMNS,
+        show="headings",
+        yscrollcommand=scroll_y.set,
+        xscrollcommand=scroll_x.set,
+        height=16,
+    )
+    scroll_y.config(command=tree.yview)
+    scroll_x.config(command=tree.xview)
 
-
-def _create_shotlog_tree(frame):
-    tree = tb.Treeview(frame, columns=SHOTLOG_COLUMNS, show="headings", bootstyle="primary")
     _configure_shotlog_columns(tree)
-    tree.grid(row=1, column=0, sticky="nsew")
+    _bind_shotlog_events(tree, app)
+
+    tree.pack(side="left", fill="both", expand=True)
+    scroll_y.pack(side="right", fill="y")
+    scroll_x.pack(side="bottom", fill="x")
+
+    try:
+        style = tb.Style()
+        style.configure(TREEVIEW_STYLE_NAME, font=(SHOTLOG_FONT_FAMILY, SHOTLOG_FONT_SIZE))
+        style.configure(f"{TREEVIEW_STYLE_NAME}.Heading", font=(SHOTLOG_FONT_FAMILY, SHOTLOG_FONT_SIZE, "bold"))
+    except Exception:
+        pass
+
+    app.shotlog_tree = tree
+    sync_match_filter_controls(app)
+    _apply_visible_columns(app)
     return tree
 
 
-def _add_scrollbars(frame, tree) -> None:
-    v_scrollbar = tb.Scrollbar(frame, orient="vertical", command=tree.yview)
-    v_scrollbar.grid(row=1, column=1, sticky="ns")
-
-    h_scrollbar = tb.Scrollbar(frame, orient="horizontal", command=tree.xview)
-    h_scrollbar.grid(row=2, column=0, sticky="ew")
-
-    tree.configure(
-        yscrollcommand=v_scrollbar.set,
-        xscrollcommand=h_scrollbar.set,
-    )
-
-
-def setup_shotlog_frame(app, parent):
-    style = tb.Style()
-    style.configure(TREEVIEW_STYLE_NAME, font=(SHOTLOG_FONT_FAMILY, SHOTLOG_FONT_SIZE))
-
-    frame = tb.Labelframe(parent, text="Shot Log", bootstyle="secondary")
-    frame.pack(fill="both", expand=True, padx=PAD_X, pady=PAD_Y)
-    _configure_shotlog_frame(frame)
-    _create_column_toolbar(app, frame)
-    app.sync_shotlog_match_filter = lambda: sync_match_filter_controls(app)
-
-    tree = _create_shotlog_tree(frame)
-    _add_scrollbars(frame, tree)
-    _bind_shotlog_events(tree, app)
-
-    tree._last_hovered_row_id = None
-    app.shotlog_tree = tree
-    _apply_visible_columns(app)
-
-
 def update_treeview(tree, entries):
-    tree.delete(*tree.get_children())
+    for row_id in tree.get_children():
+        tree.delete(row_id)
 
-    for i, entry in enumerate(entries):
-        tree.insert("", "end", iid=str(i), values=_entry_values(entry))
+    for entry in entries:
+        tree.insert("", "end", values=_entry_values(entry))
