@@ -5,7 +5,7 @@ from tkinter import filedialog, messagebox, simpledialog
 
 from core.schema import IDX_VIDEO, ENTRY_LENGTH
 from paths import VIDEOS_DIR, ensure_data_dirs
-from utils.render_progress import close_render_progress, show_render_progress
+from utils.render_progress import close_render_progress, show_render_progress, update_render_progress
 from utils.video_clip_exporter import VideoClipExportError, export_local_segment
 from utils.youtube_resolver import OnlineVideoError, is_http_url, resolve_online_video
 
@@ -107,15 +107,21 @@ def _export_local_clip_and_link(app, index, path, start, stop) -> None:
     if not output_path:
         return
 
-    progress = show_render_progress(app, message="Exporting and compressing selected video segment...\nPlease wait.")
+    progress = show_render_progress(app, message="Exporting 1080p analysis clip...\nPlease wait.")
     try:
-        exported = export_local_segment(path, output_path, start=start, stop=stop)
+        exported = export_local_segment(
+            path,
+            output_path,
+            start=start,
+            stop=stop,
+            progress_callback=lambda fraction, rendered, total: update_render_progress(progress, fraction, rendered, total),
+        )
     finally:
         close_render_progress(progress)
 
     clip_duration = None if stop is None else max(0.0, float(stop) - float(start or 0.0))
     set_video_dict(app, index, str(exported), start=0.0, stop=clip_duration)
-    messagebox.showinfo("Clip Exported", "The shorter clip was exported and linked to this Shot Log row.")
+    messagebox.showinfo("Clip Exported", "The shorter 1080p clip was exported and linked to this Shot Log row.")
 
 
 def _play_local_video(app, path, start, stop, on_save_segment, on_export_segment=None) -> None:
