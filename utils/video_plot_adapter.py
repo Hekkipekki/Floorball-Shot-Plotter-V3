@@ -12,6 +12,7 @@ from utils.video_calibration import (
     save_video_calibration,
     validate_calibration_clicks,
 )
+from utils.video_event_linker import capture_video_segment_for_next_event
 from utils.video_player_style import PANEL_BG, TEXT, create_control_button
 
 SHOT_EVENT_TYPE = "shot"
@@ -25,7 +26,7 @@ SKIP_BUTTON_ACTIVE_TEXT = "Skip Point"
 def install_video_plot_adapter(player) -> None:
     player.video_plot_mode = tk.BooleanVar(value=False)
     player.video_calibration_mode = tk.BooleanVar(value=False)
-    player.video_calibration_clicks = load_video_calibration(player.video_path)
+    player.video_calibration_clicks = load_video_calibration(player.video_source_id)
     player.video_calibration_skipped = []
     player.video_calibration_step = 0
     player.video_calibration_model = build_calibration_model(player.video_calibration_clicks) if player.video_calibration_clicks else None
@@ -161,7 +162,7 @@ def _finish_message(player, skipped_count: int, warnings: list[str]) -> str:
 def _finish_calibration_sequence(player) -> None:
     warnings = validate_calibration_clicks(player.video_calibration_clicks)
     player.video_calibration_model = build_calibration_model(player.video_calibration_clicks)
-    save_video_calibration(player.video_path, player.video_calibration_clicks)
+    save_video_calibration(player.video_source_id, player.video_calibration_clicks)
     app = player.app
     if app is not None:
         app.video_calibration_points = list(player.video_calibration_clicks)
@@ -244,6 +245,12 @@ def _video_event_to_plot_coordinates(player, event) -> tuple[int, int] | None:
     return _fallback_normalized_to_plot(player, source_norm)
 
 
+def _capture_segment_for_event(player) -> None:
+    app = player.app
+    if app is not None:
+        capture_video_segment_for_next_event(app, player)
+
+
 def _plot_video_point(player, x: int, y: int, shot_or_goal: str) -> None:
     app = player.app
     if app is None:
@@ -257,6 +264,7 @@ def _plot_video_point(player, x: int, y: int, shot_or_goal: str) -> None:
         pass
     try:
         from gui.events.event_dialogs import show_phase_dialog
+        _capture_segment_for_event(player)
         app.popup_open = False
         show_phase_dialog(app, x, y, shot_or_goal=shot_or_goal)
     except Exception as exc:
@@ -276,6 +284,7 @@ def _add_pending_pass_origin_from_video(player, x: int, y: int) -> None:
     data = getattr(app, "pending_pass_data", None)
     if data is None:
         return
+    _capture_segment_for_event(player)
     main_x, main_y, phase, situation, shot_type, passer, shooter, event_type = data
     add_event = app.add_goal_event if event_type == GOAL_EVENT_TYPE else app.add_shot_event
     add_event(main_x, main_y, phase, situation, shot_type, passer, shooter, pass_x=x, pass_y=y)

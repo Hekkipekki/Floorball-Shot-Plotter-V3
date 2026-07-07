@@ -37,12 +37,12 @@ def _on_mark_manually(app, popup, pending_data) -> None:
     _set_pending_pass(app, pending_data)
 
 
-def _on_skip_pass_origin(popup, add_event, x, y, phase, situation, shot_type, passer, shooter) -> None:
+def _on_skip_pass_origin(popup, add_event, x, y, phase, situation, shot_type, passer, shooter, context) -> None:
     popup.destroy()
-    add_event(x, y, phase, situation, shot_type, passer, shooter)
+    add_event(x, y, phase, situation, shot_type, passer, shooter, context=context)
 
 
-def show_pass_origin_dialog(app, x, y, phase, situation, shot_type, passer, shooter, event_type):
+def show_pass_origin_dialog(app, x, y, phase, situation, shot_type, passer, shooter, event_type, context=None):
     popup = tk.Toplevel(app.root)
     popup.title(DIALOG_TITLE)
     popup.transient(app.root)
@@ -62,7 +62,7 @@ def show_pass_origin_dialog(app, x, y, phase, situation, shot_type, passer, shoo
     )
     label.pack(pady=(0, 15))
 
-    pending_data = (x, y, phase, situation, shot_type, passer, shooter, event_type)
+    pending_data = (x, y, phase, situation, shot_type, passer, shooter, event_type, context)
     btn_yes = _button(
         frame,
         "Yes (mark manually)",
@@ -84,6 +84,7 @@ def show_pass_origin_dialog(app, x, y, phase, situation, shot_type, passer, shoo
             shot_type,
             passer,
             shooter,
+            context,
         ),
     )
     btn_no.pack(fill=tk.X)

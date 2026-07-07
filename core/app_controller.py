@@ -34,6 +34,7 @@ from core.app_refresh import (
 from core.core_stats import CoreLogic
 from core.demo import generate_demo_shots as demo_fill
 from core.init_state import DEFAULT_MATCH, init_variables
+from core.version import APP_TITLE
 from gui.backgrounds import init_background_files, set_background
 from gui.events import finalize_event
 from gui.layout import setup_ui
@@ -47,9 +48,7 @@ from gui.plot_interactions import (
 from gui.shotlog_interactions import update_entry_in_all_places
 from utils.export import export_figure_as_image
 from utils.tooltips import add_tooltips
-
-
-APP_TITLE = "Floorball Shot Plotter v3.0 - By Daniel Norberg"
+from utils.video_event_linker import attach_pending_video_to_latest_event
 
 
 class FloorballShotPlotter:
@@ -188,6 +187,7 @@ class FloorballShotPlotter:
         period=None,
         pass_x=None,
         pass_y=None,
+        context=None,
     ):
         self.logic.add_shot_event(
             x,
@@ -200,7 +200,9 @@ class FloorballShotPlotter:
             period,
             pass_x,
             pass_y,
+            context,
         )
+        attach_pending_video_to_latest_event(self)
         self.refresh_all()
 
     def add_goal_event(
@@ -215,6 +217,7 @@ class FloorballShotPlotter:
         period=None,
         pass_x=None,
         pass_y=None,
+        context=None,
     ):
         self.logic.add_goal_event(
             x,
@@ -227,7 +230,9 @@ class FloorballShotPlotter:
             period,
             pass_x,
             pass_y,
+            context,
         )
+        attach_pending_video_to_latest_event(self)
         self.refresh_all()
 
     def clear_all_data(self):

@@ -5,7 +5,7 @@ import tkinter as tk
 import ttkbootstrap as tb
 
 from gui.constants import RIGHT_PANEL_WIDTH
-from gui.shotlog_view import setup_shotlog_frame
+from gui.shotlog_view import create_shotlog_tree
 
 RIGHT_PANEL_SIDE = "right"
 RIGHT_PANEL_FILL = "y"
@@ -107,7 +107,7 @@ def _create_resize_handle(parent, app) -> tb.Frame:
 def _create_content_frame(parent, app) -> tb.Frame:
     content = tb.Frame(parent)
     content.pack(side="left", fill="both", expand=True)
-    setup_shotlog_frame(app, content)
+    create_shotlog_tree(content, app)
     return content
 
 

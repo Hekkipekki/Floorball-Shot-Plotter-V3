@@ -18,8 +18,15 @@ from core.schema import (
     IDX_DISTANCE,
     IDX_ANGLE,
     IDX_ZONE,
+    IDX_STRENGTH_STATE,
+    IDX_CHANCE_TYPE,
+    IDX_SCREEN,
+    IDX_PRESSURE,
+    IDX_GOALIE_STATE,
+    IDX_PERIOD_TIME,
     ENTRY_LENGTH,
 )
+from core.xg_context import infer_xg_context_defaults
 from core.xg_features import build_location_features
 
 
@@ -46,6 +53,21 @@ def _add_missing_location_features(row) -> None:
         row[IDX_ZONE] = zone
 
 
+def _add_missing_xg_context(row) -> None:
+    defaults = infer_xg_context_defaults(row[IDX_PHASE] or "", row[IDX_SITUATION] or "", row[IDX_TYPE] or "")
+    field_map = {
+        IDX_STRENGTH_STATE: "strength_state",
+        IDX_CHANCE_TYPE: "chance_type",
+        IDX_SCREEN: "screen",
+        IDX_PRESSURE: "pressure",
+        IDX_GOALIE_STATE: "goalie_state",
+        IDX_PERIOD_TIME: "period_time",
+    }
+    for index, key in field_map.items():
+        if row[index] in (None, ""):
+            row[index] = defaults[key]
+
+
 def normalize_entry(entry):
     """
     Return a safe list version of an entry padded to the full schema length.
@@ -55,6 +77,7 @@ def normalize_entry(entry):
         row += [None] * (ENTRY_LENGTH - len(row))
 
     _add_missing_location_features(row)
+    _add_missing_xg_context(row)
     return row
 
 
@@ -136,3 +159,27 @@ def get_angle(entry, default=""):
 
 def get_zone(entry):
     return _get_field(entry, IDX_ZONE) or ""
+
+
+def get_strength_state(entry):
+    return _get_field(entry, IDX_STRENGTH_STATE) or ""
+
+
+def get_chance_type(entry):
+    return _get_field(entry, IDX_CHANCE_TYPE) or ""
+
+
+def get_screen(entry):
+    return _get_field(entry, IDX_SCREEN) or ""
+
+
+def get_pressure(entry):
+    return _get_field(entry, IDX_PRESSURE) or ""
+
+
+def get_goalie_state(entry):
+    return _get_field(entry, IDX_GOALIE_STATE) or ""
+
+
+def get_period_time(entry):
+    return _get_field(entry, IDX_PERIOD_TIME) or ""

@@ -12,6 +12,7 @@ Features:
 - Play / Pause / Stop
 - Loop Segment ON/OFF
 - Save Segment callback
+- Export Clip callback for local segment cutting
 - ESC / X close
 """
 
@@ -43,13 +44,10 @@ CONTROL_PANEL_PAD_X = 12
 CONTROL_PANEL_PAD_Y = 8
 ENTRY_WIDTH = 7
 PLAY_TEXT = "▶"
-PAUSE_TEXT = "||"
+PAUSE_TEXT = "❚❚"
 STOP_TEXT = "⏹"
 
 
-# ------------------------------------------------------------
-# Player
-# ------------------------------------------------------------
 class VLCOverlayWithControls(tk.Frame):
     BG = VIDEO_BG
     PANEL_BG = PANEL_BG
@@ -67,13 +65,17 @@ class VLCOverlayWithControls(tk.Frame):
         autoplay: bool = True,
         app=None,
         on_save_segment=None,
+        on_export_segment=None,
+        video_source_id: str | None = None,
         **kwargs,
     ):
         super().__init__(master, bg=self.BG, **kwargs)
 
         self.app = app
         self.video_path = video_path
+        self.video_source_id = video_source_id or video_path
         self.on_save_segment = on_save_segment
+        self.on_export_segment = on_export_segment
 
         self.start_time = float(start or 0.0)
         self.stop_time = None if stop in ("", None) else float(stop)
@@ -98,9 +100,6 @@ class VLCOverlayWithControls(tk.Frame):
 
         self.after(250, self._update_loop)
 
-    # --------------------------------------------------------
-    # UI helpers
-    # --------------------------------------------------------
     def _create_entry(self, parent: tk.Misc, value: str) -> tk.Entry:
         entry = tk.Entry(
             parent,
@@ -207,15 +206,17 @@ class VLCOverlayWithControls(tk.Frame):
         self.action_group = tk.Frame(action_row, bg=self.PANEL_BG)
         self.action_group.pack(side="right")
 
+        self.export_btn = create_control_button(self.action_group, "✂ Export Clip", self.export_segment)
+        self.export_btn.pack(side="left", padx=(0, 5))
+        if not callable(self.on_export_segment):
+            self.export_btn.config(state="disabled")
+
         self.save_btn = create_control_button(self.action_group, "💾 Save", self.save_segment)
         self.save_btn.pack(side="left", padx=(0, 5))
 
         self.close_small_btn = create_control_button(self.action_group, "Close", self.close)
         self.close_small_btn.pack(side="left")
 
-    # --------------------------------------------------------
-    # UI
-    # --------------------------------------------------------
     def _build_ui(self) -> None:
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -255,9 +256,6 @@ class VLCOverlayWithControls(tk.Frame):
         self._build_timeline_row()
         self._build_action_row()
 
-    # --------------------------------------------------------
-    # VLC
-    # --------------------------------------------------------
     def _init_vlc(self) -> None:
         if vlc is None:
             raise RuntimeError(VLC_IMPORT_ERROR or "python-vlc unavailable")
@@ -279,9 +277,6 @@ class VLCOverlayWithControls(tk.Frame):
             messagebox.showerror("Playback Failed", f"Could not initialize video player:\n{e}")
             self.close()
 
-    # --------------------------------------------------------
-    # Playback controls
-    # --------------------------------------------------------
     def _set_play_button_state(self) -> None:
         if not hasattr(self, "play_btn"):
             return
@@ -363,9 +358,6 @@ class VLCOverlayWithControls(tk.Frame):
         self.loop_segment.set(not self.loop_segment.get())
         self.loop_btn.config(text=f"Loop: {'ON' if self.loop_segment.get() else 'OFF'}")
 
-    # --------------------------------------------------------
-    # Segment
-    # --------------------------------------------------------
     def _current_video_time(self) -> float:
         if self.player is None:
             return 0.0
@@ -427,9 +419,24 @@ class VLCOverlayWithControls(tk.Frame):
         self.save_btn.config(text="✓ Saved")
         self.after(1200, lambda: self.save_btn.config(text="💾 Save"))
 
-    # --------------------------------------------------------
-    # Timeline
-    # --------------------------------------------------------
+    def export_segment(self) -> None:
+        self.apply_segment_fields(normalize=True)
+
+        if not callable(self.on_export_segment):
+            return
+
+        self.export_btn.config(text="Exporting…", state="disabled")
+        self.update_idletasks()
+        try:
+            self.on_export_segment(self.start_time, self.stop_time)
+            self.export_btn.config(text="✓ Exported")
+        except Exception as e:
+            print("⚠️ on_export_segment failed:", e)
+            messagebox.showerror("Export Clip Failed", str(e))
+            self.export_btn.config(text="✂ Export Clip")
+        finally:
+            self.after(1500, lambda: self.export_btn.config(text="✂ Export Clip", state="normal"))
+
     def _seek_timeline_from_mouse(self, event) -> None:
         if self.player is None:
             return
@@ -541,9 +548,15 @@ class VLCOverlayWithControls(tk.Frame):
                 if not self.user_dragging:
                     self.timeline.set(current)
 
-                end_label = self.stop_time if self.stop_time is not None else self.duration_seconds
-                self.time_label.config(text=f"{format_time(current)} / {format_time(end_label)}")
+                # The main time label always shows full video duration. The Stop
+                # field is an editable segment marker, not a hard scrub limit.
+                self.time_label.config(text=f"{format_time(current)} / {format_time(self.duration_seconds)}")
                 self._set_play_button_state()
+
+                try:
+                    is_playing = bool(self.player.is_playing())
+                except Exception:
+                    is_playing = False
 
                 loop_end = self.stop_time if self.stop_time is not None else self.duration_seconds
                 near_loop_end = bool(loop_end and current >= loop_end - 0.25)
@@ -552,20 +565,21 @@ class VLCOverlayWithControls(tk.Frame):
                 if loop_end and current < loop_end - 0.5:
                     self._segment_end_paused = False
 
-                if self.loop_segment.get():
-                    if near_loop_end or at_video_end:
-                        self._restart_loop()
-                elif self.stop_time is not None and near_loop_end:
-                    self._pause_at_segment_end(loop_end)
+                # Stop/loop segment enforcement only applies during playback.
+                # Paused/manual scrubbing may move beyond Stop so users can set
+                # a new Stop, inspect the rest of the video, or clear the field.
+                if is_playing and not self.user_dragging:
+                    if self.loop_segment.get():
+                        if near_loop_end or at_video_end:
+                            self._restart_loop()
+                    elif self.stop_time is not None and near_loop_end:
+                        self._pause_at_segment_end(loop_end)
 
         except Exception as e:
             print("⚠️ video update loop error:", e)
 
         self.after(150, self._update_loop)
 
-    # --------------------------------------------------------
-    # Close
-    # --------------------------------------------------------
     def _on_escape(self, _event=None):
         self.close()
         return "break"
@@ -621,6 +635,12 @@ class VLCOverlayWithControls(tk.Frame):
                 app.video_overlay = None
         except Exception as e:
             print("⚠️ overlay destroy failed:", e)
+
+        try:
+            if app is not None and getattr(app, "_vlc_player", None) is self:
+                app._vlc_player = None
+        except Exception:
+            pass
 
         try:
             if app is not None and hasattr(app, "canvas"):

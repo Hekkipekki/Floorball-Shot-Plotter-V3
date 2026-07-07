@@ -24,6 +24,15 @@ def _show_playback_error() -> None:
 
 
 def _destroy_existing_overlay(app) -> None:
+    """Fully stop any previous VLC player before replacing the overlay."""
+    existing_player = getattr(app, "_vlc_player", None)
+    if existing_player is not None:
+        try:
+            existing_player.close()
+        except Exception:
+            pass
+        app._vlc_player = None
+
     existing = getattr(app, "video_overlay", None)
     if existing is not None:
         try:
@@ -47,7 +56,7 @@ def _create_overlay_frame(app) -> tk.Frame:
     return overlay
 
 
-def _create_player(app, video_path, start, stop, autoplay, on_save_segment):
+def _create_player(app, video_path, start, stop, autoplay, on_save_segment, on_export_segment, video_source_id):
     player = VLCOverlayWithControls(
         app.video_overlay,
         video_path=video_path,
@@ -56,6 +65,8 @@ def _create_player(app, video_path, start, stop, autoplay, on_save_segment):
         autoplay=autoplay,
         app=app,
         on_save_segment=on_save_segment,
+        on_export_segment=on_export_segment,
+        video_source_id=video_source_id,
     )
     install_video_plot_adapter(player)
     return player
@@ -69,6 +80,8 @@ def show_video_overlay(
     *,
     autoplay: bool = True,
     on_save_segment=None,
+    on_export_segment=None,
+    video_source_id: str | None = None,
 ) -> None:
     if not _vlc_runtime_available():
         _show_playback_error()
@@ -79,7 +92,7 @@ def show_video_overlay(
     _refresh_canvas_frame(app)
 
     app.video_overlay = _create_overlay_frame(app)
-    player = _create_player(app, video_path, start, stop, autoplay, on_save_segment)
+    player = _create_player(app, video_path, start, stop, autoplay, on_save_segment, on_export_segment, video_source_id)
     player.pack(fill="both", expand=True)
 
     app._vlc_player = player

@@ -111,6 +111,7 @@ class CoreLogic:
         period=None,
         pass_x=None,
         pass_y=None,
+        context=None,
     ):
         create_shot_event(
             self.app,
@@ -124,6 +125,7 @@ class CoreLogic:
             period,
             pass_x,
             pass_y,
+            context,
         )
 
     def add_goal_event(
@@ -138,6 +140,7 @@ class CoreLogic:
         period=None,
         pass_x=None,
         pass_y=None,
+        context=None,
     ):
         create_goal_event(
             self.app,
@@ -151,6 +154,7 @@ class CoreLogic:
             period,
             pass_x,
             pass_y,
+            context,
         )
 
     # ---------------------------------------------------------
