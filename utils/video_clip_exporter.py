@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import glob
 import os
 import shutil
 import subprocess
@@ -20,6 +21,15 @@ COMMON_FFMPEG_PATHS = (
     r"C:\ProgramData\chocolatey\bin\ffmpeg.exe",
 )
 
+WINGET_FFMPEG_GLOBS = (
+    r"%LOCALAPPDATA%\Microsoft\WinGet\Links\ffmpeg.exe",
+    r"%LOCALAPPDATA%\Microsoft\WinGet\Packages\*FFmpeg*\**\ffmpeg.exe",
+    r"%LOCALAPPDATA%\Microsoft\WinGet\Packages\*Gyan*FFmpeg*\**\ffmpeg.exe",
+    r"%USERPROFILE%\AppData\Local\Microsoft\WinGet\Links\ffmpeg.exe",
+    r"%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\*FFmpeg*\**\ffmpeg.exe",
+    r"%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\*Gyan*FFmpeg*\**\ffmpeg.exe",
+)
+
 
 def _candidate_paths_from_path_env() -> list[str]:
     candidates: list[str] = []
@@ -29,6 +39,37 @@ def _candidate_paths_from_path_env() -> list[str]:
             continue
         candidate = Path(folder) / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg")
         candidates.append(str(candidate))
+    return candidates
+
+
+def _candidate_paths_from_windows_where() -> list[str]:
+    if os.name != "nt":
+        return []
+    candidates: list[str] = []
+    commands = (["where", "ffmpeg"], ["cmd", "/c", "where ffmpeg"])
+    for command in commands:
+        try:
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                check=False,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+        except Exception:
+            continue
+        if result.returncode == 0:
+            candidates.extend(line.strip() for line in result.stdout.splitlines() if line.strip())
+    return candidates
+
+
+def _candidate_paths_from_winget_dirs() -> list[str]:
+    candidates: list[str] = []
+    if os.name != "nt":
+        return candidates
+    for pattern in WINGET_FFMPEG_GLOBS:
+        expanded = os.path.expandvars(pattern)
+        candidates.extend(glob.glob(expanded, recursive=True))
     return candidates
 
 
@@ -49,21 +90,19 @@ def _is_usable_ffmpeg(command: str) -> bool:
 def _find_ffmpeg() -> str:
     candidates: list[str] = []
 
-    # Works in normal Python sessions when PATH is inherited correctly.
     found = shutil.which("ffmpeg") or shutil.which("ffmpeg.exe")
     if found:
         candidates.append(found)
 
-    # Works when subprocess can resolve ffmpeg even if shutil.which cannot.
     candidates.append("ffmpeg")
     if os.name == "nt":
         candidates.append("ffmpeg.exe")
 
-    # Works for common Windows installs and packaged builds with stale PATH handling.
     candidates.extend(COMMON_FFMPEG_PATHS)
     candidates.extend(_candidate_paths_from_path_env())
+    candidates.extend(_candidate_paths_from_windows_where())
+    candidates.extend(_candidate_paths_from_winget_dirs())
 
-    # Works if ffmpeg.exe is copied next to the packaged executable or source main.py.
     try:
         candidates.append(str(Path(sys.executable).resolve().parent / "ffmpeg.exe"))
     except Exception:
@@ -85,8 +124,9 @@ def _find_ffmpeg() -> str:
 
     raise VideoClipExportError(
         "FFmpeg is required to export shorter clips, but the app could not find ffmpeg.exe.\n\n"
-        "PowerShell can see FFmpeg, so restart the app after installing it. If this still happens, "
-        "copy ffmpeg.exe next to Floorball Shot Plotter.exe or into C:\\ffmpeg\\bin."
+        "PowerShell can see FFmpeg, so it is probably installed in a location the packaged app cannot inherit.\n\n"
+        "Fast fix: run `where ffmpeg` in PowerShell, then copy that ffmpeg.exe next to Floorball Shot Plotter.exe "
+        "or into C:\\ffmpeg\\bin."
     )
 
 
@@ -129,8 +169,6 @@ def export_local_segment(source_path: str, output_path: str, start: float = 0.0,
     if length is not None:
         base_command += ["-t", f"{length:.3f}"]
 
-    # First try stream copy for speed and zero generation loss. If the source
-    # codec/container does not allow that cut, fall back to a reliable re-encode.
     copy_command = base_command + ["-c", "copy", "-avoid_negative_ts", "make_zero", str(output)]
     result = _run_ffmpeg(copy_command)
     if result.returncode == 0 and output.exists() and output.stat().st_size > 0:
