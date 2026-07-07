@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import glob
 import os
+import queue
 import shutil
 import subprocess
 import sys
+import threading
 from pathlib import Path
 from typing import Callable
 
@@ -152,6 +154,14 @@ def _parse_progress_seconds(value: str) -> float | None:
         return None
 
 
+def _drain_pipe(pipe, output: list[str]) -> None:
+    try:
+        for line in pipe:
+            output.append(line)
+    except Exception:
+        pass
+
+
 def _run_ffmpeg_with_progress(command: list[str], duration: float | None, progress_callback: ProgressCallback | None = None) -> subprocess.CompletedProcess[str]:
     progress_command = command[:-1] + ["-progress", "pipe:1", "-nostats", command[-1]]
     process = subprocess.Popen(
@@ -159,32 +169,51 @@ def _run_ffmpeg_with_progress(command: list[str], duration: float | None, progre
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        bufsize=1,
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )
 
+    stderr_lines: list[str] = []
+    stderr_thread = None
+    if process.stderr is not None:
+        stderr_thread = threading.Thread(target=_drain_pipe, args=(process.stderr, stderr_lines), daemon=True)
+        stderr_thread.start()
+
     last_seconds = 0.0
+    stdout_lines: list[str] = []
     if progress_callback:
         progress_callback(0.0 if duration else None, 0.0, duration)
 
-    stdout_lines: list[str] = []
     assert process.stdout is not None
-    for line in process.stdout:
-        stdout_lines.append(line)
-        key, _, value = line.strip().partition("=")
-        if key == "out_time_ms":
-            seconds = _parse_progress_seconds(value)
+    try:
+        for line in process.stdout:
+            stdout_lines.append(line)
+            key, _, value = line.strip().partition("=")
+            if key in {"out_time_ms", "out_time_us"}:
+                seconds = _parse_progress_seconds(value)
+            elif key == "out_time" and value:
+                try:
+                    h, m, s = value.split(":")
+                    seconds = int(h) * 3600 + int(m) * 60 + float(s)
+                except Exception:
+                    seconds = None
+            else:
+                seconds = None
+
             if seconds is not None:
                 last_seconds = seconds
                 fraction = None if not duration else min(1.0, seconds / duration)
                 if progress_callback:
                     progress_callback(fraction, seconds, duration)
+    finally:
+        return_code = process.wait()
+        if stderr_thread is not None:
+            stderr_thread.join(timeout=1.0)
 
-    stderr = process.stderr.read() if process.stderr is not None else ""
-    return_code = process.wait()
     if progress_callback:
         progress_callback(1.0 if return_code == 0 else None, last_seconds, duration)
 
-    return subprocess.CompletedProcess(progress_command, return_code, "".join(stdout_lines), stderr)
+    return subprocess.CompletedProcess(progress_command, return_code, "".join(stdout_lines), "".join(stderr_lines))
 
 
 def _build_analysis_export_command(ffmpeg: str, source: Path, output: Path, start: float, length: float | None) -> list[str]:
@@ -246,3 +275,32 @@ def export_local_segment(
 
     details = (result.stderr or result.stdout or "Unknown FFmpeg error").strip()
     raise VideoClipExportError(f"Could not export clip:\n{details[-1200:]}")
+
+
+def export_local_segment_async(
+    source_path: str,
+    output_path: str,
+    start: float = 0.0,
+    stop: float | None = None,
+    *,
+    progress_callback: ProgressCallback | None = None,
+    done_callback=None,
+) -> None:
+    """Run export in a worker thread and call done_callback(result, error)."""
+
+    def worker() -> None:
+        try:
+            result = export_local_segment(
+                source_path,
+                output_path,
+                start=start,
+                stop=stop,
+                progress_callback=progress_callback,
+            )
+            if done_callback:
+                done_callback(result, None)
+        except Exception as exc:
+            if done_callback:
+                done_callback(None, exc)
+
+    threading.Thread(target=worker, daemon=True).start()
