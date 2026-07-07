@@ -129,21 +129,19 @@ def _start_async_clip_export(app, match_name: str, latest_index: int, event_numb
 
     def done_callback(exported, error) -> None:
         def finish() -> None:
-            try:
-                if error is not None:
-                    if isinstance(error, VideoClipExportError):
-                        title = "Clip Export Failed"
-                        detail = "The shot was linked to the original video instead.\n\n" + str(error)
-                    else:
-                        title = "Video Link Warning"
-                        detail = "The shot was linked to the original video, but the short clip could not be exported.\n\n" + str(error)
-                    messagebox.showwarning(title, detail)
-                    return
+            close_render_progress(progress)
+            if error is not None:
+                if isinstance(error, VideoClipExportError):
+                    title = "Clip Export Failed"
+                    detail = "The shot was linked to the original video instead.\n\n" + str(error)
+                else:
+                    title = "Video Link Warning"
+                    detail = "The shot was linked to the original video, but the short clip could not be exported.\n\n" + str(error)
+                messagebox.showwarning(title, detail)
+                return
 
-                if _replace_event_video(app, match_name, latest_index, event_number, _clip_video_dict(exported, start, stop)):
-                    _refresh_after_video_update(app)
-            finally:
-                close_render_progress(progress)
+            if _replace_event_video(app, match_name, latest_index, event_number, _clip_video_dict(exported, start, stop)):
+                _refresh_after_video_update(app)
 
         _run_on_ui(app, finish)
 
