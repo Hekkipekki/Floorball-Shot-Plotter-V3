@@ -74,7 +74,7 @@ def _refresh_after_video_update(app) -> None:
     except Exception:
         pass
     try:
-        app.auto_save_current_match()
+        app.auto_update_current_match()
     except Exception:
         pass
 
