@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import Callable
 
 
 class VideoClipExportError(RuntimeError):
@@ -30,11 +31,10 @@ WINGET_FFMPEG_GLOBS = (
     r"%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\*Gyan*FFmpeg*\**\ffmpeg.exe",
 )
 
-# Coaching clips should be small enough to keep many shots linked to one match.
-# CRF 24 keeps good visual quality for analysis while reducing 4K GoPro clips
-# from ~100 Mbit/s to a much smaller variable bitrate.
 ANALYSIS_CRF = "24"
 AUDIO_BITRATE = "128k"
+MAX_EXPORT_HEIGHT = 1080
+ProgressCallback = Callable[[float | None, float | None, float | None], None]
 
 
 def _candidate_paths_from_path_env() -> list[str]:
@@ -145,14 +145,46 @@ def _duration(start: float, stop: float | None) -> float | None:
     return length
 
 
-def _run_ffmpeg(command: list[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        command,
-        capture_output=True,
+def _parse_progress_seconds(value: str) -> float | None:
+    try:
+        return max(0.0, int(value) / 1_000_000)
+    except Exception:
+        return None
+
+
+def _run_ffmpeg_with_progress(command: list[str], duration: float | None, progress_callback: ProgressCallback | None = None) -> subprocess.CompletedProcess[str]:
+    progress_command = command[:-1] + ["-progress", "pipe:1", "-nostats", command[-1]]
+    process = subprocess.Popen(
+        progress_command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True,
-        check=False,
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )
+
+    last_seconds = 0.0
+    if progress_callback:
+        progress_callback(0.0 if duration else None, 0.0, duration)
+
+    stdout_lines: list[str] = []
+    assert process.stdout is not None
+    for line in process.stdout:
+        stdout_lines.append(line)
+        key, _, value = line.strip().partition("=")
+        if key == "out_time_ms":
+            seconds = _parse_progress_seconds(value)
+            if seconds is not None:
+                last_seconds = seconds
+                fraction = None if not duration else min(1.0, seconds / duration)
+                if progress_callback:
+                    progress_callback(fraction, seconds, duration)
+
+    stderr = process.stderr.read() if process.stderr is not None else ""
+    return_code = process.wait()
+    if progress_callback:
+        progress_callback(1.0 if return_code == 0 else None, last_seconds, duration)
+
+    return subprocess.CompletedProcess(progress_command, return_code, "".join(stdout_lines), stderr)
 
 
 def _build_analysis_export_command(ffmpeg: str, source: Path, output: Path, start: float, length: float | None) -> list[str]:
@@ -164,6 +196,8 @@ def _build_analysis_export_command(ffmpeg: str, source: Path, output: Path, star
         "0:v:0",
         "-map",
         "0:a?",
+        "-vf",
+        f"scale='min(iw,-2)':'min(ih,{MAX_EXPORT_HEIGHT})':force_original_aspect_ratio=decrease",
         "-c:v",
         "libx264",
         "-preset",
@@ -183,7 +217,13 @@ def _build_analysis_export_command(ffmpeg: str, source: Path, output: Path, star
     return command
 
 
-def export_local_segment(source_path: str, output_path: str, start: float = 0.0, stop: float | None = None) -> Path:
+def export_local_segment(
+    source_path: str,
+    output_path: str,
+    start: float = 0.0,
+    stop: float | None = None,
+    progress_callback: ProgressCallback | None = None,
+) -> Path:
     """Export a local video segment to output_path and return the output Path."""
 
     source = Path(source_path).expanduser()
@@ -200,7 +240,7 @@ def export_local_segment(source_path: str, output_path: str, start: float = 0.0,
     length = _duration(start, stop)
 
     command = _build_analysis_export_command(ffmpeg, source, output, start, length)
-    result = _run_ffmpeg(command)
+    result = _run_ffmpeg_with_progress(command, length, progress_callback)
     if result.returncode == 0 and output.exists() and output.stat().st_size > 0:
         return output
 
