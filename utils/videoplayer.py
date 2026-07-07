@@ -548,9 +548,15 @@ class VLCOverlayWithControls(tk.Frame):
                 if not self.user_dragging:
                     self.timeline.set(current)
 
-                end_label = self.stop_time if self.stop_time is not None else self.duration_seconds
-                self.time_label.config(text=f"{format_time(current)} / {format_time(end_label)}")
+                # The main time label always shows full video duration. The Stop
+                # field is an editable segment marker, not a hard scrub limit.
+                self.time_label.config(text=f"{format_time(current)} / {format_time(self.duration_seconds)}")
                 self._set_play_button_state()
+
+                try:
+                    is_playing = bool(self.player.is_playing())
+                except Exception:
+                    is_playing = False
 
                 loop_end = self.stop_time if self.stop_time is not None else self.duration_seconds
                 near_loop_end = bool(loop_end and current >= loop_end - 0.25)
@@ -559,11 +565,15 @@ class VLCOverlayWithControls(tk.Frame):
                 if loop_end and current < loop_end - 0.5:
                     self._segment_end_paused = False
 
-                if self.loop_segment.get():
-                    if near_loop_end or at_video_end:
-                        self._restart_loop()
-                elif self.stop_time is not None and near_loop_end:
-                    self._pause_at_segment_end(loop_end)
+                # Stop/loop segment enforcement only applies during playback.
+                # Paused/manual scrubbing may move beyond Stop so users can set
+                # a new Stop, inspect the rest of the video, or clear the field.
+                if is_playing and not self.user_dragging:
+                    if self.loop_segment.get():
+                        if near_loop_end or at_video_end:
+                            self._restart_loop()
+                    elif self.stop_time is not None and near_loop_end:
+                        self._pause_at_segment_end(loop_end)
 
         except Exception as e:
             print("⚠️ video update loop error:", e)
@@ -625,6 +635,12 @@ class VLCOverlayWithControls(tk.Frame):
                 app.video_overlay = None
         except Exception as e:
             print("⚠️ overlay destroy failed:", e)
+
+        try:
+            if app is not None and getattr(app, "_vlc_player", None) is self:
+                app._vlc_player = None
+        except Exception:
+            pass
 
         try:
             if app is not None and hasattr(app, "canvas"):
