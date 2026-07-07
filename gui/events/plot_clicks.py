@@ -4,6 +4,7 @@ GOAL_EVENT_TYPE = "goal"
 LEFT_CLICK_BUTTON = 1
 RIGHT_CLICK_BUTTON = 3
 PENDING_PASS_DATA_WITH_TYPE_LENGTH = 8
+PENDING_PASS_DATA_WITH_CONTEXT_LENGTH = 9
 
 
 def on_space_key_pressed(app, event):
@@ -28,11 +29,14 @@ def _pending_pass_data(app):
 
 
 def _unpack_pending_pass_data(data):
-    if len(data) == PENDING_PASS_DATA_WITH_TYPE_LENGTH:
+    if len(data) == PENDING_PASS_DATA_WITH_CONTEXT_LENGTH:
         return data
+    if len(data) == PENDING_PASS_DATA_WITH_TYPE_LENGTH:
+        main_x, main_y, phase, situation, shot_type, passer, shooter, event_type = data
+        return main_x, main_y, phase, situation, shot_type, passer, shooter, event_type, None
 
     main_x, main_y, phase, situation, shot_type, passer, shooter = data
-    return main_x, main_y, phase, situation, shot_type, passer, shooter, SHOT_EVENT_TYPE
+    return main_x, main_y, phase, situation, shot_type, passer, shooter, SHOT_EVENT_TYPE, None
 
 
 def _event_coordinates(event):
@@ -55,7 +59,7 @@ def _add_pending_pass_event(app, event):
     if data is None:
         return
 
-    main_x, main_y, phase, situation, shot_type, passer, shooter, event_type = _unpack_pending_pass_data(data)
+    main_x, main_y, phase, situation, shot_type, passer, shooter, event_type, context = _unpack_pending_pass_data(data)
     pass_x, pass_y = _event_coordinates(event)
     add_event = _event_adder(app, event_type)
     add_event(
@@ -68,6 +72,7 @@ def _add_pending_pass_event(app, event):
         shooter,
         pass_x=pass_x,
         pass_y=pass_y,
+        context=context,
     )
     _clear_pending_pass_data(app)
 
