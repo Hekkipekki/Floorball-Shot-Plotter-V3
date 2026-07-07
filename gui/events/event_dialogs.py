@@ -1,7 +1,7 @@
 import tkinter as tk
 
 from gui.events.popup_utils import prepare_popup
-from gui.events.event_finalize import finalize_event
+from gui.events.xg_context_dialog import show_xg_context_dialog
 
 
 PHASE_GROUPS = {
@@ -430,7 +430,7 @@ def show_shooter_hand_dialog(
             or shot_type in ("Free shot", "Penalty shot")
         )
         if unassisted:
-            finalize_event(
+            show_xg_context_dialog(
                 self,
                 x,
                 y,
@@ -484,7 +484,7 @@ def show_passer_hand_dialog(
         self,
         title="Select Opponent Passer Hand",
         options=PASSER_HAND_OPTIONS,
-        on_select=lambda passer_hand: finalize_event(
+        on_select=lambda passer_hand: show_xg_context_dialog(
             self,
             x,
             y,
