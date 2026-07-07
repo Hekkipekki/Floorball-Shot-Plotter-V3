@@ -30,6 +30,12 @@ WINGET_FFMPEG_GLOBS = (
     r"%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\*Gyan*FFmpeg*\**\ffmpeg.exe",
 )
 
+# Coaching clips should be small enough to keep many shots linked to one match.
+# CRF 24 keeps good visual quality for analysis while reducing 4K GoPro clips
+# from ~100 Mbit/s to a much smaller variable bitrate.
+ANALYSIS_CRF = "24"
+AUDIO_BITRATE = "128k"
+
 
 def _candidate_paths_from_path_env() -> list[str]:
     candidates: list[str] = []
@@ -149,6 +155,34 @@ def _run_ffmpeg(command: list[str]) -> subprocess.CompletedProcess[str]:
     )
 
 
+def _build_analysis_export_command(ffmpeg: str, source: Path, output: Path, start: float, length: float | None) -> list[str]:
+    command = [ffmpeg, "-y", "-ss", f"{start:.3f}", "-i", str(source)]
+    if length is not None:
+        command += ["-t", f"{length:.3f}"]
+    command += [
+        "-map",
+        "0:v:0",
+        "-map",
+        "0:a?",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "fast",
+        "-crf",
+        ANALYSIS_CRF,
+        "-pix_fmt",
+        "yuv420p",
+        "-c:a",
+        "aac",
+        "-b:a",
+        AUDIO_BITRATE,
+        "-movflags",
+        "+faststart",
+        str(output),
+    ]
+    return command
+
+
 def export_local_segment(source_path: str, output_path: str, start: float = 0.0, stop: float | None = None) -> Path:
     """Export a local video segment to output_path and return the output Path."""
 
@@ -165,29 +199,8 @@ def export_local_segment(source_path: str, output_path: str, start: float = 0.0,
     start = max(0.0, float(start or 0.0))
     length = _duration(start, stop)
 
-    base_command = [ffmpeg, "-y", "-ss", f"{start:.3f}", "-i", str(source)]
-    if length is not None:
-        base_command += ["-t", f"{length:.3f}"]
-
-    copy_command = base_command + ["-c", "copy", "-avoid_negative_ts", "make_zero", str(output)]
-    result = _run_ffmpeg(copy_command)
-    if result.returncode == 0 and output.exists() and output.stat().st_size > 0:
-        return output
-
-    encode_command = base_command + [
-        "-c:v",
-        "libx264",
-        "-preset",
-        "veryfast",
-        "-crf",
-        "20",
-        "-c:a",
-        "aac",
-        "-movflags",
-        "+faststart",
-        str(output),
-    ]
-    result = _run_ffmpeg(encode_command)
+    command = _build_analysis_export_command(ffmpeg, source, output, start, length)
+    result = _run_ffmpeg(command)
     if result.returncode == 0 and output.exists() and output.stat().st_size > 0:
         return output
 
