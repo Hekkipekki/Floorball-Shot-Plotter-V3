@@ -24,6 +24,15 @@ def _show_playback_error() -> None:
 
 
 def _destroy_existing_overlay(app) -> None:
+    """Fully stop any previous VLC player before replacing the overlay."""
+    existing_player = getattr(app, "_vlc_player", None)
+    if existing_player is not None:
+        try:
+            existing_player.close()
+        except Exception:
+            pass
+        app._vlc_player = None
+
     existing = getattr(app, "video_overlay", None)
     if existing is not None:
         try:
