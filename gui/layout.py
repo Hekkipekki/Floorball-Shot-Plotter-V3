@@ -9,7 +9,7 @@ from gui.panels.right_shotlog import create_right_panel
 from gui.panels.controls.heatmap_controls import show_heatmap_settings_window
 from gui.shot_zone_overlay import toggle_shot_zone_overlay
 from gui.theme import apply_theme
-from gui.video_actions import open_video_clip
+from gui.video_actions import open_video_clip, open_youtube_video
 
 FILE_MENU_COMMANDS = [
     ("Save CSV", "save_csv"),
@@ -20,6 +20,7 @@ FILE_MENU_COMMANDS = [
 
 VIDEO_MENU_COMMANDS = [
     ("Open Video Clip...", open_video_clip),
+    ("Open YouTube / Online Video...", open_youtube_video),
 ]
 
 
